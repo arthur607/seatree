@@ -1,0 +1,42 @@
+filters:
+  or:
+    - file.inFolder("1. 🎯 Intention/Wishlist/Shopping")
+properties:
+  done:
+    displayName: "{{t:base.done_shopping}}"
+  file.name:
+    displayName: "{{t:base.title}}"
+  category:
+    displayName: "{{t:base.category}}"
+views:
+  - type: table
+    name: "{{t:view.to_buy}}"
+    filters: done != true
+    order:
+      - done
+      - file.name
+      - category
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.bought}}"
+    filters: done == true
+    order:
+      - done
+      - file.name
+      - category
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.all}}"
+    order:
+      - done
+      - file.name
+      - category
+    sort:
+      - property: done
+        direction: ASC
+      - property: file.name
+        direction: ASC

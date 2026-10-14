@@ -1,0 +1,48 @@
+filters:
+  or:
+    - file.inFolder("1. 🎯 Intention/Wishlist/Games")
+    - file.inFolder("2. 📓 Memory/Experiences/Games")
+properties:
+  done:
+    displayName: "{{t:base.done_games}}"
+  file.name:
+    displayName: "{{t:base.title}}"
+  platform:
+    displayName: "{{t:base.platform}}"
+  genre:
+    displayName: "{{t:base.genre}}"
+views:
+  - type: table
+    name: "{{t:view.to_play}}"
+    filters: done != true
+    order:
+      - done
+      - file.name
+      - platform
+      - genre
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.played}}"
+    filters: done == true
+    order:
+      - done
+      - file.name
+      - platform
+      - genre
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.all}}"
+    order:
+      - done
+      - file.name
+      - platform
+      - genre
+    sort:
+      - property: done
+        direction: ASC
+      - property: file.name
+        direction: ASC

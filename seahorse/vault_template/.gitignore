@@ -1,0 +1,5 @@
+.obsidian/workspace*.json
+.trash/
+.DS_Store
+conflict-files-obsidian-git.md
+.obsidian/plugins/obsidian-git/data.json

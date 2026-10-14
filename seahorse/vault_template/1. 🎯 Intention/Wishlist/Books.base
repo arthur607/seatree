@@ -1,0 +1,48 @@
+filters:
+  or:
+    - file.inFolder("1. 🎯 Intention/Wishlist/Books")
+    - file.inFolder("2. 📓 Memory/Experiences/Books")
+properties:
+  done:
+    displayName: "{{t:base.done_books}}"
+  file.name:
+    displayName: "{{t:base.title}}"
+  author:
+    displayName: "{{t:base.author}}"
+  genre:
+    displayName: "{{t:base.genre}}"
+views:
+  - type: table
+    name: "{{t:view.to_read}}"
+    filters: done != true
+    order:
+      - done
+      - file.name
+      - author
+      - genre
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.read}}"
+    filters: done == true
+    order:
+      - done
+      - file.name
+      - author
+      - genre
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.all}}"
+    order:
+      - done
+      - file.name
+      - author
+      - genre
+    sort:
+      - property: done
+        direction: ASC
+      - property: file.name
+        direction: ASC

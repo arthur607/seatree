@@ -1,0 +1,93 @@
+/* Seahorse: o Dashboard e a semana em cartões, como no Notion. */
+
+/* Dashboard: mais largo, embeds sem moldura nem título. */
+.seahorse-dashboard {
+  --file-line-width: 1200px;
+}
+.seahorse-dashboard .markdown-embed {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.seahorse-dashboard .markdown-embed-title,
+.seahorse-dashboard .markdown-embed-link,
+.seahorse-dashboard .markdown-embed .metadata-container,
+.seahorse-dashboard .markdown-embed .inline-title {
+  display: none;
+}
+.seahorse-dashboard h2 {
+  font-size: 1.05em;
+  margin-top: 1.6em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+/* Títulos dentro dos embeds, como os assuntos da lista de tarefas: pequenos e discretos. */
+.seahorse-dashboard .markdown-embed h2 {
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border-bottom: none;
+  margin-top: 1em;
+}
+
+/* A semana em grade: um cartão por dia, lado a lado. Vale no Dashboard e na semana em modo de leitura. */
+.markdown-preview-section:has(> div > .callout[data-callout="day"]) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+.markdown-preview-section:has(> div > .callout[data-callout="day"]) > div {
+  grid-column: 1 / -1;
+}
+.markdown-preview-section:has(> div > .callout[data-callout="day"]) > div:has(> .callout[data-callout="day"]) {
+  grid-column: auto;
+  height: 100%;
+}
+
+/* O cartão do dia. */
+.callout[data-callout="day"] {
+  --callout-color: 128, 128, 128;
+  --callout-icon: lucide-calendar;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 8px 10px 10px;
+  margin: 0;
+  height: 100%;
+  mix-blend-mode: normal;
+}
+.callout[data-callout="day"] .callout-icon {
+  display: none;
+}
+.callout[data-callout="day"] > .callout-title {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  font-size: 0.8em;
+  font-weight: 600;
+}
+.callout[data-callout="day"] > .callout-content {
+  font-size: 0.85em;
+  padding-top: 6px;
+}
+.callout[data-callout="day"] > .callout-content ul {
+  padding-inline-start: 0;
+  margin: 0;
+}
+.callout[data-callout="day"] > .callout-content li {
+  margin-bottom: 4px;
+}
+
+/* A revisão da semana, recolhida. */
+.callout[data-callout="review"] {
+  --callout-color: 128, 128, 128;
+  --callout-icon: lucide-clipboard-check;
+  background: transparent;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: 8px;
+  margin-top: 4px;
+}

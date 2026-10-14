@@ -1,0 +1,10 @@
+{
+  "types": {
+    "done": "checkbox",
+    "due": "date",
+    "last_done": "date",
+    "estimate": "text",
+    "repeat": "text",
+    "subject": "text"
+  }
+}

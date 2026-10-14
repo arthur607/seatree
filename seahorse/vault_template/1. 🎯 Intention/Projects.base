@@ -1,0 +1,27 @@
+filters:
+  and:
+    - type == "project"
+properties:
+  file.name:
+    displayName: "{{t:base.project}}"
+  file.folder:
+    displayName: "{{t:base.where}}"
+  why:
+    displayName: "{{t:base.why}}"
+  status:
+    displayName: "{{t:base.status}}"
+views:
+  - type: table
+    name: "{{t:view.active}}"
+    filters: status == "active"
+    order:
+      - file.name
+      - why
+      - file.folder
+  - type: table
+    name: "{{t:view.all}}"
+    order:
+      - file.name
+      - status
+      - why
+      - file.folder

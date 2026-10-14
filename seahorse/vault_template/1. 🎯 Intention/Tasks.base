@@ -1,0 +1,63 @@
+filters:
+  and:
+    - type == "task"
+    - '!file.inFolder("6. ⚙️ System")'
+formulas:
+  days_left: 'if(due, (date(due) - today()).days, "")'
+  order: 'if(due, date(due), date("2999-12-31"))'
+properties:
+  done:
+    displayName: "{{t:base.done}}"
+  file.name:
+    displayName: "{{t:base.task}}"
+  estimate:
+    displayName: "{{t:base.time}}"
+  due:
+    displayName: "{{t:base.due}}"
+  formula.days_left:
+    displayName: "{{t:base.days_left}}"
+  tags:
+    displayName: "{{t:base.tags}}"
+  subject:
+    displayName: "{{t:base.subject}}"
+views:
+  - type: table
+    name: "{{t:view.open}}"
+    filters: done != true
+    order:
+      - done
+      - file.name
+      - estimate
+      - due
+      - formula.days_left
+      - tags
+      - subject
+    sort:
+      - property: formula.order
+        direction: ASC
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.done}}"
+    filters: done == true
+    order:
+      - done
+      - file.name
+      - estimate
+      - tags
+      - subject
+    sort:
+      - property: file.mtime
+        direction: DESC
+  - type: table
+    name: "{{t:view.all}}"
+    order:
+      - done
+      - file.name
+      - estimate
+      - due
+      - tags
+      - subject
+    sort:
+      - property: formula.order
+        direction: ASC

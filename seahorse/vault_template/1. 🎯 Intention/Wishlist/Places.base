@@ -1,0 +1,53 @@
+filters:
+  or:
+    - file.inFolder("1. 🎯 Intention/Wishlist/Places")
+    - file.inFolder("2. 📓 Memory/Experiences/Places")
+properties:
+  done:
+    displayName: "{{t:base.done_places}}"
+  file.name:
+    displayName: "{{t:base.title}}"
+  kind:
+    displayName: "{{t:base.kind}}"
+  city:
+    displayName: "{{t:base.city}}"
+  url:
+    displayName: "{{t:base.link}}"
+views:
+  - type: table
+    name: "{{t:view.to_visit}}"
+    filters: done != true
+    order:
+      - done
+      - file.name
+      - kind
+      - city
+      - url
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.visited}}"
+    filters: done == true
+    order:
+      - done
+      - file.name
+      - kind
+      - city
+      - url
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.all}}"
+    order:
+      - done
+      - file.name
+      - kind
+      - city
+      - url
+    sort:
+      - property: done
+        direction: ASC
+      - property: file.name
+        direction: ASC

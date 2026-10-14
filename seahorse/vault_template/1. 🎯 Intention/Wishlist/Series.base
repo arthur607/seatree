@@ -1,0 +1,58 @@
+filters:
+  or:
+    - file.inFolder("1. 🎯 Intention/Wishlist/Series")
+    - file.inFolder("2. 📓 Memory/Experiences/Series")
+properties:
+  done:
+    displayName: "{{t:base.done_series}}"
+  file.name:
+    displayName: "{{t:base.title}}"
+  genre:
+    displayName: "{{t:base.genre}}"
+  platform:
+    displayName: "{{t:base.platform}}"
+  imdb:
+    displayName: "{{t:base.imdb}}"
+  released:
+    displayName: "{{t:base.year}}"
+views:
+  - type: table
+    name: "{{t:view.to_watch}}"
+    filters: done != true
+    order:
+      - done
+      - file.name
+      - genre
+      - platform
+      - imdb
+      - released
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.watched}}"
+    filters: done == true
+    order:
+      - done
+      - file.name
+      - genre
+      - platform
+      - imdb
+      - released
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "{{t:view.all}}"
+    order:
+      - done
+      - file.name
+      - genre
+      - platform
+      - imdb
+      - released
+    sort:
+      - property: done
+        direction: ASC
+      - property: file.name
+        direction: ASC

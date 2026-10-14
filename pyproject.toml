@@ -1,0 +1,29 @@
+[project]
+name = "seahorse-brain"
+dynamic = ["version"]
+description = "An external hippocampus: an Obsidian vault that AI agents keep alive, with a Telegram bot."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "python-telegram-bot[job-queue]>=21,<23",
+    "requests>=2.31",
+    "Pillow>=10",
+    "questionary>=2",
+]
+
+[project.optional-dependencies]
+voice-local = ["faster-whisper>=1.0"]
+
+[project.scripts]
+seahorse = "seahorse.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "seahorse/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["seahorse"]
