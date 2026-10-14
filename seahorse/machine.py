@@ -162,6 +162,18 @@ class Server:
         # A wide terminal on the server, so a long link stays on one line.
         return relay(self._ssh("-tt") + [f"stty cols 1000 rows 50 2>/dev/null; {PATH}{command}"], True, notice)
 
+    def upload_source(self, folder: Path) -> None:
+        """Copies a local copy of the code to ~/.seahorse/source on the server, to test a version before its
+        release. Only `SEAHORSE_SOURCE` uses it."""
+        import io
+        import tarfile
+        skip = {".git", ".venv", "__pycache__", "node_modules"}
+        data = io.BytesIO()
+        with tarfile.open(fileobj=data, mode="w:gz") as archive:
+            archive.add(folder, arcname=".", filter=lambda item: None if skip & set(Path(item.name).parts) else item)
+        subprocess.run(self._ssh() + ["rm -rf ~/.seahorse/source && mkdir -p ~/.seahorse/source && "
+                                      "tar -xzf - -C ~/.seahorse/source 2>/dev/null"], input=data.getvalue(), check=True)
+
     def interactive(self, command: str) -> int:
         """Runs a command on the server in this terminal, for a person to read and answer."""
         return subprocess.run(self._ssh("-t") + [PATH + command]).returncode

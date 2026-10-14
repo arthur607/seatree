@@ -195,11 +195,16 @@ def _connect_server() -> None:
             break
         _say(_t("server_failed", host=host))
     M = server
-    local.write_file("server.toml", f'[server]\nhost = "{server.host}"\nuser = "{server.user}"\n')
+    local.write_file("server.toml", f'[server]\nhost = "{server.host}"\nuser = "{server.user}"\nlanguage = "{config.LANGUAGE}"\n')
     print(_t("server_ok", host=server.host))
     from .updates import newer
     there = M.sh("seahorse --version").stdout.strip().removeprefix("seahorse ")
-    if there and newer(there):  # never put an older version on the server
+    source = os.environ.get("SEAHORSE_SOURCE")  # a local copy of the code, to test it before a release
+    if source:
+        _say(_t("installing", tool=f"Seahorse ({source})"))
+        M.upload_source(Path(source))
+        M.sh("SEAHORSE_SOURCE_DIR=~/.seahorse/source SEAHORSE_NO_SETUP=1 bash ~/.seahorse/source/install.sh", capture=False)
+    elif there and newer(there):  # never put an older version on the server
         _say(_t("server_newer", server=there, here=__version__))
     elif there != __version__:
         _say(_t("installing", tool="Seahorse"))
@@ -394,12 +399,22 @@ def _github_automatic() -> str | None:
     if not M.which("gh") and not _install("GitHub CLI", f"{M.sudo}apt-get install -y -qq gh", "brew install gh",
                                           "https://cli.github.com"):
         return None
-    if M.sh("gh auth status").returncode != 0:
+    must_log_in = M.sh("gh auth status").returncode != 0
+    if must_log_in:
         _say(_t("github_login" + ("_browser" if BROWSER else "_server")))
         _wait()
         M.login("gh auth login --hostname github.com --git-protocol https --web", _notice)
         if M.sh("gh auth status").returncode != 0:
             return None
+    try:
+        return _create_repository()
+    finally:
+        # The GitHub login opens every repository of the person. Seahorse needs only the deploy key of the vault.
+        if must_log_in:
+            M.sh("gh auth logout --hostname github.com --user \"$(gh api user --jq .login)\"")
+
+
+def _create_repository() -> str | None:
     name = _ask("github_name", "seahorse-vault", validate=lambda v: bool(re.fullmatch(r"[\w.-]+", v.strip())) or _t("required"))
     created = M.sh(f"gh repo create {shlex.quote(name)} --private --description 'My Seahorse vault'")
     if created.returncode != 0 and "already exists" not in created.stderr:

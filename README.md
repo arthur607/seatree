@@ -291,6 +291,7 @@ Keep big files out of the vault. On a phone, the Git plugin loads the repository
 | `seahorse logs` | Shows what Seahorse does |
 | `seahorse agent <name>` | Runs one agent now: `integrator`, `notes`, `morning`, `reviewer`, `weekly`, `messenger` |
 | `seahorse capture` | Saves text from the standard input as a capture |
+| `seahorse uninstall` | Removes Seahorse. The vault stays |
 
 On the computer that set up a server, these commands run on the server.
 
@@ -342,6 +343,16 @@ work_tag = "work"
 
 The rules the agents follow are in your vault, in `6. ⚙️ System/`. They are plain language. If an agent does something you do not like, change the rule.
 
+## Uninstall
+
+Run this on the computer where you installed Seahorse:
+
+```bash
+seahorse uninstall
+```
+
+It stops Seahorse, and deletes the program and `~/.seahorse` (the settings, keys and tokens). When Seahorse runs on a server, the command removes it from the server, and this computer stops connecting to the server. Your vault stays, unless you answer *yes* when the command asks to delete it. Some things are outside Seahorse, and they stay: the GitHub repository, the Telegram bot, and tools such as Claude Code and uv. At the end, the command tells you how to remove them.
+
 ## Privacy and costs
 
 - Your vault is plain Markdown in your own Git repository. Seahorse has no server and collects no data.
@@ -363,6 +374,8 @@ Issues and pull requests are welcome. Run the tests with:
 ```bash
 uv run python -m unittest discover -s tests
 ```
+
+To try your copy of the code on a server before a release, install it on your computer with `uv tool install --editable .`, and run the setup with `SEAHORSE_SOURCE` set to the folder of the code. The setup copies the code to the server and installs it from there.
 
 ## License
 

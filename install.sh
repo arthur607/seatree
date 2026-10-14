@@ -29,13 +29,19 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 export PATH="$HOME/.local/bin:$PATH"
 
-TAG="${SEAHORSE_VERSION:-}"
-if [ -z "$TAG" ]; then
-  TAG="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)"
+if [ -n "${SEAHORSE_SOURCE_DIR:-}" ]; then
+  # A local copy of the code, to test it before a release.
+  say "Installing Seahorse from $SEAHORSE_SOURCE_DIR…"
+  uv tool install --force --python 3.12 "$SEAHORSE_SOURCE_DIR"
+else
+  TAG="${SEAHORSE_VERSION:-}"
+  if [ -z "$TAG" ]; then
+    TAG="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)"
+  fi
+  TAG="${TAG:-main}"
+  say "Installing Seahorse $TAG…"
+  uv tool install --force --python 3.12 "git+https://github.com/$REPO@$TAG"
 fi
-TAG="${TAG:-main}"
-say "Installing Seahorse $TAG…"
-uv tool install --force --python 3.12 "git+https://github.com/$REPO@$TAG"
 
 if [ -n "${SEAHORSE_NO_SETUP:-}" ]; then
   exit 0

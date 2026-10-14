@@ -99,6 +99,18 @@ def stop() -> None:
         _systemctl("stop", NAME)
 
 
+def uninstall() -> None:
+    """Stops the service and removes it, so it does not start again after a reboot."""
+    if platform.system() == "Darwin":
+        stop()
+        PLIST.unlink(missing_ok=True)
+        return
+    _systemctl("disable", "--now", NAME)
+    unit = Path("/etc/systemd/system") if _is_root() else Path.home() / ".config/systemd/user"
+    (unit / f"{NAME}.service").unlink(missing_ok=True)
+    _systemctl("daemon-reload")
+
+
 def status() -> str:
     if platform.system() == "Darwin":
         out = subprocess.run(["launchctl", "print", f"gui/{os.getuid()}/com.seahorse.agent"], capture_output=True, text=True)

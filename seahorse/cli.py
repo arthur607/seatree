@@ -24,6 +24,8 @@ def main() -> None:
     agent = commands.add_parser("agent", help="run one agent now")
     agent.add_argument("name", choices=["integrator", "notes", "morning", "reviewer", "weekly", "messenger"])
     commands.add_parser("lint", help="check the vault against its rules")
+    uninstall = commands.add_parser("uninstall", help="remove Seahorse from the machine that runs it (the vault stays)")
+    uninstall.add_argument("--yes", action="store_true", help="do not ask; keep the vault")
     provision = commands.add_parser("provision")  # used by the setup, not by people
     provision.add_argument("step")
     provision.add_argument("values", nargs="*")
@@ -33,7 +35,10 @@ def main() -> None:
     server = _server()
     if server and args.command in ON_THE_SERVER:
         command = "journalctl -u seahorse -f -n 50" if args.command == "logs" else "seahorse " + shlex.join(sys.argv[1:])
-        sys.exit(server.interactive(command))
+        code = server.interactive(command)
+        if args.command == "uninstall" and code == 0:
+            _forget_server(server)
+        sys.exit(code)
 
     # The setup talks to a person: only real problems go to the screen.
     logging.basicConfig(level=logging.WARNING if args.command == "setup" else logging.INFO,
@@ -41,6 +46,9 @@ def main() -> None:
     if args.command == "setup":
         from . import setup
         setup.run()
+    elif args.command == "uninstall":
+        from . import uninstall as uninstall_module
+        sys.exit(uninstall_module.run(assume_yes=args.yes))
     elif args.command == "provision":
         from . import provision as provision_module
         sys.exit(provision_module.main(args.step, args.values))
@@ -76,7 +84,16 @@ def main() -> None:
         sys.exit(lint.main())
 
 
-ON_THE_SERVER = {"update", "migrate", "status", "doctor", "logs", "agent", "lint"}
+ON_THE_SERVER = {"update", "migrate", "status", "doctor", "logs", "agent", "lint", "uninstall"}
+
+
+def _forget_server(server) -> None:
+    """After an uninstall on the server: removes the setup key from the server, and the server from this computer."""
+    from . import config, i18n
+    server.sh("sed -i '/ seahorse-setup$/d' ~/.ssh/authorized_keys")
+    for name in ("server.toml", "server_key", "server_key.pub"):
+        (config.HOME / name).unlink(missing_ok=True)
+    print("\n" + i18n.t("uninstall.local_done", host=server.host))
 
 
 def _server():
@@ -88,6 +105,7 @@ def _server():
     if config.CONFIG_FILE.exists() or not path.exists():
         return None
     data = tomllib.loads(path.read_text(encoding="utf-8")).get("server", {})
+    config.LANGUAGE = data.get("language", config.LANGUAGE)  # the messages on this computer
     return Server(data["host"], data.get("user", "root")) if data.get("host") else None
 
 
