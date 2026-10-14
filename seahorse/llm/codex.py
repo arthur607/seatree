@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 from .. import config
-from . import Answer
+from . import Answer, workdir
 
 
 def binary() -> str:
@@ -20,7 +20,7 @@ def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: 
     with tempfile.TemporaryDirectory() as folder:
         last = Path(folder) / "last.txt"
         # Each run starts a new session: chat follow-ups carry their context in the prompt instead.
-        cmd = [binary(), "exec", "--json", "--skip-git-repo-check", "-C", str(config.VAULT), "-o", str(last),
+        cmd = [binary(), "exec", "--json", "--skip-git-repo-check", "-C", str(workdir()), "-o", str(last),
                 "-s", "workspace-write" if write else "read-only",
                 "-c", 'approval_policy="never"',
                 "-c", f'model_reasoning_effort="{effort}"',
@@ -29,7 +29,7 @@ def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: 
             cmd += ["-m", model]
         cmd.append(text)
         try:
-            out = subprocess.run(cmd, cwd=config.VAULT, stdin=subprocess.DEVNULL, capture_output=True,
+            out = subprocess.run(cmd, cwd=workdir(), stdin=subprocess.DEVNULL, capture_output=True,
                                  text=True, timeout=timeout)
         except subprocess.TimeoutExpired:
             return Answer(f"timed out after {timeout}s", None, True)

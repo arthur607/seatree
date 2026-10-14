@@ -37,7 +37,7 @@ def _local(audio: Path) -> str:
     try:
         from faster_whisper import WhisperModel
     except ImportError:
-        log.error("no GROQ_API_KEY and no local whisper: install it with `seahorse setup --voice-local`")
+        log.error("no GROQ_API_KEY and no local whisper: run `seahorse setup` to add a Groq key")
         return ""
     if _local_model is None:
         _local_model = WhisperModel("small", device="cpu", compute_type="int8")

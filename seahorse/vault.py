@@ -51,8 +51,22 @@ def has_remote() -> bool:
     return bool(git("remote", check=False).stdout.strip())
 
 
+def save_user_edits() -> None:
+    """Commits, as the user, what changed in this folder since the last commit: the edits made in Obsidian on this
+    same machine. Agents call it (through pull) before they write. Without it, the next agent commit would take
+    these edits as its own, and the notes reader would never see them."""
+    if not (config.VAULT / ".git").exists():
+        return
+    git("add", "-A")
+    if git("diff", "--cached", "--quiet", check=False).returncode != 0:
+        name = config.USER_NAME if config.USER_NAME not in AGENT_AUTHORS else "owner"
+        git("-c", f"user.name={name}", "-c", "user.email=owner@localhost", "commit", "-q", "-m", "edits on this machine")
+
+
 def pull() -> None:
-    """Brings in what changed on the computer or the phone. On a conflict, it gives up the rebase and goes on."""
+    """Saves the edits made on this machine, then brings in what changed on other devices. On a conflict, it gives
+    up the rebase and goes on."""
+    save_user_edits()
     if not has_remote():
         return
     result = git("pull", "--rebase", "--autostash", "-q", check=False)

@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 from .. import config
-from . import Answer
+from . import Answer, workdir
 
 TIERS = {"fast": "haiku", "standard": "sonnet", "deep": "opus"}
 READ = ["Read", "Glob", "Grep"]
@@ -34,7 +34,7 @@ def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: 
     if session:
         cmd += ["--resume", session]
     try:
-        out = subprocess.run(cmd, cwd=config.VAULT, stdin=subprocess.DEVNULL, capture_output=True,
+        out = subprocess.run(cmd, cwd=workdir(), stdin=subprocess.DEVNULL, capture_output=True,
                              text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return Answer(f"timed out after {timeout}s", None, True)

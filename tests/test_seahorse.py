@@ -361,6 +361,17 @@ class TestTemplate(Base):
         commit("Seahorse", "3. 📚 Knowledge/Projects/Acme/Acme.md", "I lead billing.\n## Seahorse\n[[Acme]]")
         self.assertEqual(list(vault.user_changes(base)), ["3. 📚 Knowledge/Projects/Acme/Acme.md"])
 
+    def test_edits_on_this_machine_stay_the_users(self):
+        """Obsidian and Seahorse on the same folder: an agent commit must not take the user's edit as its own."""
+        vault.create(self.today)
+        vault.publish("seahorse: new vault")
+        base = vault.git("rev-parse", "HEAD").stdout.strip()
+        write(config.VAULT / "3. 📚 Knowledge/Idea.md", "An offline mode for the app.")
+        vault.pull()  # every agent pulls before it writes
+        write(config.VAULT / "1. 🎯 Intention/_Intention.md", "summary by an agent")
+        vault.publish("integrator: something")
+        self.assertEqual(list(vault.user_changes(base)), ["3. 📚 Knowledge/Idea.md"])
+
 
 class TestImages(Base):
     def test_week_and_day_images(self):

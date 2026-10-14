@@ -2,4 +2,7 @@
 .trash/
 .DS_Store
 conflict-files-obsidian-git.md
-.obsidian/plugins/obsidian-git/data.json
+# Each device installs its own plugins. Only their settings sync.
+.obsidian/plugins/*/main.js
+.obsidian/plugins/*/manifest.json
+.obsidian/plugins/*/styles.css

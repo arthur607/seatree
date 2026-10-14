@@ -4,6 +4,7 @@ A release is a git tag `vX.Y.Z` with notes. `seahorse update` installs it with u
 migrations of the versions in between, and restarts the service. The bot checks once a day and sends the
 release notes when a new version is out.
 """
+import importlib.util
 import json
 import logging
 import shutil
@@ -59,7 +60,9 @@ def notify_if_new() -> str:
 def install(version: str) -> None:
     """Installs one version of the code with uv, in place of the current one."""
     uv = shutil.which("uv") or str(config.HOME.parent / ".local/bin/uv")
-    subprocess.run([uv, "tool", "install", "--force", "--python", "3.12", f"{SOURCE}@v{version}"], check=True)
+    # Keep the local voice model when it is installed: a plain reinstall would remove it.
+    local_voice = ["--with", "faster-whisper"] if importlib.util.find_spec("faster_whisper") else []
+    subprocess.run([uv, "tool", "install", "--force", "--python", "3.12", *local_voice, f"{SOURCE}@v{version}"], check=True)
 
 
 def migrate_vault(today: date | None = None) -> list[str]:

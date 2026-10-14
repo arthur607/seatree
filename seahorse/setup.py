@@ -15,10 +15,12 @@ from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import questionary
+import requests
 
 from . import config, i18n
 
-STEPS = 8
+STEPS = 7
+WHERE = "computer"  # run() sets it: "server" or "computer"
 # Common time zones per language, so nobody has to type "America/Sao_Paulo".
 ZONES = {
     "pt-BR": ["America/Sao_Paulo", "America/Manaus", "America/Recife", "America/Cuiaba", "America/Rio_Branco",
@@ -123,27 +125,51 @@ def _sudo() -> str:
 
 # ---------------------------------------------------------------- steps
 
-def _where(settings: dict) -> str:
-    _title(1, "where_title")
-    _say(_t("where_explain"))
-    looks_like_server = platform.system() == "Linux" and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY")
-    where = _choose("where_ask", {"server": _t("where_server"), "computer": _t("where_computer")},
-                    settings.get("setup", {}).get("where") or ("server" if looks_like_server else "computer"))
-    if where == "computer":
-        _say(_t("pc_warning"))
-    return where
+def _where() -> str:
+    """"server" when this machine has no screen or the person reached it with ssh. It changes how the logins work
+    (a server has no browser, so the person opens the links on the computer in front of them) and some advice."""
+    no_screen = platform.system() == "Linux" and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY")
+    return "server" if os.environ.get("SSH_CONNECTION") or no_screen else "computer"
+
+
+def _detect_zone() -> str | None:
+    """The time zone of this computer. On a server, the time zone of the place the person connects from, by the IP
+    of their ssh connection, because the clock of a server is usually UTC."""
+    found = []
+    if WHERE == "computer":
+        found.append(os.environ.get("TZ", ""))
+        found.append(os.path.realpath("/etc/localtime").partition("zoneinfo/")[2])
+    else:
+        ip = os.environ.get("SSH_CONNECTION", "").split(" ")[0]
+        for url in (f"https://ipinfo.io/{ip}/timezone", f"https://ipapi.co/{ip}/timezone/") if ip else ():
+            try:
+                found.append(requests.get(url, timeout=5, headers={"User-Agent": "seahorse"}).text.strip())
+            except requests.RequestException:
+                pass
+    for zone in found:
+        if "/" in zone and not zone.startswith("Etc/"):
+            try:
+                ZoneInfo(zone)
+                return zone
+            except Exception:  # noqa: BLE001 - an error page instead of a zone name
+                pass
+    return None
 
 
 def _about_you(settings: dict) -> None:
-    _title(2, "name_title")
+    _title(1, "name_title")
     settings["user"]["name"] = _ask("name_ask", settings["user"]["name"], validate=lambda v: bool(v.strip()) or _t("required"))
     zones = ZONES.get(config.LANGUAGE, ZONES["en"])
     current = settings["user"]["timezone"]
-    options = {z: z.split("/")[-1].replace("_", " ") + f"  ({z})" for z in zones}
-    if current not in options and current != "UTC":
-        options = {current: current} | options
+    detected = _detect_zone()
+
+    def label(zone: str) -> str:
+        return zone.split("/")[-1].replace("_", " ") + f"  ({zone})"
+    options = {detected: f"{label(detected)}  · {_t('timezone_detected')}"} if detected else {}
+    for zone in ([current] if current != "UTC" else []) + zones:
+        options.setdefault(zone, label(zone))
     options["other"] = _t("timezone_other")
-    zone = _choose("timezone_ask", options, current if current in options else zones[0])
+    zone = _choose("timezone_ask", options, current if current != "UTC" else (detected or zones[0]))
     if zone == "other":
         def valid(value: str):
             try:
@@ -158,7 +184,7 @@ def _about_you(settings: dict) -> None:
 
 
 def _ai(settings: dict) -> dict:
-    _title(3, "ai_title")
+    _title(2, "ai_title")
     current = settings["ai"]["provider"]
     logged_in = (os.environ.get("CLAUDE_CODE_OAUTH_TOKEN") or os.environ.get("ANTHROPIC_API_KEY")) if current == "claude" \
         else (Path.home() / ".codex" / "auth.json").exists()
@@ -177,7 +203,7 @@ def _ai(settings: dict) -> dict:
                                                        "https://docs.claude.com/en/docs/claude-code/setup"):
             sys.exit(1)
         if choice == "claude-sub":
-            _say(_t("claude_token"))
+            _say(_t(f"claude_token_{WHERE}"))
             _wait()
             subprocess.run([shutil.which("claude") or "claude", "setup-token"])
             secrets["CLAUDE_CODE_OAUTH_TOKEN"] = _secret("paste_claude_token")
@@ -196,9 +222,10 @@ def _ai(settings: dict) -> dict:
                             "https://developers.openai.com/codex/cli"):
                 sys.exit(1)
         if choice == "codex-sub":
-            _say(_t("codex_login"))
+            _say(_t(f"codex_login_{WHERE}"))
             _wait()
-            subprocess.run(["codex", "login", "--device-auth"])
+            # On a computer the browser opens and logs in by itself. A server has no browser: it shows a code instead.
+            subprocess.run(["codex", "login"] + (["--device-auth"] if WHERE == "server" else []))
         else:
             _say(_t("codex_key"))
             subprocess.run(["codex", "login", "--with-api-key"], input=_secret("paste_key"), text=True)
@@ -222,7 +249,7 @@ def _test_ai(provider: str) -> None:
 
 def _telegram(settings: dict) -> str:
     from . import telegram_api
-    _title(4, "telegram_title")
+    _title(3, "telegram_title")
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     bot = telegram_api.bot_name(token) if token and settings["telegram"]["user_id"] else None
     if bot and _confirm("keep_telegram", bot=bot):
@@ -247,21 +274,17 @@ def _telegram(settings: dict) -> str:
 
 
 def _voice(settings: dict) -> None:
-    _title(5, "voice_title")
+    _title(4, "voice_title")
     if os.environ.get("GROQ_API_KEY") and _confirm("keep_voice"):
         return
     _say(_t("voice_explain"))
-    choice = _choose("voice_ask", {"groq": _t("voice_groq"), "local": _t("voice_local"), "none": _t("voice_none")}, "groq")
-    if choice == "groq":
+    if _choose("voice_ask", {"yes": _t("voice_yes"), "no": _t("voice_no")}, "yes") == "yes":
         _say(_t("groq_steps"))
         _save(settings, {"GROQ_API_KEY": _secret("groq_key")})
-    elif choice == "local":
-        _say(_t("installing", tool="Whisper"))
-        subprocess.run([shutil.which("uv") or "uv", "pip", "install", "--python", sys.executable, "faster-whisper"])
 
 
 def _routine(settings: dict) -> None:
-    _title(6, "routine_title")
+    _title(5, "routine_title")
     hours = re.compile(r"^\d{1,2}h(\d{2})?$")
     time_of_day = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
     settings["week"]["daily_capacity"] = _ask("capacity_ask", settings["week"]["daily_capacity"],
@@ -281,7 +304,7 @@ def _github_automatic(vault_path: Path) -> str | None:
                                                "https://cli.github.com"):
         return None
     if subprocess.run(["gh", "auth", "status"], capture_output=True).returncode != 0:
-        _say(_t("github_login"))
+        _say(_t(f"github_login_{WHERE}"))
         _wait()
         if subprocess.run(["gh", "auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--web"]).returncode != 0:
             return None
@@ -335,10 +358,10 @@ def _connect(vault, url: str, key: Path) -> str | None:
     return url
 
 
-def _vault(settings: dict, where: str) -> str | None:
+def _vault(settings: dict) -> str | None:
     """Creates the vault and, if wanted, connects it to a private GitHub repository. Returns the repository URL."""
     from . import vault
-    _title(7, "vault_title")
+    _title(6, "vault_title")
     _say(_t("vault_explain"))
     path = Path(_ask("vault_path", settings["vault"]["path"])).expanduser()
     settings["vault"]["path"] = str(path)
@@ -353,7 +376,9 @@ def _vault(settings: dict, where: str) -> str | None:
         return vault.git("remote", "get-url", "origin", check=False).stdout.strip()
     _say(_t("sync_explain"))
     options = {"github": _t("sync_github"), "local": _t("sync_local")}
-    if _choose("sync_ask", options, "github" if where == "server" else "local") == "local":
+    if _choose("sync_ask", options, "github") == "local":
+        if WHERE == "server":
+            _say(_t("sync_local_server"))
         vault.publish("seahorse: new vault")
         return None
     if _choose("github_how", {"auto": _t("github_auto"), "manual": _t("github_manual")}, "auto") == "auto":
@@ -362,6 +387,8 @@ def _vault(settings: dict, where: str) -> str | None:
 
 
 def run() -> None:
+    global WHERE
+    WHERE = _where()
     settings = config.load()
     language = questionary.select(
         "Choose your language / Escolha seu idioma / Elige tu idioma:",
@@ -373,10 +400,10 @@ def run() -> None:
     _say(_t("welcome"))
     _say(_t("checklist"))
     _wait("ready")
+    _say(_t(f"where_{WHERE}"))
+    _wait()
     _save(settings)
 
-    where = _where(settings)
-    settings.setdefault("setup", {})["where"] = where
     _about_you(settings)
     config.TIMEZONE = ZoneInfo(settings["user"]["timezone"])
     _save(settings)
@@ -384,13 +411,16 @@ def run() -> None:
     token = _telegram(settings)
     _voice(settings)
     _routine(settings)
-    remote = _vault(settings, where)
+    remote = _vault(settings)
 
     from . import service, telegram_api
-    _title(8, "service_title")
+    _title(7, "service_title")
     result = service.install()
     print(_t("service_ok") if "installed" in result else _t("service_failed", detail=result))
     config.TELEGRAM_TOKEN, config.USER_ID = token, settings["telegram"]["user_id"]
     telegram_api.send(i18n.t("bot.first_message"))
-    obsidian = _t("obsidian_github", url=remote) if remote else _t("obsidian_local", path=settings["vault"]["path"])
+    # Where to open the notes: the folder itself on a computer, and the GitHub copy on any other device.
+    places = ([_t("obsidian_here", path=settings["vault"]["path"])] if WHERE == "computer" else []) + \
+             ([_t("obsidian_devices", url=remote)] if remote else [])
+    obsidian = "\n".join(f"  • {place}" for place in places) or f"  • {_t('obsidian_none')}"
     _say(_t("done", name=settings["user"]["name"], obsidian=obsidian, logs=service.logs_command()))

@@ -25,7 +25,9 @@ def main() -> None:
     commands.add_parser("lint", help="check the vault against its rules")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    # The setup talks to a person: only real problems go to the screen.
+    logging.basicConfig(level=logging.WARNING if args.command == "setup" else logging.INFO,
+                        format="%(asctime)s %(name)s %(levelname)s %(message)s")
     if args.command == "setup":
         from . import setup
         setup.run()

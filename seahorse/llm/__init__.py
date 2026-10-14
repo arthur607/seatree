@@ -35,6 +35,14 @@ class Answer:
     error: bool
 
 
+def workdir():
+    """The folder the AI works in: the vault. The setup tests the AI before the vault exists, so then Seahorse's home."""
+    if config.VAULT.is_dir():
+        return config.VAULT
+    config.HOME.mkdir(parents=True, exist_ok=True)
+    return config.HOME
+
+
 def prompt(name: str, **values) -> str:
     """The text of `prompts/<name>.md`, with its `$placeholders` filled in."""
     body = (config.PROMPTS / f"{name}.md").read_text(encoding="utf-8")
