@@ -91,38 +91,181 @@ flowchart LR
 | **GitHub** (optional) | To sync your vault to your phone and laptop | Free |
 | **Groq** (optional) | Fast, free transcription of voice notes | Free |
 
-**Where to run it.** A VPS is the best choice: it is on day and night, and the setup takes 10 minutes. Any provider with Ubuntu works, such as Hetzner, DigitalOcean or Oracle Cloud (free tier). Your own Mac or Linux computer also works, but Seahorse stops when the computer sleeps. On Windows, install it inside WSL.
+## Before you install
+
+You do three things before the install. If you never used a server or a terminal, follow the guides below. Each step tells you what to click and what to type.
+
+### 1. Choose where Seahorse runs
+
+Seahorse must stay on: it answers your messages and its agents work at night.
+
+| | A server (VPS) | Your own computer |
+|---|---|---|
+| **On day and night** | Yes | Only while the computer is on and awake |
+| **Cost** | About US$5 a month | Free |
+| **Best for** | Daily use | A first test |
+
+You can start on your computer and move to a server later.
+
+### 2. Open a terminal on that machine
+
+A terminal is a window where you type commands. Pick the guide for your choice:
+
+<details>
+<summary><b>Rent a server (VPS) on Hetzner and connect to it</b></summary>
+
+Any provider with Ubuntu works, such as Hetzner, DigitalOcean or Oracle Cloud. These steps use Hetzner.
+
+1. Create an account at <https://www.hetzner.com/cloud>, then open the Cloud Console at <https://console.hetzner.cloud>.
+2. Open your project (or create one) and click **Add Server**.
+3. Choose these options:
+   - **Location**: the one nearest to you.
+   - **Image**: **Ubuntu** (the newest version, such as 24.04).
+   - **Type**: the smallest and cheapest type. Seahorse needs little power.
+   - **SSH key**: you can skip it. Then Hetzner sends the password of the server to your email.
+4. Click **Create & Buy now**. After a few seconds, the server shows its **IPv4 address**, such as `203.0.113.10`. Copy it.
+5. Open a terminal on your own computer:
+   - **Windows**: open the Start menu, type `PowerShell`, and open it.
+   - **Mac**: press `Cmd + Space`, type `Terminal`, and open it.
+6. Type this command with your address, and press Enter:
+
+   ```bash
+   ssh root@203.0.113.10
+   ```
+
+7. The first time, it asks "Are you sure you want to continue connecting?". Type `yes` and press Enter.
+8. Paste the password from the email and press Enter. **The password does not show while you type or paste. This is normal.** The server can ask you to choose a new password.
+
+When you see a line that ends in `#`, you are on the server. Keep this window open for the install. To come back later, run the same `ssh` command.
+
+</details>
+
+<details>
+<summary><b>Use your own Mac or Linux computer</b></summary>
+
+- **Mac**: press `Cmd + Space`, type `Terminal`, and open it.
+- **Linux**: open the Terminal app.
+
+Seahorse stops while the computer sleeps. On a Mac, to keep it awake on the power adapter, open *System Settings → Battery → Options* (or *Energy*) and turn on *Prevent automatic sleeping when the display is off*.
+
+</details>
+
+<details>
+<summary><b>Use your own Windows computer</b></summary>
+
+Seahorse runs in Linux, so on Windows it runs inside WSL (Windows Subsystem for Linux). WSL is free and comes from Microsoft.
+
+1. Open the Start menu, type `PowerShell`, right-click it, and choose **Run as administrator**.
+2. Run this command, then restart the computer:
+
+   ```bash
+   wsl --install
+   ```
+
+3. After the restart, open **Ubuntu** from the Start menu. The first time, it asks for a new user name and password for Linux. Choose any.
+4. Use this Ubuntu window for the install.
+
+Seahorse stops while Windows sleeps. To open your notes in Obsidian on Windows, choose the GitHub sync in step 7 of the setup.
+
+</details>
+
+### 3. Have these ready
+
+- **Your phone, with Telegram installed and logged in.** During the setup you create your private bot with @BotFather, the official Telegram bot that makes bots. The setup shows each step.
+- **A Claude account (Pro or Max plan) or a ChatGPT account (Plus or Pro plan).** An API key also works.
+- **Optional: a GitHub account** (free, at <https://github.com/signup>), to open your notes on your phone and on other computers.
 
 ## Install
 
-Open a terminal on the machine that will run Seahorse (on a VPS, connect with `ssh` first) and run:
+In the terminal of the machine that will run Seahorse, run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.sh | bash
 ```
 
-The installer installs `uv` and Seahorse, then starts a setup that asks one thing at a time. It starts in English, and after the first question it speaks your language.
+The installer installs `uv` and Seahorse, then starts a setup that asks one thing at a time. It takes about 15 minutes. First it asks your language: English, Português (Brasil) or Español. After that, it speaks your language.
 
-1. **Language**: English, Português (Brasil) or Español. The bot and your notes use it.
-2. **About you**: your first name and time zone.
-3. **The AI**: Claude or Codex, with a subscription or an API key. The setup installs the tool, opens the login, and tests it.
-4. **The Telegram bot**: you create your private bot with @BotFather and paste its token. Then you press Start on your phone, and the setup finds your Telegram account by itself.
-5. **Voice notes**: Groq (free key), a local model, or none.
-6. **Your routine**: your free hours a day, the tag of work tasks, the time of the morning summary, and the quiet hours.
-7. **The vault**: Seahorse creates it. To use it on other devices, you give it an empty private GitHub repository and add the deploy key it shows.
+To answer, use the arrow keys and Enter, or type and press Enter. To paste in a terminal, right-click, or press `Ctrl + Shift + V` (`Cmd + V` on a Mac).
 
-At the end, Seahorse runs in the background, starts again after a reboot, and sends you a first message on Telegram.
+| Step | What it asks | What you do |
+|---|---|---|
+| 1. **Where** | A server or your own computer | Choose one |
+| 2. **About you** | Your first name and where you live | Type your name and choose your city. The setup shows your local time, so you can check it |
+| 3. **The AI** | Which account you have | Choose it. The setup installs the AI tool and shows a link. Open the link on any device, even your phone, log in, and paste the code it gives you. Then the setup tests the AI |
+| 4. **Telegram** | A token for your bot | On your phone, follow the steps the setup shows: talk to @BotFather, send `/newbot`, choose a name and a user name. Paste the token that BotFather sends. Then open the link to your new bot and tap **Start**. The setup finds you by itself |
+| 5. **Voice notes** | How to turn voice into text | Choose Groq (free, recommended). The setup shows how to get a free key at <https://console.groq.com/keys> |
+| 6. **Your routine** | Your free hours a day, the tag of work tasks, the time of the morning summary, and the end of the quiet hours | Press Enter to keep each suggestion, or type a new value |
+| 7. **The vault** | Where your notes live, and where you will open them | Press Enter to keep the folder. To use your phone, choose GitHub and then *Automatically*: the setup shows a code, you type it at <https://github.com/login/device>, and the setup creates a private repository for you |
+| 8. **Background** | Nothing | The setup starts Seahorse, which also starts again after a reboot. Seahorse sends you a first message on Telegram |
 
-You can run `seahorse setup` again at any time to change an answer. It keeps the answers you do not change.
+<details>
+<summary><b>Create the Telegram bot (step 4), with more detail</b></summary>
+
+Your bot is a private Telegram account that Seahorse controls. Only you can talk to it: Seahorse ignores all other people.
+
+1. On your phone, open Telegram and search for `@BotFather`. Choose the one with the blue check mark. Or open <https://t.me/BotFather>.
+2. Tap **Start**. Then send `/newbot`.
+3. BotFather asks for a name. This is the name you see in your chats. Send any name, such as `My Seahorse`.
+4. BotFather asks for a user name. It must end in `bot`, and nobody else can have it. Send one such as `ada_seahorse_bot`. If BotFather says it is taken, try another.
+5. BotFather sends a message with a token, a line such as `7123456789:AAH4k-xyz…`. Tap it to copy it, and paste it in the setup. If your phone and the terminal are on different devices, send the token to yourself (for example, in Telegram's *Saved Messages*) and copy it on the computer.
+6. The setup shows a link such as `https://t.me/ada_seahorse_bot`. Open it and tap **Start**.
+
+The token is the password of your bot. Do not share it. If somebody sees it, send `/revoke` to @BotFather and run `seahorse setup` again with the new token.
+
+To give your bot a picture, send `/setuserpic` to @BotFather.
+
+</details>
+
+If a step fails, the setup tells you what to do. Your answers are saved after each step: run `seahorse setup` again, and it asks to keep what already works. Run `seahorse doctor` to check each part.
 
 ## Open your vault in Obsidian
 
-- **On the same computer:** in Obsidian, choose *Open folder as vault* and pick the vault folder.
-- **On other devices (phone, laptop):** clone your private vault repository, open it in Obsidian, and install the community plugin **Obsidian Git**. Set it to pull, and to commit and sync, every minute. Seahorse sees the notes you write and the boxes you check.
+Obsidian is a free app for notes: <https://obsidian.md>.
+
+### On the computer that runs Seahorse
+
+In Obsidian, choose *Open folder as vault* and pick the vault folder (`~/seahorse-vault` by default).
+
+### Open your vault on your phone
+
+This needs the GitHub sync from step 7 of the setup.
+
+1. **Make a key for the phone.** On GitHub, open <https://github.com/settings/personal-access-tokens/new>.
+   - **Token name**: `Obsidian phone`.
+   - **Expiration**: the longest one. When it ends, make a new key.
+   - **Repository access**: *Only select repositories*, and choose your vault repository.
+   - **Permissions → Repository permissions → Contents**: *Read and write*.
+   - Click **Generate token** and copy the token.
+2. **Install Obsidian** on your phone and create a new empty vault, such as `Seahorse`.
+3. **Install the Git plugin.** In Obsidian, open *Settings → Community plugins*, turn them on, tap *Browse*, search for **Git** (by Vinzent), install it, and enable it.
+4. **Log in.** In *Settings → Git*, find *Authentication*. Type your GitHub user name, and paste the token as the password.
+5. **Get your notes.** Open the command palette (swipe down, or tap the `>` button) and run *Git: Clone an existing remote repo*.
+   - URL: `https://github.com/YOUR-USER/seahorse-vault.git` (with your user name and repository name).
+   - Folder: leave it empty, so the notes go in the vault root.
+   - When it asks if the repository has a `.obsidian` folder, answer *Yes*.
+   - When it finishes, close Obsidian and open it again.
+6. **Keep it in sync.** In *Settings → Git*, set *Auto commit-and-sync interval* to `1`, set *Auto pull interval* to `1`, and turn on *Pull on startup*.
+
+Now Seahorse sees the notes you write and the boxes you check, and you see what Seahorse writes.
+
+### On another computer
+
+1. Install Git from <https://git-scm.com>.
+2. In a terminal, run this command with your user name and repository name:
+
+   ```bash
+   git clone https://github.com/YOUR-USER/seahorse-vault.git
+   ```
+
+   On Windows, a browser window opens to log in to GitHub. On a Mac or Linux, type your GitHub user name, and paste a token as the password (make one as in step 1 above).
+3. In Obsidian, choose *Open folder as vault* and pick the new `seahorse-vault` folder.
+4. Install the **Git** plugin and set the sync as in steps 3 and 6 above.
+
+### In each vault
 
 The vault comes ready: a Dashboard with the week and the task table, tables for movies, series, books, games, places and purchases, and a CSS snippet for the week view. In *Settings → Appearance → CSS snippets*, make sure `seahorse` is on.
 
-Keep big files out of the vault. On a phone, Obsidian Git loads the repository into memory, and large images can make it close.
+Keep big files out of the vault. On a phone, the Git plugin loads the repository into memory, and large images can make Obsidian close.
 
 ## Use it
 

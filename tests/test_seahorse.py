@@ -310,6 +310,20 @@ class TestLanguages(unittest.TestCase):
         for language in i18n.LANGUAGES:
             self.assertEqual(keys(i18n._catalog(language)) ^ english, set(), language)
 
+    def test_every_text_fills_its_fields(self):
+        """Each {field} must be a name that i18n.t can take, and each text must fill without errors."""
+        import string
+        for language in i18n.LANGUAGES:
+            for section, texts in i18n._catalog(language).items():
+                if not isinstance(texts, dict):
+                    continue
+                for name, text in texts.items():
+                    if not isinstance(text, str):
+                        continue
+                    fields = {f for _, f, _, _ in string.Formatter().parse(text) if f}
+                    self.assertFalse(fields & {"key", "language"}, f"{language} {section}.{name}")
+                    i18n.t(f"{section}.{name}", language, **{f: "x" for f in fields})
+
     def test_portuguese_and_spanish(self):
         self.assertEqual(i18n.t("button.ignore", "pt-BR"), "🙈 Ignorar")
         self.assertEqual(i18n.t("capture.working", "es", title="✓ Guardado"), "✓ Guardado. Integrando…")
