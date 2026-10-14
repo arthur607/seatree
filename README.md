@@ -93,7 +93,7 @@ flowchart LR
 
 ## Before you install
 
-You do three things before the install. If you never used a server or a terminal, follow the guides below. Each step tells you what to click and what to type.
+You install Seahorse from your own computer: Windows, Mac or Linux. The setup runs there, also when Seahorse will run on a server. Then the setup connects to the server and sets it up for you. You never type commands on the server.
 
 ### 1. Choose where Seahorse runs
 
@@ -103,16 +103,13 @@ Seahorse must stay on: it answers your messages and its agents work at night.
 |---|---|---|
 | **On day and night** | Yes | Only while the computer is on and awake |
 | **Cost** | About US$5 a month | Free |
+| **Works from** | Windows, Mac and Linux | Mac and Linux. On Windows, only inside WSL |
 | **Best for** | Daily use | A first test |
 
 You can start on your computer and move to a server later.
 
-### 2. Open a terminal on that machine
-
-A terminal is a window where you type commands. Pick the guide for your choice:
-
 <details>
-<summary><b>Rent a server (VPS) on Hetzner and connect to it</b></summary>
+<summary><b>Rent a server (VPS)</b></summary>
 
 Any provider with Ubuntu works, such as Hetzner, DigitalOcean or Oracle Cloud. These steps use Hetzner.
 
@@ -123,37 +120,16 @@ Any provider with Ubuntu works, such as Hetzner, DigitalOcean or Oracle Cloud. T
    - **Image**: **Ubuntu** (the newest version, such as 24.04).
    - **Type**: the smallest and cheapest type. Seahorse needs little power.
    - **SSH key**: you can skip it. Then Hetzner sends the password of the server to your email.
-4. Click **Create & Buy now**. After a few seconds, the server shows its **IPv4 address**, such as `203.0.113.10`. Copy it.
-5. Open a terminal on your own computer:
-   - **Windows**: open the Start menu, type `PowerShell`, and open it.
-   - **Mac**: press `Cmd + Space`, type `Terminal`, and open it.
-6. Type this command with your address, and press Enter:
+4. Click **Create & Buy now**. After a few seconds, the server shows its **IPv4 address**, such as `203.0.113.10`.
 
-   ```bash
-   ssh root@203.0.113.10
-   ```
-
-7. The first time, it asks "Are you sure you want to continue connecting?". Type `yes` and press Enter.
-8. Paste the password from the email and press Enter. **The password does not show while you type or paste. This is normal.** The server can ask you to choose a new password.
-
-When you see a line that ends in `#`, you are on the server. Keep this window open for the install. To come back later, run the same `ssh` command.
+Keep the address and the password. The setup asks for them once.
 
 </details>
 
 <details>
-<summary><b>Use your own Mac or Linux computer</b></summary>
+<summary><b>Use your own Windows computer (WSL)</b></summary>
 
-- **Mac**: press `Cmd + Space`, type `Terminal`, and open it.
-- **Linux**: open the Terminal app.
-
-Seahorse stops while the computer sleeps. On a Mac, to keep it awake on the power adapter, open *System Settings → Battery → Options* (or *Energy*) and turn on *Prevent automatic sleeping when the display is off*.
-
-</details>
-
-<details>
-<summary><b>Use your own Windows computer</b></summary>
-
-Seahorse runs in Linux, so on Windows it runs inside WSL (Windows Subsystem for Linux). WSL is free and comes from Microsoft.
+Seahorse runs in Linux. To run it on a Windows computer, use WSL (Windows Subsystem for Linux), which is free and comes from Microsoft. To run Seahorse on a server, you do not need WSL.
 
 1. Open the Start menu, type `PowerShell`, right-click it, and choose **Run as administrator**.
 2. Run this command, then restart the computer:
@@ -163,21 +139,30 @@ Seahorse runs in Linux, so on Windows it runs inside WSL (Windows Subsystem for 
    ```
 
 3. After the restart, open **Ubuntu** from the Start menu. The first time, it asks for a new user name and password for Linux. Choose any.
-4. Use this Ubuntu window for the install.
+4. In this Ubuntu window, use the install command for Mac and Linux.
 
-Seahorse stops while Windows sleeps. To open your notes in Obsidian on Windows, choose the GitHub sync in step 6 of the setup.
+Seahorse stops while Windows sleeps.
 
 </details>
 
-### 3. Have these ready
+### 2. Have these ready
 
 - **Your phone, with Telegram installed and logged in.** During the setup you create your private bot with @BotFather, the official Telegram bot that makes bots. The setup shows each step.
 - **A Claude account (Pro or Max plan) or a ChatGPT account (Plus or Pro plan).** An API key also works.
+- **For a server: its address (IP) and its password.**
 - **Optional: a GitHub account** (free, at <https://github.com/signup>), to open your notes on your phone and on other computers.
 
 ## Install
 
-Run the install **on the machine that will run Seahorse**. For a server, first connect to it with `ssh` (see above), and run the command in that window. In the terminal, run:
+Open a terminal on your own computer and run the command for your system.
+
+**Windows**: open the Start menu, type `PowerShell`, open it, and run:
+
+```powershell
+irm https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.ps1 | iex
+```
+
+**Mac**: press `Cmd + Space`, type `Terminal`, open it, and run (on Linux, open the Terminal app):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.sh | bash
@@ -185,34 +170,34 @@ curl -fsSL https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.sh 
 
 The installer installs `uv` and Seahorse, then starts a setup that asks one thing at a time. It takes about 15 minutes. First it asks your language: English, Português (Brasil) or Español. After that, it speaks your language.
 
-The setup sees if it runs on a server or on your own computer, and it adapts the steps:
+To answer, use the arrow keys and Enter, or type and press Enter. During the setup:
 
-- **On your own computer**, the logins open your browser by themselves.
-- **On a server**, there is no browser. The setup shows a link: you copy it and open it in the browser of the computer you use to connect to the server.
-
-To answer, use the arrow keys and Enter, or type and press Enter. To paste in a terminal, right-click, or press `Ctrl + Shift + V` (`Cmd + V` on a Mac).
+- **The pages open by themselves** in your browser: BotFather, the logins, the page of the Groq key.
+- **The one-time codes are copied for you.** You paste them in the browser.
+- **The tokens of the logins are caught by the setup.** You do not copy them.
 
 | Step | What it asks | What you do |
 |---|---|---|
-| 1. **About you** | Your first name and your time zone | Type your name. The setup suggests your time zone: from the clock of your computer, or, on a server, from the place you connect from. Press Enter to accept it, or choose another city. Then the setup shows your local time, so you can check it |
-| 2. **The AI** | Which account you have | Choose it. The setup installs the AI tool and opens the login. Log in and approve. For Claude, copy the token that the terminal shows and paste it. Then the setup tests the AI |
-| 3. **Telegram** | A token for your bot | On your phone, follow the steps the setup shows: talk to @BotFather, send `/newbot`, choose a name and a user name. Paste the token that BotFather sends. Then open the link to your new bot and tap **Start**. The setup finds you by itself |
-| 4. **Voice notes** (optional) | If you want to send voice notes | Choose *Yes* (recommended) and get a free key at <https://console.groq.com/keys>, or choose *No* to use only text |
-| 5. **Your routine** | Your free hours a day, the tag of work tasks, the time of the morning summary, and the end of the quiet hours | Press Enter to keep each suggestion, or type a new value |
-| 6. **The vault** | Where your notes live, and where you will open them | Press Enter to keep the folder. Then choose the GitHub sync (recommended) to open your notes on your phone and other computers, or *Only on this machine*. For GitHub, choose *Automatically*: you log in to GitHub with a code, and the setup creates a private repository for you |
-| 7. **Background** | Nothing | The setup starts Seahorse, which also starts again after a reboot. Seahorse sends you a first message on Telegram |
+| 1. **Where** | A server or this computer | Choose one. For a server, type its address. Then type its password once, when ssh asks for it (the password does not show while you type). The setup installs Seahorse on the server |
+| 2. **About you** | Your first name and your time zone | Type your name. The setup suggests your time zone from the clock of your computer. Press Enter to accept it, or choose another city |
+| 3. **The AI** | Which account you have | Choose it. Your browser opens the login. Log in and approve. If the page shows a code, paste it in the terminal. The setup tests the AI |
+| 4. **Telegram** | A token for your bot | Telegram opens BotFather. Send `/newbot`, choose a name and a user name, and paste the token that BotFather sends. Then Telegram opens your new bot: tap **Start**. The setup finds you by itself |
+| 5. **Voice notes** (optional) | If you want to send voice notes | Choose *Yes* (recommended): the Groq page opens, and you make a free key. Or choose *No* to use only text |
+| 6. **Your routine** | Your free hours a day, the tag of work tasks, the time of the morning summary, and the end of the quiet hours | Press Enter to keep each suggestion, or type a new value |
+| 7. **The vault** | Where you will open your notes | Choose the GitHub sync (recommended) to open your notes on your phone and other computers, or *Only on this machine*. For GitHub, choose *Automatically*: GitHub opens, you paste the code, and the setup creates a private repository for you |
+| 8. **Background** | Nothing | The setup starts Seahorse, which also starts again after a reboot. Seahorse sends you a first message on Telegram |
 
 <details>
-<summary><b>Create the Telegram bot (step 3), with more detail</b></summary>
+<summary><b>Create the Telegram bot (step 4), with more detail</b></summary>
 
 Your bot is a private Telegram account that Seahorse controls. Only you can talk to it: Seahorse ignores all other people.
 
-1. On your phone, open Telegram and search for `@BotFather`. Choose the one with the blue check mark. Or open <https://t.me/BotFather>.
+1. Open Telegram and search for `@BotFather`. Choose the one with the blue check mark. Or open <https://t.me/BotFather>.
 2. Tap **Start**. Then send `/newbot`.
 3. BotFather asks for a name. This is the name you see in your chats. Send any name, such as `My Seahorse`.
 4. BotFather asks for a user name. It must end in `bot`, and nobody else can have it. Send one such as `ada_seahorse_bot`. If BotFather says it is taken, try another.
-5. BotFather sends a message with a token, a line such as `7123456789:AAH4k-xyz…`. Copy it, and paste it in the setup. To copy it on the computer, open Telegram on the computer (<https://web.telegram.org> works too), or send the token to yourself in Telegram's *Saved Messages*.
-6. The setup shows a link such as `https://t.me/ada_seahorse_bot`. Open it and tap **Start**.
+5. BotFather sends a message with a token, a line such as `7123456789:AAH4k-xyz…`. Copy it, and paste it in the setup. If you did this on your phone, send the token to yourself in Telegram's *Saved Messages*, and copy it in Telegram on the computer (or at <https://web.telegram.org>).
+6. The setup opens a link such as `https://t.me/ada_seahorse_bot`. Tap **Start**.
 
 The token is the password of your bot. Do not share it. If somebody sees it, send `/revoke` to @BotFather and run `seahorse setup` again with the new token.
 
@@ -220,7 +205,16 @@ To give your bot a picture, send `/setuserpic` to @BotFather.
 
 </details>
 
-If a step fails, the setup tells you what to do. Your answers are saved after each step: run `seahorse setup` again, and it asks to keep what already works. Run `seahorse doctor` to check each part.
+If a step fails, the setup tells you what to do. Your answers are saved after each step: run `seahorse setup` again, and it asks to keep what already works.
+
+**After the install**, the `seahorse` commands on your computer act on the machine that runs Seahorse, also when it is a server: `seahorse doctor` checks each part, `seahorse logs` shows what Seahorse does, `seahorse update` installs a new version, and `seahorse setup` changes a setting.
+
+<details>
+<summary><b>Run the setup on the server itself</b></summary>
+
+If you prefer, connect to the server with `ssh root@YOUR-IP` and run the command for Mac and Linux there. The setup then sees that it runs on a server. It cannot open your browser, so it shows each link for you to copy and open on your computer.
+
+</details>
 
 ## Open your vault in Obsidian
 
@@ -232,7 +226,7 @@ In Obsidian, choose *Open folder as vault* and pick the vault folder (`~/seahors
 
 ### Open your vault on your phone
 
-This needs the GitHub sync from step 6 of the setup.
+This needs the GitHub sync from step 7 of the setup.
 
 1. **Make a key for the phone.** On GitHub, open <https://github.com/settings/personal-access-tokens/new>.
    - **Token name**: `Obsidian phone`.
@@ -294,9 +288,11 @@ Keep big files out of the vault. On a phone, the Git plugin loads the repository
 | `seahorse doctor` | Checks each part and says what to fix |
 | `seahorse status` | Shows what is running |
 | `seahorse update` | Installs the newest release |
-| `seahorse logs` | Shows the command to read the logs |
+| `seahorse logs` | Shows what Seahorse does |
 | `seahorse agent <name>` | Runs one agent now: `integrator`, `notes`, `morning`, `reviewer`, `weekly`, `messenger` |
 | `seahorse capture` | Saves text from the standard input as a capture |
+
+On the computer that set up a server, these commands run on the server.
 
 ## Updates
 
@@ -352,7 +348,7 @@ The rules the agents follow are in your vault, in `6. ⚙️ System/`. They are 
 - The AI provider you choose (Anthropic or OpenAI) receives the notes that the agents read, under the terms of your account.
 - With a subscription, Seahorse uses the limits of your plan. A normal day uses a few dozen agent runs. The weekly planning uses the deepest model once a week.
 - If you choose Groq, Groq receives your voice notes to transcribe them.
-- On a server, the setup sends the IP address of your ssh connection to ipinfo.io once, to suggest your time zone. On your own computer, it reads the clock of the computer and sends nothing.
+- To suggest your time zone, the setup reads the clock of your computer. On Windows, it asks ipinfo.io once for the time zone of your internet connection.
 
 ## Languages
 

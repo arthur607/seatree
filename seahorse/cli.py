@@ -1,6 +1,7 @@
 """The `seahorse` command."""
 import argparse
 import logging
+import shlex
 import sys
 
 from . import __version__
@@ -23,7 +24,16 @@ def main() -> None:
     agent = commands.add_parser("agent", help="run one agent now")
     agent.add_argument("name", choices=["integrator", "notes", "morning", "reviewer", "weekly", "messenger"])
     commands.add_parser("lint", help="check the vault against its rules")
+    provision = commands.add_parser("provision")  # used by the setup, not by people
+    provision.add_argument("step")
+    provision.add_argument("values", nargs="*")
     args = parser.parse_args()
+
+    # On the person's computer, when Seahorse runs on a server, these commands run on the server.
+    server = _server()
+    if server and args.command in ON_THE_SERVER:
+        command = "journalctl -u seahorse -f -n 50" if args.command == "logs" else "seahorse " + shlex.join(sys.argv[1:])
+        sys.exit(server.interactive(command))
 
     # The setup talks to a person: only real problems go to the screen.
     logging.basicConfig(level=logging.WARNING if args.command == "setup" else logging.INFO,
@@ -31,6 +41,9 @@ def main() -> None:
     if args.command == "setup":
         from . import setup
         setup.run()
+    elif args.command == "provision":
+        from . import provision as provision_module
+        sys.exit(provision_module.main(args.step, args.values))
     elif args.command == "run":
         from . import bot
         bot.run()
@@ -61,6 +74,21 @@ def main() -> None:
         from . import config, lint
         sys.argv = ["lint", str(config.VAULT)]
         sys.exit(lint.main())
+
+
+ON_THE_SERVER = {"update", "migrate", "status", "doctor", "logs", "agent", "lint"}
+
+
+def _server():
+    """The server that runs Seahorse, when this computer only set it up: no config.toml here, but a server.toml."""
+    import tomllib
+    from . import config
+    from .machine import Server
+    path = config.HOME / "server.toml"
+    if config.CONFIG_FILE.exists() or not path.exists():
+        return None
+    data = tomllib.loads(path.read_text(encoding="utf-8")).get("server", {})
+    return Server(data["host"], data.get("user", "root")) if data.get("host") else None
 
 
 def doctor() -> int:

@@ -10,6 +10,7 @@ dependencies = [
     "requests>=2.31",
     "Pillow>=10",
     "questionary>=2",
+    "tzdata; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]

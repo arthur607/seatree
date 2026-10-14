@@ -373,6 +373,17 @@ class TestTemplate(Base):
         self.assertEqual(list(vault.user_changes(base)), ["3. 📚 Knowledge/Idea.md"])
 
 
+class TestMachine(unittest.TestCase):
+    def test_login_links_and_codes_in_a_terminal_output(self):
+        from seahorse.machine import links_and_codes
+        gh = "! First copy your one-time code: 1A2B-3C4D\r\nPress Enter to open \x1b[1mhttps://github.com/login/device\x1b[0m in your browser..."
+        self.assertEqual(links_and_codes(gh), (["https://github.com/login/device"], ["1A2B-3C4D"]))
+        claude = "Browser didn't open? Use the url below to sign in:\r\n\r\nhttps://claude.ai/oauth/authorize?code=true&client_id=x&state=y"
+        self.assertEqual(links_and_codes(claude), ([], []))  # the link is not complete yet
+        self.assertEqual(links_and_codes(claude + "\r\n")[0], ["https://claude.ai/oauth/authorize?code=true&client_id=x&state=y"])
+        self.assertEqual(links_and_codes("See https://example.com/docs for help.\n"), ([], []))  # not a login
+
+
 class TestImages(Base):
     def test_week_and_day_images(self):
         from PIL import Image

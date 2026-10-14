@@ -14,4 +14,6 @@ The first public version.
 - Deadline reminders, a Sunday planner, a weekly Observer of your patterns, and a night Reviewer.
 - Claude (subscription or API key) or Codex (subscription or API key).
 - English, Brazilian Portuguese and Spanish.
-- One-command install with an interactive setup, and updates with `seahorse update` or `/update`.
+- One-command install on Windows, macOS and Linux. The setup runs on your computer and sets up your server through ssh:
+  the login pages open in your browser, and the one-time codes are copied for you.
+- Updates with `seahorse update` or `/update`.
