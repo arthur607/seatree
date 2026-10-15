@@ -11,7 +11,6 @@ import shlex
 import shutil
 import subprocess
 import sys
-import webbrowser
 from pathlib import Path
 
 from . import config
@@ -34,6 +33,18 @@ def links_and_codes(text: str) -> tuple[list[str], list[str]]:
     text = clean(text)
     links = [m.group().rstrip(".,)") for m in LINK.finditer(text) if m.end() < len(text) and m.group().startswith(LOGIN_HOSTS)]
     return links, CODE.findall(text)
+
+
+def launch(url: str) -> None:
+    """Opens a link (https or obsidian://) in its app, in a process with no console. An app opened straight from
+    the setup can write its own logs into the terminal, as Obsidian does on Windows."""
+    quiet = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    if sys.platform == "win32":
+        subprocess.Popen(["rundll32", "url.dll,FileProtocolHandler", url], creationflags=subprocess.DETACHED_PROCESS, **quiet)
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", url], **quiet)
+    else:
+        subprocess.Popen(["xdg-open", url], start_new_session=True, **quiet)
 
 
 def copy_to_clipboard(text: str) -> bool:
@@ -67,7 +78,7 @@ def relay(argv: list[str], open_links: bool, notice) -> str:
         for link in links:
             if link not in seen:
                 seen.add(link)
-                webbrowser.open(link)
+                launch(link)
                 notice("link_opened")
     process.wait()
     return clean(text)
@@ -134,7 +145,7 @@ class Server:
 
     def _ssh(self, tty: str = "", batch: bool = True) -> list[str]:
         """`tty` is "" (no terminal), "-t" or "-tt" (a terminal even when the output goes to a pipe)."""
-        options = ["-o", "StrictHostKeyChecking=accept-new", "-o", "ServerAliveInterval=30", "-o", "ConnectTimeout=15"]
+        options = ["-q", "-o", "StrictHostKeyChecking=accept-new", "-o", "ServerAliveInterval=30", "-o", "ConnectTimeout=15"]
         if batch:
             options += ["-i", str(self.key), "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes"]
         return ["ssh", *([tty] if tty else []), *options, self.label]

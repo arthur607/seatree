@@ -10,7 +10,6 @@ import secrets
 import shutil
 import subprocess
 import time
-import webbrowser
 from pathlib import Path
 from urllib.parse import quote
 
@@ -119,4 +118,5 @@ def register(folder: Path) -> None:
 
 
 def open_vault(folder: Path) -> None:
-    webbrowser.open(f"obsidian://open?path={quote(str(folder))}")
+    from .machine import launch
+    launch(f"obsidian://open?path={quote(str(folder))}")

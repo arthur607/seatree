@@ -15,7 +15,6 @@ import shutil
 import sys
 import threading
 import tomllib
-import webbrowser
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -25,7 +24,7 @@ import questionary
 import requests
 
 from . import __version__, config, i18n
-from .machine import Local, Server
+from .machine import Local, Server, launch
 
 STEPS = 9
 INSTALL_SCRIPT = "https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.sh"
@@ -150,7 +149,8 @@ def _working(text: str, /, **values):
 
 def _open(url: str) -> None:
     """Opens a page in the browser of this computer, when there is one."""
-    if BROWSER and webbrowser.open(url):
+    if BROWSER:
+        launch(url)
         _notice("link_opened")
 
 
@@ -542,11 +542,14 @@ def _github_automatic() -> str | None:
         _say(_t("github_login" + ("_browser" if BROWSER else "_server")))
         # No input: gh then asks no questions and does not wait for Enter. It shows the code and waits.
         M.login("gh auth login --hostname github.com --git-protocol https --web", _notice, typing=False)
-        if M.sh("gh auth status").returncode != 0:
+        with _working("checking"):
+            logged_in = M.sh("gh auth status").returncode == 0
+        if not logged_in:
             return None
     try:
-        GITHUB["login"] = M.sh("gh api user --jq .login").stdout.strip()
-        GITHUB["token"] = M.sh("gh auth token").stdout.strip()  # to open the vault on this computer, at the end
+        with _working("checking"):
+            GITHUB["login"] = M.sh("gh api user --jq .login").stdout.strip()
+            GITHUB["token"] = M.sh("gh auth token").stdout.strip()  # to open the vault on this computer, at the end
         return _create_repository()
     finally:
         # The GitHub login opens every repository of the person. Seahorse needs only the deploy key of the vault.
