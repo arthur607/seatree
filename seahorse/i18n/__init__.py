@@ -28,7 +28,7 @@ def _find(language: str, key: str):
     return node
 
 
-def t(key: str, language: str | None = None, **values) -> str:
+def t(key: str, language: str | None = None, /, **values) -> str:
     """The text for `key`, with `{placeholders}` filled in."""
     text = _find(language or config.LANGUAGE, key)
     if text is None:

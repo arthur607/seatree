@@ -373,6 +373,25 @@ class TestTemplate(Base):
         self.assertEqual(list(vault.user_changes(base)), ["3. 📚 Knowledge/Idea.md"])
 
 
+class TestSetupTexts(unittest.TestCase):
+    def test_a_text_can_have_any_field_name(self):
+        from seahorse import setup
+        self.assertIn("Ada", setup._t("done", name="Ada", notes="-"))  # {name} once broke the end of the setup
+
+    def test_quiet_hours_off_or_after_midnight(self):
+        old = config.QUIET_FROM, config.QUIET_UNTIL
+        try:
+            config.QUIET_FROM = config.QUIET_UNTIL = 0  # no quiet hours
+            self.assertEqual(companion.window()[1], 23 * 60 + 30)
+            self.assertFalse(messenger.quiet(datetime(2026, 10, 5, 3, 0, tzinfo=TZ)))
+            config.QUIET_FROM, config.QUIET_UNTIL = 60, 8 * 60  # 01:00 to 08:00
+            self.assertEqual(companion.window()[1], 23 * 60 + 30)
+            config.QUIET_FROM = 22 * 60
+            self.assertEqual(companion.window()[1], 21 * 60 + 30)
+        finally:
+            config.QUIET_FROM, config.QUIET_UNTIL = old
+
+
 class TestMachine(unittest.TestCase):
     def test_login_links_and_codes_in_a_terminal_output(self):
         from seahorse.machine import links_and_codes

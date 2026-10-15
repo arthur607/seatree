@@ -35,8 +35,11 @@ def window() -> tuple[int, int]:
     the quiet hours."""
     hours, minutes = map(int, config.SCHEDULE["morning"].split(":"))
     first = hours * 60 + minutes + 45
-    last = (config.QUIET_FROM or 24 * 60) - 30
-    return first, last
+    if config.QUIET_FROM == config.QUIET_UNTIL:  # no quiet hours
+        return first, 24 * 60 - 30
+    # Quiet hours that start after midnight (such as 01:00) end the day at midnight.
+    end = config.QUIET_FROM if config.QUIET_FROM > first else 24 * 60
+    return first, end - 30
 
 
 def draw_times(moment: datetime, luck: random.Random | None = None) -> list[str]:

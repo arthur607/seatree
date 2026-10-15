@@ -172,7 +172,7 @@ The installer installs `uv` and Seahorse, then starts a setup that asks one thin
 
 To answer, use the arrow keys and Enter, or type and press Enter. During the setup:
 
-- **The pages open by themselves** in your browser: BotFather, the logins, the page of the Groq key.
+- **The pages open by themselves** in your browser: the logins and the page of the Groq key.
 - **The one-time codes are copied for you.** You paste them in the browser.
 - **The tokens of the logins are caught by the setup.** You do not copy them.
 
@@ -181,11 +181,12 @@ To answer, use the arrow keys and Enter, or type and press Enter. During the set
 | 1. **Where** | A server or this computer | Choose one. For a server, type its address. Then type its password once, when ssh asks for it (the password does not show while you type). The setup installs Seahorse on the server |
 | 2. **About you** | Your first name and your time zone | Type your name. The setup suggests your time zone from the clock of your computer. Press Enter to accept it, or choose another city |
 | 3. **The AI** | Which account you have | Choose it. Your browser opens the login. Log in and approve. If the page shows a code, paste it in the terminal. The setup tests the AI |
-| 4. **Telegram** | A token for your bot | Telegram opens BotFather. Send `/newbot`, choose a name and a user name, and paste the token that BotFather sends. Then Telegram opens your new bot: tap **Start**. The setup finds you by itself |
+| 4. **Telegram** | A token for your bot | On your phone, talk to @BotFather: send `/newbot`, choose a name and a user name, and paste the token that BotFather sends. Then tap the link to your new bot in the same message, and tap **Start**. The setup finds you by itself |
 | 5. **Voice notes** (optional) | If you want to send voice notes | Choose *Yes* (recommended): the Groq page opens, and you make a free key. Or choose *No* to use only text |
-| 6. **Your routine** | Your free hours a day, the tag of work tasks, the time of the morning summary, and the end of the quiet hours | Press Enter to keep each suggestion, or type a new value |
+| 6. **Your routine** | Your free hours a day, the tag of work tasks, the time of the morning summary, and if you want quiet hours | Press Enter to keep each suggestion, or type a new value. Quiet hours are optional: in them, Seahorse sends no messages |
 | 7. **The vault** | Where you will open your notes | Choose the GitHub sync (recommended) to open your notes on your phone and other computers, or *Only on this machine*. For GitHub, choose *Automatically*: GitHub opens, you paste the code, and the setup creates a private repository for you |
 | 8. **Background** | Nothing | The setup starts Seahorse, which also starts again after a reboot. Seahorse sends you a first message on Telegram |
+| 9. **Obsidian** | If you want your notes on this computer | Choose *Yes* (recommended). The setup copies the vault from GitHub, adds the Git plugin, and opens the vault in Obsidian. If Obsidian is open, close it when the setup asks |
 
 <details>
 <summary><b>Create the Telegram bot (step 4), with more detail</b></summary>
@@ -197,7 +198,7 @@ Your bot is a private Telegram account that Seahorse controls. Only you can talk
 3. BotFather asks for a name. This is the name you see in your chats. Send any name, such as `My Seahorse`.
 4. BotFather asks for a user name. It must end in `bot`, and nobody else can have it. Send one such as `ada_seahorse_bot`. If BotFather says it is taken, try another.
 5. BotFather sends a message with a token, a line such as `7123456789:AAH4k-xyz…`. Copy it, and paste it in the setup. If you did this on your phone, send the token to yourself in Telegram's *Saved Messages*, and copy it in Telegram on the computer (or at <https://web.telegram.org>).
-6. The setup opens a link such as `https://t.me/ada_seahorse_bot`. Tap **Start**.
+6. In the same message, BotFather sends a link such as `t.me/ada_seahorse_bot`. Tap it, then tap **Start**.
 
 The token is the password of your bot. Do not share it. If somebody sees it, send `/revoke` to @BotFather and run `seahorse setup` again with the new token.
 
@@ -248,6 +249,8 @@ This needs the GitHub sync from step 7 of the setup.
 The sync settings come with the vault: Obsidian saves and gets the changes every minute, and when it opens. Now Seahorse sees the notes you write and the boxes you check, and you see what Seahorse writes.
 
 ### On another computer
+
+On the computer where you ran the setup, step 9 does this for you. On other computers:
 
 1. Install Git from <https://git-scm.com>.
 2. In a terminal, run this command with your user name and repository name:
@@ -359,6 +362,7 @@ It stops Seahorse, and deletes the program and `~/.seahorse` (the settings, keys
 - The AI provider you choose (Anthropic or OpenAI) receives the notes that the agents read, under the terms of your account.
 - With a subscription, Seahorse uses the limits of your plan. A normal day uses a few dozen agent runs. The weekly planning uses the deepest model once a week.
 - If you choose Groq, Groq receives your voice notes to transcribe them.
+- The setup logs in to GitHub on the server only to make the repository, then logs out: the server keeps only a deploy key for the vault. When step 9 copies the vault to your computer, it saves the GitHub login in the credential store of your computer, so Obsidian can sync.
 - To suggest your time zone, the setup reads the clock of your computer. On Windows, it asks ipinfo.io once for the time zone of your internet connection.
 
 ## Languages

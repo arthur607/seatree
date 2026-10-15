@@ -88,7 +88,7 @@ class Local:
     def which(self, tool: str) -> bool:
         return bool(shutil.which(tool) or shutil.which(str(Path.home() / ".local/bin" / tool)))
 
-    def login(self, command: str, notice) -> str:
+    def login(self, command: str, notice, typing: bool = True) -> str:
         if sys.platform == "win32":
             subprocess.run(command, shell=True)
             return ""
@@ -136,10 +136,11 @@ class Server:
         return ["ssh", *([tty] if tty else []), *options, self.label]
 
     def reachable(self) -> bool:
-        return subprocess.run(self._ssh() + ["true"], capture_output=True).returncode == 0
+        """True when the setup key opens the server. Before the key exists, the answer is no."""
+        return self.key.exists() and subprocess.run(self._ssh() + ["true"], capture_output=True).returncode == 0
 
     def add_key(self) -> None:
-        """Puts the setup key on the server. ssh asks for the password of the server here, once."""
+        """Puts the setup key on the server. ssh uses the keys of the person, or asks for the password, once."""
         config.HOME.mkdir(parents=True, exist_ok=True)
         if not self.key.exists():
             subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "seahorse-setup", "-f", str(self.key)],
@@ -158,9 +159,12 @@ class Server:
     def which(self, tool: str) -> bool:
         return self.sh(f"command -v {tool}").returncode == 0
 
-    def login(self, command: str, notice) -> str:
+    def login(self, command: str, notice, typing: bool = True) -> str:
+        """`typing`: the person types in the login (such as a code). Without it, the login gets no input, so the
+        tool asks no questions and does not wait for Enter."""
         # A wide terminal on the server, so a long link stays on one line.
-        return relay(self._ssh("-tt") + [f"stty cols 1000 rows 50 2>/dev/null; {PATH}{command}"], True, notice)
+        quiet = "" if typing else " </dev/null"
+        return relay(self._ssh("-tt") + [f"stty cols 1000 rows 50 2>/dev/null; {PATH}{command}{quiet}"], True, notice)
 
     def upload_source(self, folder: Path) -> None:
         """Copies a local copy of the code to ~/.seahorse/source on the server, to test a version before its
