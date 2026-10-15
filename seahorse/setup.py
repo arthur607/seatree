@@ -47,10 +47,16 @@ STYLE = questionary.Style([
     ("instruction", "fg:ansibrightblack"),
 ])
 
+# questionary marks the default line as "selected" for good, and that class wins over the highlight of the
+# arrow, so the first line never looked like the line under the arrow. The setup asks single choices only.
+from questionary.prompts import common as _common  # noqa: E402
+_common.InquirerControl._is_selected = lambda self, choice: bool(choice.checked)
+
 M: Local | Server = Local()  # the machine that runs Seahorse
 BROWSER = True  # False when the setup runs on the server itself, where no browser can open
 SECRETS: dict[str, str] = {}
-GITHUB: dict[str, str] = {}  # the login and token of GitHub, kept only while the setup runs
+GITHUB: dict[str, str] = {}
+PERSON = ""  # the first name given for a new person on a server  # the login and token of GitHub, kept only while the setup runs
 
 
 # ---------------------------------------------------------------- talking
@@ -180,10 +186,11 @@ def _parse_secrets(text: str | None) -> dict[str, str]:
 
 def _save(settings: dict, secrets: dict | None = None) -> None:
     """Writes config.toml and secrets.env on the machine of Seahorse after every step."""
-    M.write_file("config.toml", _settings_text(settings))
-    if secrets:
-        SECRETS.update({k: v for k, v in secrets.items() if v})
-        M.write_file("secrets.env", "".join(f"{k}={v}\n" for k, v in SECRETS.items()), private=True)
+    with _working("saving"):
+        M.write_file("config.toml", _settings_text(settings))
+        if secrets:
+            SECRETS.update({k: v for k, v in secrets.items() if v})
+            M.write_file("secrets.env", "".join(f"{k}={v}\n" for k, v in SECRETS.items()), private=True)
 
 
 def _load() -> dict:
@@ -196,9 +203,13 @@ def _load() -> dict:
     return settings
 
 
-def _install(tool: str, linux: str, mac: str, hint: str) -> bool:
+def _install(tool: str, linux: str, mac: str, hint: str, system: bool = False) -> bool:
+    """`system`: the Linux command changes the system (apt-get, npm -g), so it runs as root."""
     with _working("installing", tool=tool):
-        result = M.sh(mac if M.system == "Darwin" else linux)
+        if M.system == "Darwin":
+            result = M.sh(mac)
+        else:
+            result = M.root(linux) if system else M.sh(linux)
     if result.returncode != 0:
         _say(_t("install_failed", tool=tool, hint=hint, detail=_last_line(result)))
     return result.returncode == 0
@@ -251,10 +262,36 @@ def _connect_server() -> None:
         if reachable:
             break
         _say(_t("server_failed", host=host))
-    M = server
-    local.write_file("server.toml", f'[server]\nhost = "{server.host}"\nuser = "{server.user}"\nlanguage = "{config.LANGUAGE}"\n')
     print(_t("server_ok", host=server.host))
+    # As root, each person gets their own Linux user. A user given as "ana@IP" runs Seahorse itself.
+    M = _person(server, remembered.get("user")) if server.user == "root" else server
+    local.write_file("server.toml", f'[server]\nhost = "{server.host}"\nadmin = "{server.user}"\nuser = "{M.user}"\n'
+                                    f'language = "{config.LANGUAGE}"\n')
     _install_on_server()
+
+
+def _person(admin: Server, remembered: str | None) -> Server:
+    """Whose Seahorse this is. Each person has their own Linux user on the server (seahorse-ana), so two people
+    can share one server: their notes, tokens and bots stay apart."""
+    global PERSON
+    with _working("checking"):
+        people = admin.people()
+    choice = "new"
+    if people:
+        options = {user: _t("person_existing", user=user) for user in people} | {"new": _t("person_new")}
+        choice = _choose("person_ask", options, remembered if remembered in people else people[0])
+    if choice == "root":  # an install from before people had their own users
+        return admin
+    if choice == "new":
+        PERSON = _ask("person_name", validate=lambda v: bool(re.fullmatch(r"[A-Za-z][A-Za-z0-9]{0,19}", v.strip()))
+                      or _t("person_bad")).capitalize()
+        choice = f"seahorse-{PERSON.lower()}"
+    with _working("person_making", user=choice):
+        made = admin.make_person(choice)  # for a person already there, it only lets this computer in
+    if not made:
+        _say(_t("person_failed", user=choice))
+        sys.exit(1)
+    return Server(admin.host, choice, admin)
 
 
 def _install_on_server() -> None:
@@ -310,7 +347,7 @@ def _detect_zone() -> str | None:
 
 def _about_you(settings: dict) -> None:
     _title(2, "name_title")
-    settings["user"]["name"] = _ask("name_ask", settings["user"]["name"], validate=lambda v: bool(v.strip()) or _t("required"))
+    settings["user"]["name"] = _ask("name_ask", settings["user"]["name"] or PERSON, validate=lambda v: bool(v.strip()) or _t("required"))
     zones = ZONES.get(config.LANGUAGE, ZONES["en"])
     current = settings["user"]["timezone"]
     detected = _detect_zone()
@@ -346,9 +383,9 @@ def _ai(settings: dict) -> None:
         logged_in = logged_in and M.which(current)
     if logged_in and _confirm("keep_ai", provider=current.capitalize()):
         return _test_ai()
-    default = {"claude": "claude-sub", "codex": "codex-sub"}.get(current, "claude-sub")
-    choice = _choose("ai_ask", {"claude-sub": _t("ai_claude_sub"), "claude-api": _t("ai_claude_api"),
-                                "codex-sub": _t("ai_codex_sub"), "codex-api": _t("ai_codex_api")}, default)
+    which = _choose("ai_ask", {"claude": "Claude", "codex": "ChatGPT (Codex)"}, current)
+    how = _choose("ai_how", {"sub": _t("ai_subscription"), "api": _t("ai_api_key")}, "sub")
+    choice = f"{which}-{how}"
     secrets = {}
     guide = "_browser" if BROWSER else "_server"
     if choice.startswith("claude"):
@@ -373,11 +410,11 @@ def _ai(settings: dict) -> None:
             missing, no_npm = not M.which("codex"), not M.which("npm")
         if missing:
             # Ubuntu's own Node.js can be too old for Codex, so take a current one from NodeSource.
-            node = f"curl -fsSL https://deb.nodesource.com/setup_22.x | {M.sudo}bash - && {M.sudo}apt-get install -y -qq nodejs"
-            if no_npm and not _install("Node.js", node, "brew install node", "https://nodejs.org"):
+            node = "bash -c 'curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y -qq nodejs'"
+            if no_npm and not _install("Node.js", node, "brew install node", "https://nodejs.org", system=True):
                 sys.exit(1)
-            if not _install("Codex CLI", f"{M.sudo}npm install -g @openai/codex", "npm install -g @openai/codex",
-                            "https://developers.openai.com/codex/cli"):
+            if not _install("Codex CLI", "npm install -g @openai/codex", "npm install -g @openai/codex",
+                            "https://developers.openai.com/codex/cli", system=True):
                 sys.exit(1)
         if choice == "codex-sub":
             _say(_t("codex_login" + guide))
@@ -421,10 +458,14 @@ def _telegram(settings: dict) -> None:
             break
         _say(_t("telegram_bad"))
     _say(_t("telegram_start", bot=bot))
-    user_id = None
+    # An old chat with the bot has no Start button, so the person may need to send any message.
     with _working("telegram_waiting"):
-        while not user_id:
-            user_id = telegram_api.wait_for_first_message(token)
+        user_id = telegram_api.wait_for_first_message(token, timeout=30)
+    if not user_id:
+        _say(_t("telegram_nudge", bot=bot))
+        with _working("telegram_waiting"):
+            while not user_id:
+                user_id = telegram_api.wait_for_first_message(token)
     settings["telegram"]["user_id"] = user_id
     _save(settings, {"TELEGRAM_BOT_TOKEN": token})
     print(_t("telegram_ok", bot=bot))
@@ -439,7 +480,18 @@ def _voice(settings: dict) -> None:
     if _choose("voice_ask", {"yes": _t("voice_yes"), "no": _t("voice_no")}, "yes") == "yes":
         _say(_t("groq_steps"))
         _open("https://console.groq.com/keys")
-        _save(settings, {"GROQ_API_KEY": _secret("groq_key")})
+        while True:
+            key = _secret("groq_key")
+            with _working("checking"):
+                try:
+                    good = requests.get("https://api.groq.com/openai/v1/models", timeout=15,
+                                        headers={"Authorization": f"Bearer {key}"}).status_code != 401
+                except requests.RequestException:
+                    good = True  # no answer from Groq: keep the key, and voice notes will tell
+            if good:
+                break
+            _say(_t("groq_bad"))
+        _save(settings, {"GROQ_API_KEY": key})
 
 
 # ---------------------------------------------------------------- 6. routine
@@ -454,7 +506,6 @@ def _routine(settings: dict) -> None:
     week, schedule = settings["week"], settings["schedule"]
     week["daily_capacity"] = _ask("capacity_ask", week["daily_capacity"],
                                   validate=lambda v: bool(hours.match(v.strip())) or _t("capacity_bad"))
-    week["work_tag"] = _ask("work_tag_ask", week["work_tag"]).lstrip("#").lower() or "work"
     schedule["morning"] = _ask("morning_ask", schedule["morning"], validate=a_time)
     had_quiet = schedule["quiet_from"] != schedule["quiet_until"]
     if _choose("quiet_ask", {"yes": _t("quiet_yes"), "no": _t("quiet_no")}, "yes" if had_quiet else "no") == "yes":
@@ -483,7 +534,7 @@ def _github_automatic() -> str | None:
     """Creates the private repository with the GitHub CLI, on the machine of Seahorse, and adds the deploy key."""
     with _working("checking"):
         missing = not M.which("gh")
-    if missing and not _install("GitHub CLI", f"{M.sudo}apt-get install -y -qq gh", "brew install gh", "https://cli.github.com"):
+    if missing and not _install("GitHub CLI", "apt-get install -y -qq gh", "brew install gh", "https://cli.github.com", system=True):
         return None
     with _working("checking"):
         must_log_in = M.sh("gh auth status").returncode != 0

@@ -34,6 +34,8 @@ def latest() -> dict | None:
     """The newest release: {"version": "1.2.0", "notes": "..."}. None when GitHub cannot be reached."""
     try:
         r = requests.get(f"https://api.github.com/repos/{REPO}/releases/latest", timeout=20)
+        if r.status_code == 404:
+            return {"version": "", "notes": ""}  # GitHub answered: there is no release yet
         if not r.ok:
             return None
         data = r.json()
@@ -95,7 +97,9 @@ def start_update_in_background() -> None:
 def update(assume_yes: bool = False) -> str:
     found = latest()
     if not found:
-        return "Could not reach GitHub."
+        return "Could not reach GitHub. Check the internet connection of this machine and try again."
+    if not found["version"]:
+        return f"There is no release on GitHub yet. You have Seahorse {__version__}."
     if not newer(found["version"]):
         return f"Seahorse is up to date ({__version__})."
     if not assume_yes:

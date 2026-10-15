@@ -34,7 +34,8 @@ def main() -> None:
     # On the person's computer, when Seahorse runs on a server, these commands run on the server.
     server = _server()
     if server and args.command in ON_THE_SERVER:
-        command = "journalctl -u seahorse -f -n 50" if args.command == "logs" else "seahorse " + shlex.join(sys.argv[1:])
+        logs = "journalctl -u seahorse -f -n 50" if server.user == "root" else "journalctl --user -u seahorse -f -n 50"
+        command = logs if args.command == "logs" else "seahorse " + shlex.join(sys.argv[1:])
         code = server.interactive(command)
         if args.command == "uninstall" and code == 0:
             _forget_server(server)
@@ -88,9 +89,20 @@ ON_THE_SERVER = {"update", "migrate", "status", "doctor", "logs", "agent", "lint
 
 
 def _forget_server(server) -> None:
-    """After an uninstall on the server: removes the setup key from the server, and the server from this computer."""
+    """After an uninstall on the server: removes the setup key from the server, and the server from this computer.
+    The Linux user of the person goes too, unless their vault stays in it."""
     from . import config, i18n
-    server.sh("sed -i '/ seahorse-setup$/d' ~/.ssh/authorized_keys")
+    admin = server.admin
+    # Only the key of this computer: another computer may have set up the same server.
+    public = shlex.quote(server.key.with_suffix(".pub").read_text(encoding="utf-8").strip())
+    forget = (f"grep -vxF {public} ~/.ssh/authorized_keys > ~/.ssh/.keys; "
+              "cat ~/.ssh/.keys > ~/.ssh/authorized_keys; rm -f ~/.ssh/.keys")
+    if admin and server.user.startswith("seahorse-") and admin.sh(f"test -d /home/{server.user}/seahorse-vault").returncode != 0:
+        admin.sh(f"loginctl disable-linger {server.user}; pkill -u {server.user}; sleep 1; userdel -r {server.user}")
+    else:
+        server.sh(forget)
+    if admin and admin is not server and not admin.people():  # nobody left: root forgets this computer too
+        admin.sh(forget)
     for name in ("server.toml", "server_key", "server_key.pub"):
         (config.HOME / name).unlink(missing_ok=True)
     print("\n" + i18n.t("uninstall.local_done", host=server.host))
@@ -106,7 +118,11 @@ def _server():
         return None
     data = tomllib.loads(path.read_text(encoding="utf-8")).get("server", {})
     config.LANGUAGE = data.get("language", config.LANGUAGE)  # the messages on this computer
-    return Server(data["host"], data.get("user", "root")) if data.get("host") else None
+    if not data.get("host"):
+        return None
+    admin = Server(data["host"], data.get("admin", "root"))
+    user = data.get("user", admin.user)
+    return admin if user == admin.user else Server(data["host"], user, admin)
 
 
 def doctor() -> int:

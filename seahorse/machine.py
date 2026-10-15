@@ -88,6 +88,10 @@ class Local:
     def which(self, tool: str) -> bool:
         return bool(shutil.which(tool) or shutil.which(str(Path.home() / ".local/bin" / tool)))
 
+    def root(self, command: str) -> subprocess.CompletedProcess:
+        """A command that changes the system, such as apt-get."""
+        return self.sh(self.sudo + command)
+
     def login(self, command: str, notice, typing: bool = True) -> str:
         if sys.platform == "win32":
             subprocess.run(command, shell=True)
@@ -122,9 +126,9 @@ class Server:
     remote = True
     system = "Linux"
 
-    def __init__(self, host: str, user: str = "root"):
-        self.host, self.user = host, user
-        self.sudo = "" if user == "root" else "sudo "
+    def __init__(self, host: str, user: str = "root", admin: "Server | None" = None):
+        """`user` runs Seahorse. `admin` (root) makes the Linux user of each person and installs system tools."""
+        self.host, self.user, self.admin = host, user, admin
         self.label = f"{user}@{host}"
         self.key = config.HOME / "server_key"
 
@@ -158,6 +162,29 @@ class Server:
 
     def which(self, tool: str) -> bool:
         return self.sh(f"command -v {tool}").returncode == 0
+
+    def root(self, command: str) -> subprocess.CompletedProcess:
+        """A command that changes the system, such as apt-get: as root, through the admin connection if needed."""
+        if self.user == "root":
+            return self.sh(command)
+        return self.admin.sh(command) if self.admin else self.sh(f"sudo -n {command}")
+
+    def make_person(self, user: str) -> bool:
+        """As root: makes the Linux user that runs one person's Seahorse, lets the setup key in, and keeps its
+        services running without a login (linger). Each person has their own folder, service and tokens."""
+        public = shlex.quote(self.key.with_suffix(".pub").read_text(encoding="utf-8").strip())
+        script = (f"id {user} >/dev/null 2>&1 || useradd -m -s /bin/bash {user}; loginctl enable-linger {user}; "
+                  f"install -d -m 700 -o {user} -g {user} /home/{user}/.ssh; "
+                  f"touch /home/{user}/.ssh/authorized_keys; "
+                  f"grep -qxF {public} /home/{user}/.ssh/authorized_keys || echo {public} >> /home/{user}/.ssh/authorized_keys; "
+                  f"chown {user}:{user} /home/{user}/.ssh/authorized_keys; chmod 600 /home/{user}/.ssh/authorized_keys; "
+                  "command -v git >/dev/null || (apt-get update -qq && apt-get install -y -qq git curl)")
+        return self.sh(script).returncode == 0
+
+    def people(self) -> list[str]:
+        """The Linux users that already run a Seahorse on this server."""
+        out = self.sh("ls -d /root/.seahorse/config.toml /home/*/.seahorse/config.toml 2>/dev/null").stdout
+        return ["root" if line.startswith("/root/") else line.split("/")[2] for line in out.split()]
 
     def login(self, command: str, notice, typing: bool = True) -> str:
         """`typing`: the person types in the login (such as a code). Without it, the login gets no input, so the

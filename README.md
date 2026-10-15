@@ -180,10 +180,10 @@ To answer, use the arrow keys and Enter, or type and press Enter. During the set
 |---|---|---|
 | 1. **Where** | A server or this computer | Choose one. For a server, type its address. Then type its password once, when ssh asks for it (the password does not show while you type). The setup installs Seahorse on the server |
 | 2. **About you** | Your first name and your time zone | Type your name. The setup suggests your time zone from the clock of your computer. Press Enter to accept it, or choose another city |
-| 3. **The AI** | Which account you have | Choose it. Your browser opens the login. Log in and approve. If the page shows a code, paste it in the terminal. The setup tests the AI |
+| 3. **The AI** | Claude or ChatGPT, then subscription or API key | Choose them. Your browser opens the login. Log in and approve. If the page shows a code, paste it in the terminal. The setup tests the AI |
 | 4. **Telegram** | A token for your bot | On your phone, talk to @BotFather: send `/newbot`, choose a name and a user name, and paste the token that BotFather sends. Then tap the link to your new bot in the same message, and tap **Start**. The setup finds you by itself |
 | 5. **Voice notes** (optional) | If you want to send voice notes | Choose *Yes* (recommended): the Groq page opens, and you make a free key. Or choose *No* to use only text |
-| 6. **Your routine** | Your free hours a day, the tag of work tasks, the time of the morning summary, and if you want quiet hours | Press Enter to keep each suggestion, or type a new value. Quiet hours are optional: in them, Seahorse sends no messages |
+| 6. **Your routine** | Your free hours a day, the time of the morning summary, and if you want quiet hours | Press Enter to keep each suggestion, or type a new value. Quiet hours are optional: in them, Seahorse sends no messages |
 | 7. **The vault** | Where you will open your notes | Choose the GitHub sync (recommended) to open your notes on your phone and other computers, or *Only on this machine*. For GitHub, choose *Automatically*: GitHub opens, you paste the code, and the setup creates a private repository for you |
 | 8. **Background** | Nothing | The setup starts Seahorse, which also starts again after a reboot. Seahorse sends you a first message on Telegram |
 | 9. **Obsidian** | If you want your notes on this computer | Choose *Yes* (recommended). The setup copies the vault from GitHub, adds the Git plugin, and opens the vault in Obsidian. If Obsidian is open, close it when the setup asks |
@@ -207,6 +207,8 @@ To give your bot a picture, send `/setuserpic` to @BotFather.
 </details>
 
 If a step fails, the setup tells you what to do. Your answers are saved after each step: run `seahorse setup` again, and it asks to keep what already works.
+
+**Two people, one server.** Each person gets their own Linux user on the server, such as `seahorse-ana`, with their own notes, tokens, bot and service. To add a person, run `seahorse setup` again (from any computer), type the same server, and choose *A new person's*. Each person needs their own Telegram bot and AI account.
 
 **After the install**, the `seahorse` commands on your computer act on the machine that runs Seahorse, also when it is a server: `seahorse doctor` checks each part, `seahorse logs` shows what Seahorse does, `seahorse update` installs a new version, and `seahorse setup` changes a setting.
 
