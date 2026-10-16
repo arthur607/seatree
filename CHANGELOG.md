@@ -2,6 +2,11 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.0.1
+
+- `seahorse version` shows the version on this computer, on the server, and the newest release.
+- The README starts with what Seahorse is for: a living map of your mind. It lists the commands.
+
 ## 1.0.0
 
 The first public version.

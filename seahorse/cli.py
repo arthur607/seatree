@@ -12,6 +12,7 @@ def main() -> None:
     parser.add_argument("--version", action="version", version=f"seahorse {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("setup", help="set up Seahorse, or change the settings")
+    commands.add_parser("version", help="show the version here, on the server, and the newest release")
     commands.add_parser("run", help="run the bot and the agents (the background service runs this)")
     update = commands.add_parser("update", help="install the newest release")
     update.add_argument("--yes", action="store_true", help="do not ask before installing")
@@ -44,7 +45,9 @@ def main() -> None:
     # The setup talks to a person: only real problems go to the screen.
     logging.basicConfig(level=logging.WARNING if args.command == "setup" else logging.INFO,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s")
-    if args.command == "setup":
+    if args.command == "version":
+        version(server)
+    elif args.command == "setup":
         from . import setup
         setup.run()
     elif args.command == "uninstall":
@@ -83,6 +86,19 @@ def main() -> None:
         from . import config, lint
         sys.argv = ["lint", str(config.VAULT)]
         sys.exit(lint.main())
+
+
+def version(server) -> None:
+    """The version on this computer, on the server it set up, and the newest release on GitHub."""
+    from . import updates
+    print(f"seahorse {__version__}")
+    if server:
+        there = server.sh("seahorse --version").stdout.strip().removeprefix("seahorse ") or "not installed"
+        print(f"on {server.host} ({server.user}): {there}")
+    found = updates.latest()
+    if found and found["version"]:
+        newer = " (run `seahorse update`)" if updates.newer(found["version"]) else ""
+        print(f"newest release: {found['version']}{newer}")
 
 
 ON_THE_SERVER = {"update", "migrate", "status", "doctor", "logs", "agent", "lint", "uninstall"}

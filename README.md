@@ -2,7 +2,7 @@
 
 <h1 align="center">Seahorse</h1>
 
-<p align="center">Your second brain on Telegram and Obsidian.<br>You capture. AI agents organize, plan your week, and talk to you first.</p>
+<p align="center"><b>Seahorse learns who you are.</b><br>Tell it about your day on Telegram. It keeps a living map of your mind: what you will do, what happened, what you know, and who you are. And it comes back to you, like a friend who remembers.</p>
 
 <p align="center"><img src="assets/telegram.png" width="380" alt="A day with Seahorse on Telegram: the morning summary, two captures, and a suggestion"></p>
 
@@ -78,11 +78,32 @@ The setup asks one thing at a time, in English, Portuguese or Spanish, in about 
 
 <p align="center"><img src="assets/week.png" width="720" alt="The week as an image"></p>
 
+## Commands
+
+| On Telegram | What it does |
+|---|---|
+| `week`, `today` | The week, or today, as an image |
+| `/status` | The captures that wait, and the version |
+| `/integrate` | Integrates the waiting captures now |
+| `/update` | Installs the newest version |
+
+| In the terminal | What it does |
+|---|---|
+| `seahorse setup` | Sets up Seahorse, or changes a setting |
+| `seahorse version` | The version here, on the server, and the newest release |
+| `seahorse doctor` | Checks each part and says what to fix |
+| `seahorse status` | Shows what runs |
+| `seahorse logs` | Shows what Seahorse does now |
+| `seahorse update` | Installs the newest version |
+| `seahorse uninstall` | Removes Seahorse. Your notes stay |
+
+On the computer that set up a server, the terminal commands act on the server.
+
 ## Learn more
 
 - [Where Seahorse runs](docs/server.md): rent a server, two people on one server, Windows.
 - [Your notes on other devices](docs/phone.md): your phone and other computers.
-- [Reference](docs/reference.md): the agents, commands, settings, updates, uninstall, privacy.
+- [Reference](docs/reference.md): the agents, all the commands, settings, updates, uninstall, privacy.
 - [Changelog](CHANGELOG.md)
 
 ## Contributing

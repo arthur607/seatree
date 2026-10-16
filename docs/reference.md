@@ -37,6 +37,7 @@ Each claim in the vault points to the engram it came from. A trait in Identity s
 | In the terminal | What it does |
 |---|---|
 | `seahorse setup` | Sets up Seahorse, or changes a setting |
+| `seahorse version` | The version here, on the server, and the newest release |
 | `seahorse doctor` | Checks each part and says what to fix |
 | `seahorse status` | Shows what runs |
 | `seahorse logs` | Shows what Seahorse does |
