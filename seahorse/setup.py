@@ -28,7 +28,7 @@ from .machine import Local, Server, launch
 
 STEPS = 9
 INSTALL_SCRIPT = "https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.sh"
-GUIDE = "https://github.com/lorenzoa7/seahorse#open-your-vault-on-your-phone"
+GUIDE = "https://github.com/lorenzoa7/seahorse/blob/main/docs/phone.md"
 # Common time zones per language, so nobody has to type "America/Sao_Paulo".
 ZONES = {
     "pt-BR": ["America/Sao_Paulo", "America/Manaus", "America/Recife", "America/Cuiaba", "America/Rio_Branco",
