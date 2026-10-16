@@ -2,7 +2,7 @@
 
 <h1 align="center">Seahorse</h1>
 
-<p align="center"><b>Seahorse learns who you are.</b><br>Tell it about your day on Telegram. It keeps a living map of your mind: what you will do, what happened, what you know, and who you are. And it comes back to you, like a friend who remembers.</p>
+<p align="center"><b>Seahorse learns who you are.</b><br>Tell it about your day. It keeps a living map of your mind: what you will do, what happened, what you know, and who you are. And it comes back to you, like a friend who remembers.</p>
 
 <p align="center"><img src="assets/telegram.png" width="380" alt="A day with Seahorse on Telegram: the morning summary, two captures, and a suggestion"></p>
 
