@@ -2,6 +2,11 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.1.1
+
+- Update from Telegram: the notice of a new version has an "Update now" button. `/update` also works.
+- Fix: an update from the bot installed the new version but never said so, because the restart stopped it. The update now runs as its own short systemd unit, and the bot tells you when it is done.
+
 ## 1.1.0
 
 - The first conversation: right after the setup, the bot asks 6 short questions to get to know you, one at a time. Each answer goes to the right place, like any capture. Skip any question, or send `/intro` to answer them again.

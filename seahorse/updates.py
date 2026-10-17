@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 REPO = "lorenzoa7/seahorse"
 SOURCE = f"git+https://github.com/{REPO}"
 VAULT_VERSION = "6. ⚙️ System/.seahorse-version"
+UPDATE_BUTTON = "upd|now|"
 
 
 def _parts(version: str) -> tuple[int, ...]:
@@ -53,7 +54,8 @@ def notify_if_new() -> str:
     if marker.exists() and marker.read_text(encoding="utf-8").strip() == found["version"]:
         return "already notified"
     notes = "\n".join(found["notes"].strip().splitlines()[:12])
-    telegram_api.send(i18n.t("bot.update_available", version=found["version"], notes=notes))
+    telegram_api.send(i18n.t("bot.update_available", version=found["version"], notes=notes),
+                      [(i18n.t("button.update"), UPDATE_BUTTON)])
     marker.parent.mkdir(parents=True, exist_ok=True)
     marker.write_text(found["version"], encoding="utf-8")
     return f"notified {found['version']}"
@@ -89,9 +91,14 @@ def migrate_vault(today: date | None = None) -> list[str]:
 
 
 def start_update_in_background() -> None:
-    """For the /update command: runs `seahorse update --yes` outside the bot, because it restarts the bot."""
-    subprocess.Popen([sys.argv[0] if sys.argv[0].endswith("seahorse") else "seahorse", "update", "--yes"],
-                     start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    """For /update and its button: runs `seahorse update --yes` outside the bot, because the update restarts the
+    bot. On Linux it runs as its own short systemd unit: a process started from the bot is in the bot's unit, so
+    the restart would stop it before it says on Telegram that the update is done."""
+    command = [service._binary(), "update", "--yes"]
+    if sys.platform.startswith("linux") and shutil.which("systemd-run"):
+        command = ["systemd-run", *([] if service._is_root() else ["--user"]), "--quiet", "--collect",
+                   f"--setenv=SEAHORSE_HOME={config.HOME}", f"--setenv=PATH={service._path()}", *command]
+    subprocess.Popen(command, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def update(assume_yes: bool = False) -> str:

@@ -252,6 +252,9 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _ask_fix(query, action)
     elif kind == "eng" and target in ("week", "backlog"):
         await _decide_week(query, context, action, target == "week")
+    elif kind == "upd":
+        await query.edit_message_text(f"{query.message.text}\n\n→ {i18n.t('bot.updating')}")
+        await asyncio.to_thread(updates.start_update_in_background)
     elif kind == "intro" and target == "skip":
         await query.edit_message_text(f"{query.message.text}\n\n→ {i18n.t('intro.skip')}")
         await asyncio.to_thread(intro.next_question)
@@ -317,7 +320,7 @@ def run() -> None:
     app.add_handler(CommandHandler("intro", on_intro, filters=only_owner))
     app.add_handler(MessageHandler(only_owner & filters.TEXT & ~filters.COMMAND, on_text))
     app.add_handler(MessageHandler(only_owner & (filters.VOICE | filters.AUDIO), on_voice))
-    buttons = r"^(msg|eng|intro)\|"  # Seahorse messages, captures, and the first conversation
+    buttons = r"^(msg|eng|intro|upd)\|"  # Seahorse messages, captures, the first conversation, the update
     app.add_handler(CallbackQueryHandler(on_button, pattern=buttons))
     schedule(app)
     log.info("Seahorse %s is running for %s, vault %s, provider %s", __version__, config.USER_NAME, config.VAULT, config.PROVIDER)
