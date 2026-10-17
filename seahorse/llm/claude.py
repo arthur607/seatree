@@ -17,7 +17,22 @@ NEVER_WHEN_READING = ["Write", "Edit", "NotebookEdit", "Bash"]
 
 
 def binary() -> str:
-    return os.environ.get("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local/bin/claude")
+    """The native Claude Code of this user first. A global install from npm can be old and break on an old Node.js."""
+    native = Path.home() / ".local/bin/claude"
+    if os.environ.get("CLAUDE_BIN"):
+        return os.environ["CLAUDE_BIN"]
+    return str(native) if native.exists() else shutil.which("claude") or str(native)
+
+
+def answer_from(data: dict) -> Answer:
+    """The answer in Claude Code's JSON. A run that stops on an error can say `is_error: false` with an empty
+    result: its subtype and its `errors` tell the truth."""
+    text = (data.get("result") or "").strip()
+    failed = bool(data.get("is_error")) or data.get("subtype", "success") != "success"
+    if failed and not text:
+        errors = [str(e).strip().splitlines()[0] for e in data.get("errors") or [] if str(e).strip()]
+        text = "; ".join(errors) or str(data.get("subtype", "error"))
+    return Answer(text, data.get("session_id"), failed)
 
 
 def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: bool,
@@ -44,7 +59,7 @@ def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: 
         data = json.loads(out.stdout)
     except json.JSONDecodeError:
         return Answer((out.stderr or out.stdout)[-800:], None, True)
-    return Answer((data.get("result") or "").strip(), data.get("session_id"), bool(data.get("is_error")))
+    return answer_from(data)
 
 
 def available() -> tuple[bool, str]:

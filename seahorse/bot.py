@@ -299,6 +299,7 @@ def schedule(app: Application) -> None:
     s = config.SCHEDULE
     for name, interval, first in (("messenger", 600, 90), ("notes", 300, 45)):
         jobs.run_repeating(_job(name, agents.AGENTS[name]), interval, first=first, name=name)
+    jobs.run_repeating(_job("retry", agents.retry_pending), 900, first=120, name="retry")
     jobs.run_daily(_job("morning", agents.morning), _at(s["morning"]), name="morning")
     jobs.run_daily(_job("reviewer", agents.reviewer), _at(s["reviewer"]), name="reviewer")
     jobs.run_daily(_job("weekly", agents.weekly), _at(s["weekly_time"]), days=(WEEKDAYS[s["weekly_day"]],), name="weekly")

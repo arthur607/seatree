@@ -25,9 +25,37 @@ def request(name: str, **values) -> str:
     return llm.prompt("common", **now) + "\n\n" + llm.prompt(name, **now, **values)
 
 
+FAILURES = config.STATE / "failures.json"
+FAILURE_QUIET_HOURS = 6
+
+
 def _report_failure(agent: str, detail: str) -> None:
+    """Tells the user once. The same failure of the same agent is only logged again for some hours, so a retry
+    every few minutes does not fill the chat."""
     log.error("%s failed: %s", agent, detail)
+    try:
+        seen = json.loads(FAILURES.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        seen = {}
+    key = f"{agent}: {detail[:120]}"
+    if time.time() - seen.get(key, 0) < FAILURE_QUIET_HOURS * 3600:
+        return
+    seen[key] = time.time()
+    FAILURES.parent.mkdir(parents=True, exist_ok=True)
+    FAILURES.write_text(json.dumps(seen, ensure_ascii=False, indent=1), encoding="utf-8")
     telegram_api.send(i18n.t("bot.agent_failed", agent=agent, detail=detail[:300]))
+
+
+RETRY_AFTER_MINUTES = 10
+
+
+def retry_pending() -> str | None:
+    """Captures that wait for more than 10 minutes get another Integrator run: the AI failed on them, or a
+    restart stopped the run that had them."""
+    old = time.time() - RETRY_AFTER_MINUTES * 60
+    if not any(p.stat().st_mtime < old for p in vault.engrams("pending")):
+        return None
+    return integrator()
 
 
 def _after_writing() -> None:

@@ -9,6 +9,7 @@ import os
 import random
 import shutil
 import tempfile
+import time
 import unittest
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -390,6 +391,43 @@ class TestSetupTexts(unittest.TestCase):
             self.assertEqual(companion.window()[1], 21 * 60 + 30)
         finally:
             config.QUIET_FROM, config.QUIET_UNTIL = old
+
+
+class TestFailures(Base):
+    def test_a_claude_run_that_stops_on_an_error_is_an_error(self):
+        from seahorse.llm.claude import answer_from
+        broken = {"type": "result", "subtype": "error_during_execution", "is_error": False, "result": "",
+                  "errors": ["TypeError: A.with is not a function\n    at Mzz (cli.js:1:1)"]}
+        answer = answer_from(broken)
+        self.assertTrue(answer.error)
+        self.assertEqual(answer.text, "TypeError: A.with is not a function")
+        self.assertFalse(answer_from({"subtype": "success", "result": "ok", "session_id": "s"}).error)
+
+    def test_the_same_failure_is_told_once(self):
+        sent, old = [], (telegram_api.send, agents.FAILURES)
+        telegram_api.send = lambda text, buttons=None, chat_id=None: sent.append(text) or 1
+        agents.FAILURES = _FOLDER / "failures-test.json"
+        agents.FAILURES.unlink(missing_ok=True)
+        try:
+            agents._report_failure("Integrator", "TypeError: A.with is not a function")
+            agents._report_failure("Integrator", "TypeError: A.with is not a function")
+            agents._report_failure("Integrator", "timed out after 3600s")
+            self.assertEqual(len(sent), 2)
+        finally:
+            telegram_api.send, agents.FAILURES = old
+
+    def test_only_old_waiting_captures_are_retried(self):
+        runs, old = [], agents.integrator
+        agents.integrator = lambda: runs.append(1) or "ok"
+        try:
+            engram = vault.new_engram("buy chocolate", "telegram-voice", self.morning)
+            self.assertIsNone(agents.retry_pending())  # a new capture: its own run is on the way
+            past = time.time() - 15 * 60
+            os.utime(engram, (past, past))
+            self.assertEqual(agents.retry_pending(), "ok")
+            self.assertEqual(len(runs), 1)
+        finally:
+            agents.integrator = old
 
 
 class TestIntro(unittest.TestCase):

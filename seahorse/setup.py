@@ -391,7 +391,8 @@ def _ai(settings: dict) -> None:
     if choice.startswith("claude"):
         claude = "curl -fsSL https://claude.ai/install.sh | bash"
         with _working("checking"):
-            missing = not M.which("claude")
+            # The native install of this user, never an old global one: an old Claude Code breaks on an old Node.js.
+            missing = M.sh("test -x ~/.local/bin/claude").returncode != 0
         if missing and not _install("Claude Code", claude, claude, "https://docs.claude.com/en/docs/claude-code/setup"):
             sys.exit(1)
         if choice == "claude-sub":

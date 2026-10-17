@@ -2,6 +2,12 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.1.2
+
+- Fix: when Claude Code stopped on an error in the middle of a run, Seahorse took it as "nothing to do", and the capture waited with no word. Now it counts as a failure, and the bot tells you once.
+- Captures that wait for more than 10 minutes get another run by themselves, every 15 minutes.
+- Seahorse uses the native Claude Code of its own user. The setup installs it, and never uses an old global install from npm, which can break on an old Node.js.
+
 ## 1.1.1
 
 - Update from Telegram: the notice of a new version has an "Update now" button. `/update` also works.
