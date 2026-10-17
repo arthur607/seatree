@@ -1,2 +1,2 @@
 """Seahorse: an external hippocampus. An Obsidian vault that AI agents keep alive, with a Telegram bot."""
-__version__ = "1.0.1"
+__version__ = "1.1.0"

@@ -253,6 +253,7 @@ person_name = "Give this Seahorse a name on the server (only letters and numbers
 person_bad = "Use only letters and numbers, such as ana."
 person_making = "Preparing the user {user} on the server…"
 person_failed = "Could not make the user {user} on the server."
+telegram_picture = "To give your bot the Seahorse picture: download https://raw.githubusercontent.com/lorenzoa7/seahorse/main/assets/seahorse-bot.png, send /setuserpic to @BotFather, choose your bot, and send the picture."
 
 [uninstall]
 what = "This removes Seahorse from this machine:\n  • the background service\n  • the settings, keys and tokens in {home}\n  • the program\nYour vault ({vault}) stays, unless you ask to delete it next."
@@ -267,3 +268,10 @@ kept_vault = "• The vault stays at {path}."
 removed_program = "✓ Program removed."
 left = "What stays, if you want to remove it too:\n  • The GitHub repository of the vault: on GitHub, open the repository → Settings → Delete this repository.\n  • The Telegram bot: send /deletebot to @BotFather.\n  • The tools that other programs can use too: Claude Code, Codex, the GitHub CLI (gh), uv and git."
 local_done = "✓ This computer no longer connects to {host}. To remove the seahorse command from this computer too, run: uv tool uninstall seahorse-brain"
+
+[intro]
+hello = "To start, I want to know you a little: {total} quick questions. Answer by text or voice, as it comes."
+counter = "{n}/{total}"
+skip = "⏭ Skip"
+done = "Done, now I know you a little 🌊 Send me anything: ideas, tasks, what you watched or read. To answer the questions again, send /intro."
+questions = ["What do you do day to day? Work, studies, projects.", "What is a normal day like for you? When do you wake up, work and sleep?", "Who are the most important people in your life now? Give their names and who they are.", "What do you want to do or achieve in the next months?", "Do you have a task or a deadline soon? Give the date, if there is one.", "What do you like to watch, read, play or listen to? Name some favorites."]

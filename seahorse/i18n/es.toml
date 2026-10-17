@@ -251,6 +251,7 @@ person_name = "Dale un nombre a este Seahorse en el servidor (solo letras y núm
 person_bad = "Usa solo letras y números, como ana."
 person_making = "Preparando el usuario {user} en el servidor…"
 person_failed = "No pude crear el usuario {user} en el servidor."
+telegram_picture = "Para que el bot tenga la foto de Seahorse: descarga https://raw.githubusercontent.com/lorenzoa7/seahorse/main/assets/seahorse-bot.png, envía /setuserpic a @BotFather, elige tu bot y envía la imagen."
 
 [uninstall]
 what = "Esto quita Seahorse de esta máquina:\n  • el servicio en segundo plano\n  • la configuración, las claves y los tokens en {home}\n  • el programa\nTu vault ({vault}) se queda, salvo que pidas borrarlo a continuación."
@@ -265,3 +266,10 @@ kept_vault = "• El vault se queda en {path}."
 removed_program = "✓ Programa quitado."
 left = "Lo que se queda, si quieres quitarlo también:\n  • El repositorio del vault en GitHub: en GitHub, abre el repositorio → Settings → Delete this repository.\n  • El bot de Telegram: envía /deletebot a @BotFather.\n  • Las herramientas que otros programas también usan: Claude Code, Codex, GitHub CLI (gh), uv y git."
 local_done = "✓ Esta computadora ya no se conecta a {host}. Para quitar el comando seahorse de esta computadora también, ejecuta: uv tool uninstall seahorse-brain"
+
+[intro]
+hello = "Para empezar, quiero conocerte un poco: son {total} preguntas rápidas. Responde por texto o audio, como te salga."
+counter = "{n}/{total}"
+skip = "⏭ Saltar"
+done = "Listo, ya te conozco un poco 🌊 Ahora envíame lo que quieras: ideas, tareas, lo que viste o leíste. Para responder las preguntas de nuevo, envía /intro."
+questions = ["¿Qué haces en el día a día? Trabajo, estudios, proyectos.", "¿Cómo es un día normal tuyo? ¿A qué hora te levantas, trabajas y duermes?", "¿Quiénes son las personas más importantes para ti hoy? Di sus nombres y quién es cada una.", "¿Qué quieres hacer o lograr en los próximos meses?", "¿Tienes alguna tarea o plazo cerca? Di la fecha, si la hay.", "¿Qué te gusta ver, leer, jugar o escuchar? Nombra algunos favoritos."]

@@ -251,6 +251,7 @@ person_name = "Dê um nome a este Seahorse no servidor (só letras e números, c
 person_bad = "Use só letras e números, como ana."
 person_making = "Preparando o usuário {user} no servidor…"
 person_failed = "Não consegui criar o usuário {user} no servidor."
+telegram_picture = "Para o bot ter a foto do Seahorse: baixe https://raw.githubusercontent.com/lorenzoa7/seahorse/main/assets/seahorse-bot.png, mande /setuserpic ao @BotFather, escolha o seu bot e envie a imagem."
 
 [uninstall]
 what = "Isto remove o Seahorse desta máquina:\n  • o serviço em segundo plano\n  • as configurações, chaves e tokens em {home}\n  • o programa\nSeu vault ({vault}) fica, a não ser que você peça para apagar a seguir."
@@ -265,3 +266,10 @@ kept_vault = "• O vault fica em {path}."
 removed_program = "✓ Programa removido."
 left = "O que fica, se você quiser remover também:\n  • O repositório do vault no GitHub: no GitHub, abra o repositório → Settings → Delete this repository.\n  • O bot do Telegram: mande /deletebot ao @BotFather.\n  • As ferramentas que outros programas também usam: Claude Code, Codex, GitHub CLI (gh), uv e git."
 local_done = "✓ Este computador não se conecta mais a {host}. Para tirar o comando seahorse deste computador também, rode: uv tool uninstall seahorse-brain"
+
+[intro]
+hello = "Para começar, quero te conhecer um pouco: são {total} perguntas rápidas. Responda por texto ou áudio, do jeito que vier."
+counter = "{n}/{total}"
+skip = "⏭ Pular"
+done = "Pronto, já te conheço um pouco 🌊 Agora é só me mandar o que quiser: ideias, tarefas, o que você viu ou leu. Para refazer as perguntas, mande /intro."
+questions = ["O que você faz no dia a dia? Trabalho, estudo, projetos.", "Como é um dia normal seu? Que horas acorda, trabalha e dorme?", "Quem são as pessoas mais importantes para você hoje? Diga o nome e quem é cada uma.", "O que você quer fazer ou conquistar nos próximos meses?", "Tem alguma tarefa ou prazo chegando? Diga a data, se tiver.", "Do que você gosta de assistir, ler, jogar ou ouvir? Cite alguns favoritos."]

@@ -60,11 +60,13 @@ def connect(url: str) -> int:
 
 def start() -> int:
     """Installs and starts the background service, and sends the first message on Telegram."""
-    from . import i18n, service, telegram_api
+    from . import i18n, intro, service, telegram_api
     result = service.install()
     ok = "installed" in result
     if ok:
         telegram_api.send(i18n.t("bot.first_message"))
+        if not (config.STATE / "intro.json").exists():  # a new Seahorse: the first conversation starts
+            intro.start()
     print(f"OK {service.logs_command()}" if ok else result.replace("\n", " "))
     return 0 if ok else 1
 

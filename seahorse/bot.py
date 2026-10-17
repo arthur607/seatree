@@ -19,7 +19,7 @@ from telegram import ForceReply, InlineKeyboardButton, InlineKeyboardMarkup, Upd
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
-from . import __version__, agents, config, i18n, llm, messenger, notes, telegram_api, transcribe, updates, vault, week_image
+from . import __version__, agents, config, i18n, intro, llm, messenger, notes, telegram_api, transcribe, updates, vault, week_image
 
 log = logging.getLogger(__name__)
 CORRECTION = re.compile(r"(\d{4}-\d{2}-\d{2} \d{4}(?: \d+)?)")
@@ -127,13 +127,16 @@ async def _capture(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str
     message = update.message
     when = message.date.astimezone(config.TIMEZONE)
     extra = await _link_to_bot_message(update)
+    intro_question = await asyncio.to_thread(intro.waiting)
+    if intro_question and not extra:
+        extra = {"in_reply_to": intro_question[:300]}
     if "message_id" in extra:
         # A reply by text or voice to a message with buttons: the buttons go away, so it is clear it was answered.
         try:
             await message.reply_to_message.edit_reply_markup(reply_markup=None)
         except Exception:  # noqa: BLE001 - the message may have no buttons, or they may be gone already
             pass
-    question = not (ANSWER_FIELDS & extra.keys()) and await asyncio.to_thread(_is_question, text)
+    question = not intro_question and not (ANSWER_FIELDS & extra.keys()) and await asyncio.to_thread(_is_question, text)
     engram = await asyncio.to_thread(vault.new_engram, text, channel, when, extra)
     if question:
         await _answer(update, context, text)
@@ -144,6 +147,8 @@ async def _capture(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str
             reply_markup=_keyboard(telegram_api.capture_buttons(engram.stem, channel, correction)))
         await asyncio.to_thread(notes.set_field, engram, "confirmation", str(confirmation.message_id))
     _schedule_integrator(context)
+    if intro_question:
+        await asyncio.to_thread(intro.next_question)
 
 
 async def _send_week(update: Update, only_today: bool = False) -> None:
@@ -247,6 +252,9 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _ask_fix(query, action)
     elif kind == "eng" and target in ("week", "backlog"):
         await _decide_week(query, context, action, target == "week")
+    elif kind == "intro" and target == "skip":
+        await query.edit_message_text(f"{query.message.text}\n\n→ {i18n.t('intro.skip')}")
+        await asyncio.to_thread(intro.next_question)
 
 
 async def on_integrate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -267,6 +275,10 @@ async def on_update(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     await update.message.reply_text(i18n.t("bot.updating"))
     await asyncio.to_thread(updates.start_update_in_background)
+
+
+async def on_intro(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await asyncio.to_thread(intro.start)
 
 
 async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -302,9 +314,11 @@ def run() -> None:
     app.add_handler(CommandHandler("integrate", on_integrate, filters=only_owner))
     app.add_handler(CommandHandler("status", on_status, filters=only_owner))
     app.add_handler(CommandHandler("update", on_update, filters=only_owner))
+    app.add_handler(CommandHandler("intro", on_intro, filters=only_owner))
     app.add_handler(MessageHandler(only_owner & filters.TEXT & ~filters.COMMAND, on_text))
     app.add_handler(MessageHandler(only_owner & (filters.VOICE | filters.AUDIO), on_voice))
-    app.add_handler(CallbackQueryHandler(on_button, pattern=r"^(msg|eng)\|"))
+    buttons = r"^(msg|eng|intro)\|"  # Seahorse messages, captures, and the first conversation
+    app.add_handler(CallbackQueryHandler(on_button, pattern=buttons))
     schedule(app)
     log.info("Seahorse %s is running for %s, vault %s, provider %s", __version__, config.USER_NAME, config.VAULT, config.PROVIDER)
     app.run_polling(allowed_updates=Update.ALL_TYPES)

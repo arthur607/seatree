@@ -2,6 +2,11 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.1.0
+
+- The first conversation: right after the setup, the bot asks 6 short questions to get to know you, one at a time. Each answer goes to the right place, like any capture. Skip any question, or send `/intro` to answer them again.
+- The setup tells you how to give your bot the Seahorse picture.
+
 ## 1.0.1
 
 - `seahorse version` shows the version on this computer, on the server, and the newest release.

@@ -86,6 +86,7 @@ The setup asks one thing at a time, in English, Portuguese or Spanish, in about 
 | `/status` | The captures that wait, and the version |
 | `/integrate` | Integrates the waiting captures now |
 | `/update` | Installs the newest version |
+| `/intro` | Asks the first questions again, to get to know you |
 
 | In the terminal | What it does |
 |---|---|

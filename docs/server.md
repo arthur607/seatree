@@ -25,6 +25,10 @@ Any provider with Ubuntu works, such as Hetzner, DigitalOcean or Oracle Cloud. T
 
 The setup asks for the address, and for the password once.
 
+## The picture of the bot
+
+Telegram lets only @BotFather change the picture of a bot. To use the Seahorse picture, download [seahorse-bot.png](https://raw.githubusercontent.com/lorenzoa7/seahorse/main/assets/seahorse-bot.png), send `/setuserpic` to @BotFather, choose your bot, and send the picture.
+
 ## Two people, one server
 
 Each person gets their own Linux user on the server, such as `seahorse-ana`. Each user has its own notes, tokens, Telegram bot and service.

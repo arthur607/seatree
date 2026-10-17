@@ -33,6 +33,7 @@ Each claim in the vault points to the engram it came from. A trait in Identity s
 | `/status` | Pending captures and the version |
 | `/integrate` | Integrates the pending captures now |
 | `/update` | Installs the newest version |
+| `/intro` | Asks the first questions again, to get to know you |
 
 | In the terminal | What it does |
 |---|---|

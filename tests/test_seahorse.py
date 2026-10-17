@@ -392,6 +392,38 @@ class TestSetupTexts(unittest.TestCase):
             config.QUIET_FROM, config.QUIET_UNTIL = old
 
 
+class TestIntro(unittest.TestCase):
+    def setUp(self):
+        from seahorse import intro
+        self.intro, self.sent = intro, []
+        self.old = intro.STATE, telegram_api.send
+        intro.STATE = _FOLDER / "intro-state.json"
+        intro.STATE.unlink(missing_ok=True)
+        telegram_api.send = lambda text, buttons=None, chat_id=None: self.sent.append((text, buttons)) or 1
+
+    def tearDown(self):
+        self.intro.STATE, telegram_api.send = self.old
+
+    def test_one_question_at_a_time_then_the_end(self):
+        intro, total = self.intro, len(self.intro.questions())
+        self.assertGreaterEqual(total, 5)
+        self.assertIsNone(intro.waiting())  # an instance from before the first conversation existed
+        intro.start()
+        self.assertEqual(intro.waiting(), intro.questions()[0])
+        self.assertEqual(self.sent[1][1], [(i18n.t("intro.skip"), "intro|skip|0")])
+        for _ in range(total):
+            intro.next_question()
+        self.assertIsNone(intro.waiting())
+        self.assertEqual(self.sent[-1][0], i18n.t("intro.done"))
+
+    def test_an_old_question_does_not_wait_forever(self):
+        self.intro.start()
+        state = json.loads(self.intro.STATE.read_text(encoding="utf-8"))
+        state["asked_at"] -= 25 * 3600
+        self.intro.STATE.write_text(json.dumps(state), encoding="utf-8")
+        self.assertIsNone(self.intro.waiting())
+
+
 class TestMachine(unittest.TestCase):
     def test_login_links_and_codes_in_a_terminal_output(self):
         from seahorse.machine import links_and_codes

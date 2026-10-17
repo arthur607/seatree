@@ -469,6 +469,7 @@ def _telegram(settings: dict) -> None:
     settings["telegram"]["user_id"] = user_id
     _save(settings, {"TELEGRAM_BOT_TOKEN": token})
     print(_t("telegram_ok", bot=bot))
+    _say(_t("telegram_picture"))
 
 
 # ---------------------------------------------------------------- 5. voice
