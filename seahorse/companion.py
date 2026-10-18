@@ -19,7 +19,11 @@ log = logging.getLogger(__name__)
 # How many conversations in a day, and the weight of each count in the draw. Two or three is the most common.
 COUNTS, WEIGHTS = (1, 2, 3, 4), (1, 4, 4, 2)
 MIN_GAP = 100  # minutes between two conversations
-CHECKIN_FROM, CHECKIN_UNTIL = 20 * 60 + 30, 22 * 60 + 45
+# The day check-in asks about yesterday, in the morning: at a random moment in the first 75 minutes of the
+# window, that is, from 45 minutes to 2 hours after the morning summary. No other conversation within an hour of it.
+CHECKIN_SPREAD, CHECKIN_ROOM = 75, 60
+# A check-in planned for a morning that is long gone (the bot was down) is skipped: yesterday is far by then.
+CHECKIN_TOO_LATE = 3 * 60
 # What to bring up in a normal conversation, and the weight of each kind in the draw. News from outside weighs most.
 FOCUS = {"release": 4, "news": 2, "question": 2, "revival": 2, "recommendation": 1, "curiosity": 1, "research": 1, "connection": 1}
 # A task that moved to another day this many times is stuck: instead of another push, the Companion asks why.
@@ -28,6 +32,11 @@ STUCK_AFTER = 3
 
 def _hhmm(minute: int) -> str:
     return f"{minute // 60:02d}:{minute % 60:02d}"
+
+
+def _minutes(hhmm: str) -> int:
+    hours, minutes = hhmm.split(":")
+    return int(hours) * 60 + int(minutes)
 
 
 def window() -> tuple[int, int]:
@@ -75,10 +84,12 @@ def _plan(moment: datetime) -> dict:
     plan = _read_plan()
     if plan.get("day") != f"{moment:%Y-%m-%d}":
         luck = random.Random()
-        _, last = window()
-        checkin = luck.randint(min(CHECKIN_FROM, last - 15), min(CHECKIN_UNTIL, last))
-        plan = {"day": f"{moment:%Y-%m-%d}", "times": draw_times(moment, luck), "used": 0,
-                "checkin": _hhmm(checkin), "checkin_done": False}
+        first, last = window()
+        checkin = luck.randint(first, max(first, min(first + CHECKIN_SPREAD, last)))
+        times = [t for t in draw_times(moment, luck) if abs(_minutes(t) - checkin) >= CHECKIN_ROOM]
+        late = moment.hour * 60 + moment.minute > checkin + CHECKIN_TOO_LATE
+        plan = {"day": f"{moment:%Y-%m-%d}", "times": times, "used": 0,
+                "checkin": _hhmm(checkin), "checkin_done": late}
         _save_plan(plan)
         log.info("companion: today %s, and the day check-in at %s", plan["times"], plan["checkin"])
     return plan

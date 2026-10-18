@@ -17,7 +17,7 @@ flowchart LR
 | **Integrator** | Seconds after each message | Files the capture in the right notes, makes tasks, and tells you in one line |
 | **Notes reader** | Every 5 minutes | Reads the notes you write in Obsidian after 15 quiet minutes, and links them. It never changes your text |
 | **Morning summary** | Each morning | Today's tasks, moved tasks, next deadlines, and the week as an image |
-| **Companion** | 1 to 4 times a day, and at night | Asks about your day, tells you about releases and news you would like, asks about quiet projects and stuck tasks |
+| **Companion** | 1 to 4 times a day, and each morning about yesterday | Asks about your day, tells you about releases and news you would like, asks about quiet projects and stuck tasks |
 | **Messenger** | Every 10 minutes | Sends deadline reminders. Never in your quiet hours |
 | **Planner** | Sunday | Makes the next week from your tasks and your free hours |
 | **Observer** | Sunday | Finds patterns and updates Identity |

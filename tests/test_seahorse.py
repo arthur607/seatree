@@ -253,6 +253,30 @@ class TestCompanion(Base):
         self.assertEqual(companion.turn(datetime(2026, 10, 5, 21, 10, tzinfo=TZ)), "conversation")
         self.assertIsNone(companion.turn(datetime(2026, 10, 5, 21, 20, tzinfo=TZ)))
 
+    def test_the_checkin_is_in_the_morning_and_alone(self):
+        early = datetime(2026, 10, 5, 8, 0, tzinfo=TZ)
+        for _ in range(100):
+            config.COMPANION_STATE.unlink(missing_ok=True)
+            plan = companion._plan(early)
+            checkin = companion._minutes(plan["checkin"])
+            self.assertTrue(8 * 60 + 45 <= checkin <= 10 * 60, plan["checkin"])  # morning summary at 08:00
+            self.assertFalse(plan["checkin_done"])
+            self.assertTrue(all(abs(companion._minutes(t) - checkin) >= 60 for t in plan["times"]), plan)
+
+    def test_a_checkin_on_a_morning_long_gone_is_skipped(self):
+        config.COMPANION_STATE.unlink(missing_ok=True)
+        self.assertTrue(companion._plan(datetime(2026, 10, 5, 16, 0, tzinfo=TZ))["checkin_done"])
+
+    def test_the_rules_of_old_vaults_move_the_checkin_to_the_morning(self):
+        from seahorse import migrations
+        rules = config.SYSTEM / "_MESSENGER.md"
+        write(rules, "\n".join(old for old, _ in migrations.CHECKIN_LINES) + " This is how it goes into memory.\n")
+        migrations._to_1_2_0()
+        text = rules.read_text(encoding="utf-8")
+        self.assertIn("every morning, once, about yesterday", text)
+        self.assertIn("asks how yesterday was. This is how", text)
+        self.assertNotIn("every night", text)
+
     def test_focus_varies(self):
         last = [message(self.morning - timedelta(hours=h), kind, "[[X]]") for h, kind in ((5, "release"), (2, "question"))]
         found = {companion.pick_focus(last, random.Random(s)) for s in range(300)}

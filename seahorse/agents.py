@@ -15,8 +15,10 @@ DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sun
 
 def moment() -> dict:
     now = datetime.now(config.TIMEZONE)
+    yesterday = now - timedelta(days=1)
     return {"today": f"{now:%Y-%m-%d}", "weekday": DAYS[now.weekday()], "time": f"{now:%H:%M}",
-            "timezone": str(config.TIMEZONE)}
+            "timezone": str(config.TIMEZONE), "yesterday": f"{yesterday:%Y-%m-%d}",
+            "yesterday_weekday": DAYS[yesterday.weekday()]}
 
 
 def request(name: str, **values) -> str:

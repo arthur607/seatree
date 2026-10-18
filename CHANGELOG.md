@@ -2,6 +2,11 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.2.0
+
+- The day check-in moved to the morning: from 45 minutes to 2 hours after the morning summary, Seahorse asks how yesterday was, by name ("How was your Saturday?"). The answer goes to the journal of yesterday. No other conversation comes within an hour of it.
+- The rules of the Messenger in your vault say so too: the update changes them by itself.
+
 ## 1.1.2
 
 - Fix: when Claude Code stopped on an error in the middle of a run, Seahorse took it as "nothing to do", and the capture waited with no word. Now it counts as a failure, and the bot tells you once.

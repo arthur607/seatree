@@ -10,7 +10,7 @@ The Companion is the agent that does it. A day when it has nothing good to say c
 | summary | code and the morning agent | every day at 8am | today in the week, what was integrated, what needs {{user}} |
 | week | Planner | Sunday | the proposal for the next week, with the result of the last week |
 | reminder | code | a task with a real `due` is a week away, and again the day before | "⏰ Pay the car tax" |
-| checkin | Companion | every night, once | "How was Friday? Did you go out?" The answer becomes the journal and the experiences of the day |
+| checkin | Companion | every morning, once, about yesterday | "How was your Friday? Did you go out?" The answer becomes the journal and the experiences of that day |
 | release | Companion | something new from outside fits {{user}}: a movie, series, game or book that just came out or comes out soon | "A new horror movie came out in the US, 7.0 on IMDb. Add it to the list?" |
 | news | Companion | news from the last days about something that {{user}} follows | a tour of a band that {{user}} likes, a new season, something in the field of {{user}} |
 | unblock | Companion | a task moved from day to day three times or more | "Call the dentist has moved since the 5th. What is in the way? I can research three options." |
@@ -23,7 +23,7 @@ The Companion is the agent that does it. A day when it has nothing good to say c
 | proposal | Integrator, Planner | there is room in the week and something fits | "Saturday is empty and a game from your list is on sale." |
 | delivery | Integrator | something that Seahorse promised is ready | the summary of a research, with the note attached |
 ## Rhythm
-- **Every night, the day.** Once, at a random moment between 8:30pm and 10:45pm, the Companion asks how the day was. This is how what {{user}} lived goes into memory without {{user}} having to remember to tell.
+- **Every morning, yesterday.** Once, at a random moment from 45 minutes to 2 hours after the morning summary, the Companion asks how yesterday was. This is how what {{user}} lived goes into memory without {{user}} having to remember to tell.
 - **Random, like a friend.** Each morning, code draws how many conversations the day will have, from one to four, and at what times, between 8:45am and 11:30pm, at least 100 minutes apart. No fixed hour and no fixed count.
 - **Hours.** Nothing between midnight and 8am. The 8am summary opens the day.
 - **Reminders are separate.** They do not replace a conversation, and at most one goes out per hour.
