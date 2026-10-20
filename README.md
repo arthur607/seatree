@@ -4,7 +4,7 @@
 
 <p align="center"><b>Seahorse learns who you are.</b><br>Tell it about your day. It keeps a living map of your mind: what you will do, what happened, what you know, and who you are. And it comes back to you, like a friend who remembers.</p>
 
-<p align="center"><img src="assets/telegram.png" width="380" alt="A day with Seahorse on Telegram: the morning summary, two captures, and a suggestion"></p>
+<p align="center"><img src="assets/telegram.jpg" width="380" alt="Seahorse on Telegram: the morning summary, the week, and a suggestion it found for you"></p>
 
 ## What it does
 
@@ -76,7 +76,7 @@ The setup asks one thing at a time, in English, Portuguese or Spanish, in about 
 - **Ask**: "When is my dentist appointment?"
 - **See the week**: send `week`, or `today`.
 
-<p align="center"><img src="assets/week.png" width="720" alt="The week as an image"></p>
+<p align="center"><img src="assets/telegram-capture.jpg" width="380" alt="A capture on Telegram, and where Seahorse put it"></p>
 
 ## Commands
 
