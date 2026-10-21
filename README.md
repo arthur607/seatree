@@ -6,6 +6,14 @@
 
 <p align="center"><img src="assets/telegram.jpg" width="380" alt="Seahorse on Telegram: the morning summary, the week, and a suggestion it found for you"></p>
 
+## A second brain that is a brain
+
+Most second brains are notebooks. They are a way to file notes, save links and list tasks. You do the work, and they wait for you.
+
+A real brain does more. It keeps memories, connects them, and brings them back when they matter.
+
+Seahorse is that kind of second brain. It is an agent that learns who you are, connects what you tell it, plans your week, reminds you of what matters, and talks to you first.
+
 ## What it does
 
 - **You only capture.** Send a text or a voice note on Telegram, or write a note in Obsidian.
