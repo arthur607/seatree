@@ -44,7 +44,8 @@ def lock(wait: bool = True):
 
 
 def git(*args: str, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "-C", str(config.VAULT), *args], capture_output=True, text=True, check=check)
+    return subprocess.run(["git", "-C", str(config.VAULT), *args], capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", check=check)
 
 
 def has_remote() -> bool:

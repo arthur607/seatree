@@ -8,6 +8,7 @@ import json
 import os
 import random
 import shutil
+import stat
 import tempfile
 import time
 import unittest
@@ -35,6 +36,15 @@ def write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def remove(folder: Path) -> None:
+    """Deletes a test folder. Git makes its object files read-only, and Windows does not delete those."""
+    def writable(function, path, _):
+        os.chmod(path, stat.S_IWRITE)
+        function(path)
+    if folder.exists():
+        shutil.rmtree(folder, onexc=writable)
+
+
 def task(name: str, due: date | None = None, done: bool = False, repeat: str = "", tags: str = "[home]") -> Path:
     fields = f"type: task\ndone: {'true' if done else 'false'}\nestimate: 15m\n"
     fields += f"due: {due}\n" if due else ""
@@ -52,7 +62,7 @@ class Base(unittest.TestCase):
     """Monday 5 October 2026 is the first day of week 41. "Today" is Monday at 10:30 unless a test says otherwise."""
 
     def setUp(self):
-        shutil.rmtree(_FOLDER, ignore_errors=True)
+        remove(_FOLDER)
         config.VAULT.mkdir(parents=True)
         self.today = date(2026, 10, 5)
         self.morning = datetime(2026, 10, 5, 10, 30, tzinfo=TZ)
