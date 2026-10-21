@@ -4,7 +4,7 @@
 
 <p align="center"><b>Seahorse learns who you are.</b><br>Tell it about your day. It keeps a living map of your mind: what you will do, what happened, what you know, and who you are. And it comes back to you, like a friend who remembers.</p>
 
-<p align="center"><img src="assets/telegram.jpg" width="380" alt="Seahorse on Telegram: the morning summary, the week, and a suggestion it found for you"></p>
+https://github.com/user-attachments/assets/75493de2-c7e5-4c2d-a048-6ee58c98bcbf
 
 ## A second brain that is a brain
 
@@ -16,13 +16,13 @@ Seahorse is that kind of second brain. It is an agent that learns who you are, c
 
 ## What it does
 
-- **You only capture.** Send a text or a voice note on Telegram, or write a note in Obsidian.
-- **Agents do the rest.** They file each capture, link it to what you know, and make tasks.
+- **You talk to it.** Send a text or a voice note on Telegram, or write a note in Obsidian.
+- **It organizes your life.** It puts each message in one of [four areas](#the-four-areas), and links it to what you told it before.
 - **It plans your week.** Tasks fit in your free hours. A task that you do not do moves to the next free day.
-- **It talks first.** It asks about your day, tells you about new releases that you would like, and reminds you of real deadlines.
+- **It talks to you first.** It asks about your day, tells you about new releases that you would like, and reminds you of real deadlines.
 - **Your notes stay yours.** They are plain Markdown in your own private Git repository.
 
-The name comes from the hippocampus, the part of the brain that makes long-term memory. In Greek, *hippocampus* means seahorse.
+<p align="center"><img src="assets/telegram.jpg" width="380" alt="Seahorse on Telegram: the morning summary, the week, and a suggestion it found for you"></p>
 
 ## The four areas
 
@@ -35,9 +35,18 @@ Most systems organize files. Seahorse organizes a person:
 | 📚 **Knowledge** | One folder for each subject or project | What do I know? |
 | 🪞 **Identity** | Profile, routine, patterns, tastes | Who am I? |
 
-💭 **Engrams** keep each capture exactly as you sent it. ⚙️ **System** holds the rules of the agents, in plain language that you can change.
+Each message becomes an **engram**: a copy of the message, exactly as you sent it. Then Seahorse does the work of the hippocampus, the part of the brain that makes long-term memory. It puts the engram in the area where it belongs, and links it to what is already there. In Greek, *hippocampus* means seahorse.
+
+| You send | It goes to | It becomes |
+|---|---|---|
+| "Pay the car tax by the 20th" | 🎯 Intention | A task, due Tuesday, in your week |
+| 🎤 "Watched Dune: Part Two last night. Loved it, 9 out of 10." | 📓 Memory | A movie that you watched, with your rating |
+| "TIL: in Rust, each value has one owner" | 📚 Knowledge | A note in the Dev folder |
+| "I focus best in the morning" | 🪞 Identity | A change to your routine |
 
 A new fact changes old notes. "I started a new job" updates your career, your routine and the people in it, not only one line.
+
+💭 **Engrams** holds all your messages, as you sent them. ⚙️ **System** holds the rules of the agents, in plain language that you can change.
 
 <p align="center"><img src="assets/obsidian.png" width="800" alt="The vault in Obsidian: the four areas, the week, and the task table"></p>
 
