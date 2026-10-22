@@ -677,14 +677,14 @@ def converse(ask: Ask) -> str | None:
         plain, rich = message_text(ask, text, written)
         c = messenger.Candidate(ask.kind, f"[[{ask.person}]]", plain, ask.urgent, "normal", stage=ask.stage)
         buttons = [(label, f"ppl|{ask.message_id}|{action}") for label, action in ask.buttons]
-        if not messenger.send(c, plain, buttons, moment, ask.message_id, rich):
-            return None
-        if buttons:
+        if buttons:  # kept before the message goes, so that even the fastest tap finds it
             state = _load()
             idea = (written or {}).get("gift", "")
             offer = dict(ask.offer, sent=moment.date().isoformat())
             state["offers"][ask.message_id] = offer | ({"idea": idea} if idea else {})
             _save(state)
+        if not messenger.send(c, plain, buttons, moment, ask.message_id, rich):
+            return None
         done = f"{ask.kind} about [[{ask.person}]]"
         vault.publish(f"messenger: {done}")
     return done
