@@ -437,6 +437,16 @@ class TestAICommand(unittest.TestCase):
             self.assertEqual(kwargs["env"]["CLAUDE_CODE_OAUTH_TOKEN"], "sk-ant-oat01-x")
             self.assertEqual(kwargs["env"]["GIT_AUTHOR_NAME"], "Seahorse")
 
+    def test_no_rule_blocks_a_vault_in_a_hidden_folder(self):
+        from pathlib import Path
+        from seahorse.llm import claude
+        self.assertIn("Edit(~/.*)", claude.denied())
+        with mock.patch.object(config, "VAULT", Path.home() / ".seahorse" / "vault"):
+            rules = claude.denied()
+        self.assertNotIn("Read(~/.seahorse/**)", rules)
+        self.assertNotIn("Edit(~/.*)", rules)
+        self.assertIn("Read(~/.ssh/**)", rules)
+
     def test_codex_gets_no_other_token_and_commits_as_seahorse(self):
         from seahorse.llm import codex
         calls, run = self.fake("")

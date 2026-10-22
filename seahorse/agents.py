@@ -237,7 +237,7 @@ def _log_given_up(paths: list[Path]) -> None:
     links = ", ".join(f"[[{p.stem}]]" for p in paths)
     entry = (f"## [{now:%Y-%m-%d %H:%M}] integrator | gave up after {MAX_ATTEMPTS} failed runs\n"
              f"- Engrams read: {links}\n"
-             f"- Doubts: the Integrator failed {MAX_ATTEMPTS} times on {links}. Ask {config.USER_NAME} what to do with it.\n")
+             f"- Doubts: the Integrator failed {MAX_ATTEMPTS} times on {links}. Ask {config.USER_NAME} what to do with each one.\n")
     path = config.LOGS / f"Log {now:%Y-%m-%d}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     text = path.read_text(encoding="utf-8").rstrip("\n") + "\n" if path.exists() else "---\ntype: log\n---\n"

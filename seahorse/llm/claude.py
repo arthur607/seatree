@@ -25,15 +25,24 @@ NEVER_EDIT = ["./.obsidian/**"]
 
 
 def denied() -> list[str]:
-    """The deny rules of every run. Deny rules win over allow rules."""
+    """The deny rules of every run. Deny rules win over allow rules. A rule on a folder that holds the vault
+    would stop every agent, so it is left out."""
+    home, vault = Path.home().resolve(), config.VAULT.resolve()
+
+    def holds_vault(pattern: str) -> bool:
+        folder = pattern.removesuffix("/**")
+        path = home / folder[2:] if folder.startswith("~/") else Path(folder[1:]) if folder.startswith("//") else None
+        return path is not None and (path == vault or path in vault.parents)
+
     paths = list(SECRETS)
     for folder in (config.HOME, config.SECRETS_FILE.parent):
         absolute = folder.resolve().as_posix()
         if absolute.startswith("/") and not set(absolute) & {" ", ","}:
             paths.append(f"/{absolute}/**")  # a Seahorse home outside ~/.seahorse
+    paths = [p for p in paths if not holds_vault(p)]
     rules = [f"Read({p})" for p in paths] + [f"Edit({p})" for p in paths + NEVER_EDIT]
     try:
-        hidden = any(part.startswith(".") for part in config.VAULT.resolve().relative_to(Path.home().resolve()).parts)
+        hidden = any(part.startswith(".") for part in vault.relative_to(home).parts)
     except ValueError:
         hidden = False
     if not hidden:  # the dotfiles of the home folder, such as .bashrc, run code at the next login
