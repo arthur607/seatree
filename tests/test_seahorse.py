@@ -482,7 +482,7 @@ class TestIntro(unittest.TestCase):
         self.assertIsNone(intro.waiting())  # an instance from before the first conversation existed
         intro.start()
         self.assertEqual(intro.waiting(), intro.questions()[0])
-        self.assertEqual(self.sent[1][1], [(i18n.t("intro.skip"), "intro|skip|0")])
+        self.assertEqual(self.sent[1][1], [(i18n.t("intro.skip"), "intro|skip|0"), (i18n.t("intro.stop"), "intro|stop|0")])
         for _ in range(total):
             intro.next_question()
         self.assertIsNone(intro.waiting())
