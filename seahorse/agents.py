@@ -8,7 +8,7 @@ import uuid
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import config, i18n, llm, messenger, notes, tasks, telegram_api, vault, week, week_image
+from . import config, i18n, llm, messenger, notes, retro, tasks, telegram_api, vault, week, week_image
 
 log = logging.getLogger(__name__)
 ENGRAM = r"\d{4}-\d{2}-\d{2} \d{4}(?: \d+)?"
@@ -490,11 +490,12 @@ def week_after(day: date) -> date:
 
 
 def weekly() -> str:
-    """The Planner plans the week that starts after today, whatever the day of the run, and the plan goes out at
-    once. Then the Observer. Each one holds the vault lock only for its own run, so captures and reminders do
-    not wait for both."""
+    """First the image of the week that ends (`retro.send_week`). Then the Planner plans the week that starts after
+    today, whatever the day of the run, and the plan goes out at once. Then the Observer. Each one holds the vault
+    lock only for its own run, so captures and reminders do not wait for both."""
     integrator()
     today = datetime.now(config.TIMEZONE).date()
+    retro.send_week(today)
     plan = plan_week(week_after(today))
     with vault.lock():
         vault.pull()

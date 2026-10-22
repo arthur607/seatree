@@ -30,7 +30,7 @@ from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest, Conflict, NetworkError, RetryAfter, TelegramError
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
-from . import __version__, agents, config, i18n, intro, llm, messenger, notes, telegram_api, transcribe, updates, vault, week_image
+from . import __version__, agents, config, i18n, intro, llm, messenger, notes, retro, telegram_api, transcribe, updates, vault, week_image
 
 log = logging.getLogger(__name__)
 CORRECTION = re.compile(r"(\d{4}-\d{2}-\d{2} \d{4}(?: \d+)?)")
@@ -48,7 +48,7 @@ CLASSIFY_SECONDS = 90  # the longest wait for the fast model to say if a message
 ALBUM_SECONDS = 2  # the photos of an album arrive one by one, this close together
 STATUS_SHOWN = 10
 KEPT = 500  # how many message ids the bot keeps in memory for the checks below
-COMMANDS = ("help", "status", "integrate", "plan", "intro", "update")
+COMMANDS = ("help", "status", "integrate", "plan", "retro", "intro", "update")
 LABELS = {"photo": "Photo", "file": "File", "voice": "Voice"}
 BUSY, FAILED = object(), object()  # what _in_thread returns when the job did not run, or failed
 
@@ -94,6 +94,10 @@ def asks_for_week(text: str) -> bool:
 
 def asks_for_day(text: str) -> bool:
     return _word(text) in {w.lower() for w in i18n.words("day_words")}
+
+
+def asks_for_retro(text: str) -> bool:
+    return _word(text) in {w.lower() for w in i18n.words("retro.words")}
 
 
 def with_hidden_links(text: str, entities) -> str:
@@ -473,10 +477,29 @@ async def _send_week(update: Update, only_today: bool = False) -> None:
         await update.effective_message.reply_text(i18n.t("bot.no_week"))
 
 
+async def _send_retro(update: Update) -> None:
+    """The last week that ended, in one image. Its pattern line comes from the state file: no new AI run."""
+    await update.effective_chat.send_action(ChatAction.UPLOAD_PHOTO)
+    try:
+        found = await asyncio.to_thread(retro.on_demand)
+    except Exception:  # noqa: BLE001 - a broken file must not leave the user with no answer
+        log.exception("the retrospective failed")
+        await update.effective_message.reply_text(i18n.t("retro.failed"))
+        return
+    if found:
+        image, caption = found
+        await update.effective_message.reply_photo(photo=image, caption=caption)
+    else:
+        await update.effective_message.reply_text(i18n.t("retro.nothing"))
+
+
 async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
     if asks_for_week(message.text) or asks_for_day(message.text):
         await _send_week(update, only_today=asks_for_day(message.text))
+        return
+    if asks_for_retro(message.text):
+        await _send_retro(update)
         return
     await _capture(update, context, message_text(message), "telegram-text")
 
@@ -883,6 +906,10 @@ async def on_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await message.reply_text(i18n.t("chat.plan_failed"))
 
 
+async def on_retro(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _send_retro(update)
+
+
 async def on_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """What waits, and the captures Seahorse was not sure about, by their first words."""
     pending, unclear = await asyncio.to_thread(lambda: (vault.engrams("pending"), vault.engrams("unclear")))
@@ -969,6 +996,8 @@ def schedule(app: Application) -> None:
     jobs.run_daily(_job("reviewer", agents.reviewer), _at(s["reviewer"]), name="reviewer")
     jobs.run_daily(_job("weekly", agents.weekly), _at(s["weekly_time"]), days=(WEEKDAYS[s["weekly_day"]],), name="weekly")
     jobs.run_daily(_job("update check", updates.notify_if_new), _at("12:00"), name="update check")
+    # The image of the week, when the weekly run came in the quiet hours: it goes out as they end.
+    jobs.run_daily(_job("retro", retro.send_held), _at(retro.after_quiet()), name="retro")
 
 
 async def _post_init(app: Application) -> None:
@@ -991,7 +1020,8 @@ def run() -> None:
     new = only_owner & filters.UpdateType.MESSAGE
     app = Application.builder().token(config.TELEGRAM_TOKEN).concurrent_updates(True).post_init(_post_init).build()
     for name, callback in (("start", on_start), ("help", on_help), ("integrate", on_integrate),
-                           ("status", on_status), ("plan", on_plan), ("update", on_update), ("intro", on_intro)):
+                           ("status", on_status), ("plan", on_plan), ("update", on_update), ("intro", on_intro),
+                           ("retro", on_retro)):
         app.add_handler(CommandHandler(name, callback, filters=new))
     app.add_handler(MessageHandler(new & filters.COMMAND, on_unknown))
     app.add_handler(MessageHandler(only_owner & filters.UpdateType.EDITED_MESSAGE, on_edit))
