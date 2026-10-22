@@ -34,6 +34,7 @@ def safe_env(keep: set[str]) -> dict[str, str]:
 ROLES = {
     "classify": ("fast", "low"),
     "phrase": ("fast", "low"),
+    "now": ("fast", "low"),
     "question": ("standard", "low"),
     "morning": ("standard", "low"),
     "fix": ("standard", "low"),

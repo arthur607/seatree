@@ -460,7 +460,7 @@ def morning() -> str:
         if failed:
             week.record_moves(moves)  # they wait for the next summary
         else:
-            tg_id = telegram_api.send(answer.text)
+            tg_id = telegram_api.send(answer.text, [(i18n.t("now.morning"), "now|ask|")])
             messenger.record("summary", "[[_Seahorse]]", answer.text, tg_id, uuid.uuid4().hex[:6])
             _after_summary(ask, drop)
         _send_week_image(today)

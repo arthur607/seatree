@@ -94,7 +94,7 @@ class TestCounting(RetroBase):
         self.assertIn("Tasks: 4 of 5 done. Outside work: 3h30 done of 4h30 planned.", facts)
         self.assertIn("- Fix the bike · Monday · 1h · not done · postponed 2 times", facts)
         self.assertIn("- Write the report · Tuesday · 3h · done · work", facts)
-        self.assertIn("Captures: 2 (1 text, 1 voice note).", facts)
+        self.assertIn("Captures: 2 (1 text, 1 voice).", facts)
         self.assertIn("evening 1", facts)
 
     def test_captures_by_kind_only_in_the_week(self):

@@ -26,7 +26,8 @@ log = logging.getLogger(__name__)
 CONVERSATION = {"revival", "question", "recommendation", "curiosity", "research", "connection", "proposal",
                 "checkin", "release", "news", "unblock"}
 SPONTANEOUS = CONVERSATION | {"reminder", "delivery"}
-# What the user did not ask for. It counts toward the daily limit. Deliveries, the summary and the week do not.
+# What the user did not ask for. It counts toward the daily limit. Deliveries, the summary and the week do not, and
+# neither do the `now` messages (now.py): the user asked for them.
 PROACTIVE = CONVERSATION | {"reminder"}
 DAILY_LIMIT = 5  # the default; `config.DAILY_MESSAGES` changes it
 LINE = re.compile(r"^- (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) · (\S+) · id:(\w+) · tg:(\d*) · (.*?) · reaction: (.+?)(?: · (.*))?$")

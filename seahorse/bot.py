@@ -30,7 +30,7 @@ from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest, Conflict, NetworkError, RetryAfter, TelegramError
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
-from . import __version__, agents, config, i18n, intro, llm, messenger, notes, retro, telegram_api, transcribe, updates, vault, week_image
+from . import __version__, agents, config, i18n, intro, llm, messenger, notes, now, retro, telegram_api, transcribe, updates, vault, week_image
 
 log = logging.getLogger(__name__)
 CORRECTION = re.compile(r"(\d{4}-\d{2}-\d{2} \d{4}(?: \d+)?)")
@@ -48,7 +48,7 @@ CLASSIFY_SECONDS = 90  # the longest wait for the fast model to say if a message
 ALBUM_SECONDS = 2  # the photos of an album arrive one by one, this close together
 STATUS_SHOWN = 10
 KEPT = 500  # how many message ids the bot keeps in memory for the checks below
-COMMANDS = ("help", "status", "integrate", "plan", "retro", "intro", "update")
+COMMANDS = ("help", "now", "status", "integrate", "plan", "retro", "intro", "update")
 LABELS = {"photo": "Photo", "file": "File", "voice": "Voice"}
 BUSY, FAILED = object(), object()  # what _in_thread returns when the job did not run, or failed
 
@@ -501,6 +501,10 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if asks_for_retro(message.text):
         await _send_retro(update)
         return
+    minutes = now.trigger(message.text)
+    if minutes is not None and getattr(message, "forward_origin", None) is None:
+        await _now_reply(message, update.effective_chat, minutes)
+        return
     await _capture(update, context, message_text(message), "telegram-text")
 
 
@@ -856,6 +860,9 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except ValueError:
         await _answer_query(query)
         return
+    if kind == "now":  # its state file knows what a press already did, even after a restart
+        await _now_button(query, context, target, action)
+        return
     key = press_key(kind, target, query.message.message_id)
     repeated = key is not None and key in _pressed
     if key and not repeated:
@@ -877,6 +884,71 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _update_now(query, key)
     elif kind == "intro" and target in ("skip", "stop"):
         await _intro_button(query, target, action)
+
+
+# --- Now: one task for the free time of the user (see now.py) ---
+
+def _now_schedule(jobs, fid: str, seconds: float) -> None:
+    jobs.run_once(_now_check, max(seconds, 1), data=fid, name=f"now {fid}")
+
+
+async def _now_reply(message, chat, minutes: int) -> None:
+    """Answers /now or a message about free time: a task for the minutes, or the question of how much time."""
+    if not minutes:
+        sent = await message.reply_text(i18n.t("now.ask"), reply_markup=_keyboard(now.time_buttons()))
+        await asyncio.to_thread(now.open_round, sent.message_id)
+        return
+    async with _typing(chat) if chat else contextlib.nullcontext():
+        found = await asyncio.to_thread(now.offer, minutes)
+    sent = await message.reply_text(found.text, reply_markup=_keyboard(found.buttons))
+    await asyncio.to_thread(now.open_round, sent.message_id, minutes, found)
+    if found.task:
+        await asyncio.to_thread(now.record_pick, sent.message_id, found.text, found.task)
+
+
+async def _now_button(query, context: ContextTypes.DEFAULT_TYPE, action: str, arg: str) -> None:
+    """A `now|` button. "ask", under the morning summary, asks the time in a new message, and it can be tapped
+    again later. The other buttons change their own message; now.py makes sure that each press acts once."""
+    message, chat = query.message, getattr(query.message, "chat", None)
+    if action == "ask":
+        await _answer_query(query)
+        await _now_reply(message, chat, 0)
+        return
+    async with _typing(chat) if chat and action in ("min", "next") else contextlib.nullcontext():
+        reply = await asyncio.to_thread(now.press, message.message_id, action, arg)
+    await _answer_query(query, reply.toast or None)
+    if reply.toast is not None:
+        return
+    await _edit(query, reply.text, _keyboard(reply.buttons))
+    if reply.wait is not None:
+        _now_schedule(context.job_queue, reply.follow_up, reply.wait)
+    if reply.record:
+        await asyncio.to_thread(now.record_pick, message.message_id, reply.text, reply.record)
+
+
+async def _now_check(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """When the time of a started task ends: did the user finish it? Never in the quiet hours."""
+    fid = context.job.data
+    reply = await asyncio.to_thread(now.check, fid)
+    if reply is None:
+        return
+    tg_id = await asyncio.to_thread(telegram_api.send, reply.text, reply.buttons)
+    await asyncio.to_thread(now.sent_check, fid, tg_id)
+
+
+async def _now_restore(jobs) -> None:
+    """After a restart, the questions of the started tasks wait again for their time."""
+    try:
+        for fid, seconds in await asyncio.to_thread(now.waiting):
+            _now_schedule(jobs, fid, seconds)
+    except Exception:  # noqa: BLE001 - a broken state file must not stop the bot
+        log.exception("could not restore the questions of the started tasks")
+
+
+async def on_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/now, or /now 30 min."""
+    minutes = now.parse_minutes(" ".join(getattr(context, "args", None) or []))
+    await _now_reply(update.effective_message, update.effective_chat, minutes)
 
 
 # --- Commands ---
@@ -1008,6 +1080,7 @@ async def _post_init(app: Application) -> None:
         await app.bot.set_my_commands([BotCommand(name, i18n.t(f"chat.menu_{name}")) for name in COMMANDS])
     except TelegramError as error:
         log.warning("could not set the command menu: %s", error)
+    await _now_restore(app.job_queue)
 
 
 def run() -> None:
@@ -1021,7 +1094,7 @@ def run() -> None:
     app = Application.builder().token(config.TELEGRAM_TOKEN).concurrent_updates(True).post_init(_post_init).build()
     for name, callback in (("start", on_start), ("help", on_help), ("integrate", on_integrate),
                            ("status", on_status), ("plan", on_plan), ("update", on_update), ("intro", on_intro),
-                           ("retro", on_retro)):
+                           ("retro", on_retro), ("now", on_now)):
         app.add_handler(CommandHandler(name, callback, filters=new))
     app.add_handler(MessageHandler(new & filters.COMMAND, on_unknown))
     app.add_handler(MessageHandler(only_owner & filters.UpdateType.EDITED_MESSAGE, on_edit))
@@ -1034,7 +1107,7 @@ def run() -> None:
     app.add_handler(MessageHandler(new & filters.VIDEO, on_video))
     app.add_handler(MessageHandler(new & (filters.LOCATION | filters.VENUE), on_location))
     app.add_handler(MessageHandler(new & filters.CONTACT, on_contact))
-    buttons = r"^(msg|eng|intro|upd)\|"  # Seahorse messages, captures, the first conversation, the update
+    buttons = r"^(msg|eng|intro|upd|now)\|"  # Seahorse messages, captures, the first conversation, the update, Now
     app.add_handler(CallbackQueryHandler(on_button, pattern=buttons))
     app.add_error_handler(on_error)
     schedule(app)

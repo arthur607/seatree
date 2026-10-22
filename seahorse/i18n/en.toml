@@ -173,9 +173,10 @@ active = "Active"
 
 [chat]
 # The bot in a conversation: help, commands, photos and files, voice notes, edits and errors.
-help = "I am Seahorse, your second brain 🌊\n• Send me anything: a thought, a task, a movie to watch, a photo, a file, a place or a voice note. I put it in the right place in your notes.\n• Ask me a question. I answer from your notes, or from the web.\n• Send \"week\" or \"today\" to see your plan.\n• To change something you sent, edit your message, or tap ✏️ Fix under my reply.\n• I also write first: a summary each morning, a reminder before a deadline, and sometimes a question or an idea.\n\nCommands:\n/status – what waits, and what I was not sure about\n/integrate – put what waits into your notes now\n/plan – plan this week again\n/retro – your last week in one image\n/intro – answer the first questions again\n/update – install the new version of Seahorse\n/help – this message"
+help = "I am Seahorse, your second brain 🌊\n• Send me anything: a thought, a task, a movie to watch, a photo, a file, a place or a voice note. I put it in the right place in your notes.\n• Ask me a question. I answer from your notes, or from the web.\n• Send \"week\" or \"today\" to see your plan.\n• To change something you sent, edit your message, or tap ✏️ Fix under my reply.\n• I also write first: a summary each morning, a reminder before a deadline, and sometimes a question or an idea.\n\nCommands:\n/now – one task for the time you have\n/status – what waits, and what I was not sure about\n/integrate – put what waits into your notes now\n/plan – plan this week again\n/retro – your last week in one image\n/intro – answer the first questions again\n/update – install the new version of Seahorse\n/help – this message"
 unknown_command = "I do not know this command. Send /help to see the commands."
 menu_help = "What Seahorse does, and the commands"
+menu_now = "One task for the time you have"
 menu_status = "What waits, and what I was not sure about"
 menu_integrate = "Put what waits into your notes now"
 menu_plan = "Plan this week again"
@@ -495,3 +496,53 @@ claude = "claude"
 obsidian = "obsidian"
 other = "other"
 
+[now]
+# "What do I do now?": one task for the free time of the user. The lists find the short messages about free time.
+ask = "How much time do you have?"
+minutes_label = "{minutes} min"
+hours_label = "{hours} h"
+pick = "🎯 {task} ({estimate})\n{why}\nFirst step: {step}"
+start = "▶️ Start"
+another = "🔄 Another"
+not_now = "❌ Not now"
+started = "▶️ Go! I check back in {minutes} min."
+started_quiet = "▶️ Go! Good luck."
+closed = "OK. Ask me again when you have time."
+no_other = "No other task fits in {minutes} min."
+nothing_fits = "Nothing fits in {minutes} min. The shortest task is “{task}” ({estimate})."
+nothing_open = "Nothing is planned for now 🌿 Take a short rest, or send me a task."
+check = "⏰ Did you finish “{task}”?"
+done = "✅ Done"
+more = "⏳ {minutes} more min"
+done_plan = "✅ Good work. {done} of {total} tasks of today's plan are done."
+done_all = "✅ Good work. All of today's plan is done 🌿"
+done_line = "✅ Good work. One task less."
+more_line = "⏳ OK. I check back in {minutes} min."
+more_quiet = "⏳ OK. Take your time."
+stop_line = "No problem. “{task}” stays open for another time."
+morning = "🎲 What do I do now?"
+step_default = "open the task and do the first small part"
+why_overdue = "It was due on {date}."
+why_due_today = "It is due today."
+why_tomorrow = "It is due tomorrow."
+why_soon = "It is due in {days} days."
+why_moved = "It moved {count} times. Now is a good time to do it."
+why_planned = "You chose today for it."
+why_today = "It is on today's plan."
+why_fits = "It fits in your {minutes} min."
+# A short message is about free time when it is mostly these words. Code ignores case and accents.
+ask_phrases = ["what should i do now", "what do i do now", "what can i do now", "what could i do now", "what to do now", "what should i do", "what do i do", "what can i do", "what should i work on"]
+have_words = ["i have", "i've got", "i got", "got", "have"]
+free_words = ["free", "spare", "to spare", "to kill", "free time", "available"]
+now_words = ["now", "right now"]
+filler_words = ["i", "m", "am", "just", "only", "so", "some", "ok", "okay", "hey", "well", "and", "time", "a", "an"]
+# A message with one of these words is about another moment: it stays a normal capture.
+later_words = ["tomorrow", "tonight", "later", "next", "yesterday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "weekend"]
+# Times in words, with their minutes.
+amounts = ["half an hour = 30", "half hour = 30", "an hour and a half = 90", "one hour and a half = 90", "1 hour and a half = 90", "hour and a half = 90", "a quarter of an hour = 15", "quarter of an hour = 15", "an hour = 60", "one hour = 60", "a couple of hours = 120", "two hours = 120", "three hours = 180", "ten minutes = 10", "fifteen minutes = 15", "twenty minutes = 20", "thirty minutes = 30", "forty minutes = 40", "forty-five minutes = 45"]
+# Words that the routine uses for the time of best focus, for work, and for the parts of the day.
+focus_words = ["focus", "concentrat", "productive", "deep work", "work best", "think best", "most energy", "sharpest"]
+work_words = ["work", "job", "office"]
+morning_words = ["morning", "early"]
+afternoon_words = ["afternoon"]
+evening_words = ["evening", "night"]
