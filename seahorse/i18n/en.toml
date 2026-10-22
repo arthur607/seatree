@@ -27,6 +27,9 @@ backlog = "📥 Keep in backlog"
 done = "✅ Done"
 later = "⏰ Later"
 ignore = "🙈 Ignore"
+open_obsidian = "📖 Open in Obsidian"
+useful = "👍 Thanks"
+not_useful = "👎 Not useful"
 
 [reply]
 # What a button press says to the agents. The Integrator reads these words.
@@ -34,6 +37,7 @@ done = "done"
 later = "postpone"
 mute = "stop reminding me about this"
 liked = "liked it"
+useful = "thanks, it was useful"
 
 [bot]
 fix_ask = "What should I fix in capture {name}?\nReply to this message."
@@ -59,6 +63,8 @@ first_message = "✓ Seahorse is connected. Send me anything: a thought, a task,
 due = "Due {when}, {date}"
 today = "today"
 tomorrow = "tomorrow"
+# The order of the day and the month in a reminder, for strftime: 10/08 is 8 October.
+date_format = "%m/%d"
 
 [image]
 title = "week"
@@ -276,3 +282,11 @@ counter = "{n}/{total}"
 skip = "⏭ Skip"
 done = "Done, now I know you a little 🌊 Send me anything: ideas, tasks, what you watched or read. To answer the questions again, send /intro."
 questions = ["What do you do day to day? Work, studies, projects.", "What is a normal day like for you? When do you wake up, work and sleep?", "Who are the most important people in your life now? Give their names and who they are.", "What do you want to do or achieve in the next months?", "Do you have a task or a deadline soon? Give the date, if there is one.", "What do you like to watch, read, play or listen to? Name some favorites."]
+
+[delivery]
+# Under a delivery: where its note is saved, such as "Knowledge › Misc › Card prices".
+saved_in = "📁 {path}"
+
+[companion]
+# Under a release, news or curiosity: the web page that confirms it.
+source = "🔗 Source: {site}"

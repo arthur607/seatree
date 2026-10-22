@@ -26,12 +26,16 @@ backlog = "📥 Deixar no backlog"
 done = "✅ Feito"
 later = "⏰ Adiar"
 ignore = "🙈 Ignorar"
+open_obsidian = "📖 Abrir no Obsidian"
+useful = "👍 Valeu"
+not_useful = "👎 Não ajudou"
 
 [reply]
 done = "feito"
 later = "adia"
 mute = "não me lembra mais disso"
 liked = "gostei"
+useful = "valeu, foi útil"
 
 [bot]
 fix_ask = "O que devo corrigir na captura {name}?\nResponda a esta mensagem."
@@ -57,6 +61,7 @@ first_message = "✓ O Seahorse está conectado. Me mande qualquer coisa: uma id
 due = "Vence {when}, {date}"
 today = "hoje"
 tomorrow = "amanhã"
+date_format = "%d/%m"
 
 [image]
 title = "week"
@@ -274,3 +279,9 @@ counter = "{n}/{total}"
 skip = "⏭ Pular"
 done = "Pronto, já te conheço um pouco 🌊 Agora é só me mandar o que quiser: ideias, tarefas, o que você viu ou leu. Para refazer as perguntas, mande /intro."
 questions = ["O que você faz no dia a dia? Trabalho, estudo, projetos.", "Como é um dia normal seu? Que horas acorda, trabalha e dorme?", "Quem são as pessoas mais importantes para você hoje? Diga o nome e quem é cada uma.", "O que você quer fazer ou conquistar nos próximos meses?", "Tem alguma tarefa ou prazo chegando? Diga a data, se tiver.", "Do que você gosta de assistir, ler, jogar ou ouvir? Cite alguns favoritos."]
+
+[delivery]
+saved_in = "📁 {path}"
+
+[companion]
+source = "🔗 Fonte: {site}"
