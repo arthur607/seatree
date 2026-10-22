@@ -251,7 +251,15 @@ def _resolve_merge(merged: subprocess.CompletedProcess) -> None:
         git("merge", "--abort", check=False)
         log.error("pull failed: %s", (merged.stderr or merged.stdout).strip())
         return
-    copies = {path: copy for path in conflicted if (copy := _resolve(path))}
+    copies = {}
+    for path in conflicted:
+        try:
+            copy = _resolve(path)
+        except Exception:  # noqa: BLE001 - never leave a merge half done: keep both files as they are
+            log.exception("could not merge %s: a conflict copy keeps this machine's version", path)
+            copy = _keep_both(path)
+        if copy:
+            copies[path] = copy
     git("add", "-A")
     git(*SEAHORSE, "commit", "-q", "--no-edit")
     log.warning("sync conflict resolved: %s", ", ".join(conflicted))
@@ -366,7 +374,16 @@ def _resolve(path: str) -> str | None:
         if merged is not None:
             target.write_bytes(merged.encode("utf-8"))
             return None
-    target.write_bytes(theirs)
+    return _keep_both(path)
+
+
+def _keep_both(path: str) -> str | None:
+    """The other device's version stays in the file, and this machine's version goes to a conflict copy."""
+    ours, theirs = _stage(2, path), _stage(3, path)
+    target = config.VAULT / path
+    target.write_bytes(theirs if theirs is not None else ours or b"")
+    if ours is None or theirs is None:
+        return None
     copy = _copy_path(target)
     copy.write_bytes(ours)
     return rel(copy)
