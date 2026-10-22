@@ -51,6 +51,13 @@ def plain_task(name: str, due: date | None = None, subject: str = "[[Home]]") ->
     return path
 
 
+
+def run_all_1_3_0() -> None:
+    """What an update to 1.3.0 does to the system files: every 1.3.0 step, in the order of the list."""
+    for version, step in migrations.MIGRATIONS:
+        if version == "1.3.0":
+            step()
+
 class Fakes(Base):
     """Telegram, git, the vault lock, the clock and the AI are fakes. `self.sent` has the body of each Telegram call;
     `self.calls` has (role, lock held) for each AI run."""
@@ -400,14 +407,14 @@ class TestMigration(Base):
             self.assertNotEqual(old, vault.fill((self.SYSTEM / name).read_text(encoding="utf-8"), self.today), name)
             write(config.SYSTEM / name, old + ("- 2026-10-01 09:00 · reminder · id:a · tg:1 · [[X]] · reaction: ignored · x\n"
                                                if name.endswith("Messages.md") else ""))
-        migrations._to_1_3_0_messenger()
+        run_all_1_3_0()  # an update runs every 1.3.0 step, in order
         for name in names:
             new = vault.fill((self.SYSTEM / name).read_text(encoding="utf-8"), self.today)
             found = (config.SYSTEM / name).read_text(encoding="utf-8")
             if name.endswith("Messages.md"):
                 new += "- 2026-10-01 09:00 · reminder · id:a · tg:1 · [[X]] · reaction: ignored · x\n"
             self.assertEqual(found, new, name)
-        migrations._to_1_3_0_messenger()  # a second run changes nothing
+        run_all_1_3_0()  # a second run changes nothing
         self.assertEqual((config.SYSTEM / "_MESSENGER.md").read_text(encoding="utf-8"),
                          vault.fill((self.SYSTEM / "_MESSENGER.md").read_text(encoding="utf-8"), self.today))
         self.assertIn(("1.3.0", migrations._to_1_3_0_messenger), migrations.MIGRATIONS)

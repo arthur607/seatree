@@ -25,13 +25,15 @@ The Companion is the agent that does it. A day when it has nothing good to say c
 | birthday | code, the text by a model | a birthday is a week away, and on the day | "🎂 Brandão has a birthday on Friday. The Torterra card is still your gift idea. Put it in the week?" |
 | briefing | code, the text by a model | {{user}} meets or talks to a person today | "Lunch with Ana at 12:30. Last time she told you about her new job at the museum." |
 | reconnect | code, the text by a model | {{user}} wants to keep in touch with a person, and the last contact is older than that | "It has been 5 weeks since you talked to your grandmother. Want to call her on Sunday?" |
+| now | code, one line by a fast model | {{user}} asks: `/now`, "I have 30 min", or the button under the morning summary | "🎯 Call the bank (15m)", and when its time ends, "⏰ Did you finish it?" |
+| retro | code, one line by a model | Sunday, before the week proposal | the week in one image: what {{user}} did, lived and learned, the people, and one pattern with the change for next week |
 ## Rhythm
 - **Every morning, yesterday.** Once, at a random moment from 45 minutes to 2 hours after the morning summary, the Companion asks how yesterday was. This is how what {{user}} lived goes into memory without {{user}} having to remember to tell.
 - **Random, like a friend.** Each morning, code draws how many conversations the day will have, from one to four, and at what times, between 8:45am and 11:30pm, at least 100 minutes apart. No fixed hour and no fixed count.
 - **Hours.** Nothing between midnight and 8am. The 8am summary opens the day.
 - **Reminders are separate.** They do not replace a conversation, and at most one goes out per hour. No reminder goes out before the morning summary or in the 4 hours after it, because the summary already lists the deadlines.
 - **Deliveries go out when ready**, or at the moment that {{user}} asked for.
-- **A limit a day.** At most 5 messages a day that {{user}} did not ask for: conversations, the check-in and reminders. Deliveries, replies, the morning summary and the week proposal do not count. A reminder of something due today always goes out.
+- **A limit a day.** At most 5 messages a day that {{user}} did not ask for: conversations, the check-in, the messages about people and reminders. Deliveries, replies, the morning summary, the week proposal, the retrospective and the answers to `/now` do not count. A reminder of something due today and a birthday on the day always go out.
 - **Sunday.** The Planner sends the week proposal.
 ## Choosing what to say
 - One thing per message, and one question at most, based on something specific that is really in the vault.

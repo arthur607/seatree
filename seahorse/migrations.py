@@ -47,6 +47,11 @@ MIGRATIONS: list = [("1.2.0", _to_1_2_0)]
 # 1.3.0, the Messenger: readable deliveries, sources for facts from outside, a daily limit, the reminder calibration,
 # and snoozed and muted topics checked by code. Each change: the file in System, the old text (or None for a new
 # line), the new text, and the line after which a new line goes. The template has the same changes.
+# The rows of the two kinds that the user asks for, or that sum up the week: they never count toward the limit.
+NOW_ROW = ('| now | code, one line by a fast model | {{user}} asks: `/now`, "I have 30 min", or the button under the '
+           'morning summary | "🎯 Call the bank (15m)", and when its time ends, "⏰ Did you finish it?" |')
+RETRO_ROW = ("| retro | code, one line by a model | Sunday, before the week proposal | the week in one image: what "
+             "{{user}} did, lived and learned, the people, and one pattern with the change for next week |")
 MESSENGER_CHANGES = [
     ("_MESSENGER.md",
      '| reminder | code | a task with a real `due` is a week away, and again the day before | "⏰ Pay the car tax" |',
@@ -61,7 +66,10 @@ MESSENGER_CHANGES = [
      "- **Reminders are separate.** They do not replace a conversation, and at most one goes out per hour. No reminder goes out before the morning summary or in the 4 hours after it, because the summary already lists the deadlines.",
      "- **Hours.**"),
     ("_MESSENGER.md", None,
-     "- **A limit a day.** At most 5 messages a day that {{user}} did not ask for: conversations, the check-in and reminders. Deliveries, replies, the morning summary and the week proposal do not count. A reminder of something due today always goes out.",
+     ("- **A limit a day.** At most 5 messages a day that {{user}} did not ask for: conversations, the check-in, "
+             "the messages about people and reminders. Deliveries, replies, the morning summary, the week proposal, "
+             "the retrospective and the answers to `/now` do not count. A reminder of something due today and a "
+             "birthday on the day always go out."),
      "- **Deliveries go out when ready**"),
     ("_MESSENGER.md",
      "- A task that keeps moving is a signal, not a failure. Ask what is in the way and offer concrete help.",
@@ -354,6 +362,8 @@ PEOPLE_ROWS = [
         '| birthday | code, the text by a model | a birthday is a week away, and on the day | "🎂 Brandão has a birthday on Friday. The Torterra card is still your gift idea. Put it in the week?" |',
         '| briefing | code, the text by a model | {{user}} meets or talks to a person today | "Lunch with Ana at 12:30. Last time she told you about her new job at the museum." |',
         '| reconnect | code, the text by a model | {{user}} wants to keep in touch with a person, and the last contact is older than that | "It has been 5 weeks since you talked to your grandmother. Want to call her on Sunday?" |',
+        NOW_ROW,
+        RETRO_ROW,
     ]),
     ("_Messenger/Calibration.md", "delivery", "## Confidence by type", [
         "| birthday | normal | no data |",
