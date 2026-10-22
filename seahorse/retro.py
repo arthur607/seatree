@@ -612,6 +612,7 @@ def write_review(stats: Stats) -> bool:
 
 WIDTH, MARGIN, LABEL = week_image.WIDTH, 64, 236  # LABEL: the column of the section labels
 STEP, GAP = 50, 34  # the height of a line of text, and the space between two sections
+APART, MARK = 18, 34  # the space between two items of a section, and the room of the square that starts an item
 MAX_HEIGHT = 3000  # far below Telegram's limit: width and height add up to 10000 at most
 FIT = 2800  # about one phone screen at this width: every row shows while the image is this tall or less
 LEAST = 3  # the rows that a section keeps when the image must be shorter
@@ -648,14 +649,14 @@ def _rows(stats: Stats) -> list[tuple[str, list[tuple[str, str]], int]]:
 
 
 def _row_lines(d: ImageDraw.ImageDraw, f: _Fonts, text: str, note: str) -> list[str]:
-    """The lines of one row: its text, wrapped beside its note, in two lines at most."""
-    room = WIDTH - 2 * MARGIN - LABEL - (int(d.textlength(note, font=f.small)) + 28 if note else 0)
+    """The lines of one row: its text, right of its square and wrapped beside its note, in two lines at most."""
+    room = WIDTH - 2 * MARGIN - LABEL - MARK - (int(d.textlength(note, font=f.small)) + 28 if note else 0)
     return _cut(d, text, f.text, room, 2)
 
 
 def _fit(d: ImageDraw.ImageDraw, f: _Fonts, sections: list, excess: int) -> list:
     """Hides rows until the image is `excess` pixels shorter: each time, the last row of the longest section. A
-    section keeps LEAST rows at least. A section with hidden rows ends with "+N more", which takes one line."""
+    section keeps LEAST rows at least. A section with hidden rows ends with "+N more", which takes one item."""
     rows = {key: list(found) for key, found, _ in sections}
     hidden = dict.fromkeys(rows, 0)
     while excess > 0:
@@ -663,7 +664,7 @@ def _fit(d: ImageDraw.ImageDraw, f: _Fonts, sections: list, excess: int) -> list
         if len(rows[key]) <= LEAST:
             break
         text, note = rows[key].pop()
-        excess -= len(_row_lines(d, f, text, note)) * STEP - (0 if hidden[key] else STEP)
+        excess -= len(_row_lines(d, f, text, note)) * STEP + APART - (0 if hidden[key] else STEP + APART)
         hidden[key] += 1
     return [(key, rows[key], hidden[key]) for key in rows]
 
@@ -715,21 +716,27 @@ def _numbers(d: ImageDraw.ImageDraw, f: _Fonts, stats: Stats, y: int) -> int:
 
 
 def _section(d: ImageDraw.ImageDraw, f: _Fonts, key: str, rows: list, hidden: int, y: int) -> int:
-    """One section: the label at the left and, at the right, its rows, each with a note at the right edge."""
+    """One section: the label at the left and, at the right, its rows, each with a note at the right edge. Each row
+    is an item of its own: a square in the accent colour starts it, and a thin line separates it from the one
+    before. Its second line starts under its text, not under the square."""
     x = MARGIN + LABEL
     base = y + 36
     d.text((MARGIN, base), i18n.t(f"retro.{key}"), font=f.label, fill=FAINT, anchor="ls")
-    for text, note in rows:
+    for i, (text, note) in enumerate(rows):
+        if i:
+            top = base - 36 - APART // 2 + 4
+            d.line((x, top, WIDTH - MARGIN, top), fill=RULE, width=2)
+        d.rectangle((x, base - 22, x + 14, base - 8), fill=ACCENT)
         pieces = _row_lines(d, f, text, note)
         for j, piece in enumerate(pieces):
-            d.text((x, base + j * STEP), piece, font=f.text, fill=INK, anchor="ls")
+            d.text((x + MARK, base + j * STEP), piece, font=f.text, fill=INK, anchor="ls")
         if note:
             d.text((WIDTH - MARGIN, base), clean(note), font=f.small, fill=FAINT, anchor="rs")
-        base += len(pieces) * STEP
+        base += len(pieces) * STEP + APART
     if hidden:
-        d.text((x, base), i18n.t("image.more", n=hidden), font=f.small, fill=FAINT, anchor="ls")
-        base += STEP
-    return base - 36 + GAP
+        d.text((x + MARK, base), i18n.t("image.more", n=hidden), font=f.small, fill=FAINT, anchor="ls")
+        base += STEP + APART
+    return base - APART - 36 + GAP
 
 
 def _pattern(d: ImageDraw.ImageDraw, f: _Fonts, stats: Stats, y: int) -> int:

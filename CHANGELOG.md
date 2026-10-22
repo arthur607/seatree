@@ -2,6 +2,10 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.3.3
+
+- In the image of your week, each task, experience and note is an item of its own: a blue square starts it, and a thin line separates it from the next. A long name that needs two lines stays inside its item.
+
 ## 1.3.2
 
 - `/retro` shows this week, as it is today. Send `retro last week` (or `/retro last week`) to see the week before.

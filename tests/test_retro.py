@@ -258,6 +258,19 @@ class TestImage(RetroBase):
             self.assertIn(name, texts)
         self.assertFalse([t for t in texts if t.startswith("+")])  # nothing hidden
 
+    def test_each_row_is_an_item_with_a_square_and_a_line_before_it(self):
+        squares, rules = [], []
+        rectangle, line = ImageDraw.ImageDraw.rectangle, ImageDraw.ImageDraw.line
+        ImageDraw.ImageDraw.rectangle = lambda d, xy, *a, **k: squares.append(xy) or rectangle(d, xy, *a, **k)
+        ImageDraw.ImageDraw.line = lambda d, xy, *a, **k: rules.append(xy) or line(d, xy, *a, **k)
+        self.addCleanup(setattr, ImageDraw.ImageDraw, "rectangle", rectangle)
+        self.addCleanup(setattr, ImageDraw.ImageDraw, "line", line)
+        lines = [retro.Planned(f"Task {i}", MONDAY, 30, True, False) for i in range(4)]
+        retro.png(retro.Stats(MONDAY, lines, [], [("Movies", "Dune")], [], ["Lisbon"], ["Ownership", "Lifetimes"]))
+        x = retro.MARGIN + retro.LABEL
+        self.assertEqual(len([s for s in squares if s[0] == x and s[2] - s[0] == 14]), 4 + 2 + 2)
+        self.assertEqual(len([r for r in rules if r[0] == x]), 3 + 1 + 1)  # between the items of a section only
+
     def test_texts_in_the_language_of_the_user(self):
         config.LANGUAGE = "pt-BR"
         texts = self.drawn()
