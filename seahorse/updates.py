@@ -161,7 +161,8 @@ def migrate_vault(today: date | None = None) -> list[str]:
                 marker.parent.mkdir(parents=True, exist_ok=True)
                 marker.write_text(version + "\n", encoding="utf-8", newline="\n")
                 done.append(f"migrated to {version}")
-            mark_vault()
+            if not newer(current, __version__):  # older code never moves the version of a vault back
+                mark_vault()
         finally:
             # Even after a failed step: what changed is Seahorse's, not an edit of the person.
             vault.publish(f"seahorse: vault at version {__version__}")
@@ -188,7 +189,7 @@ def short(error) -> str:
     return (lines[-1] if lines else "?")[:160]
 
 
-def _give_up(version: str, detail: str, restart: bool) -> str:
+def _give_up(version: str, detail: str, restart: bool) -> tuple[bool, str]:
     """Puts the previous version back after a failed update, and says so on Telegram."""
     try:
         install(__version__)
@@ -200,22 +201,23 @@ def _give_up(version: str, detail: str, restart: bool) -> str:
         service.restart()
     text = i18n.t("updates.failed_back" if back else "updates.failed", version=version, previous=__version__, detail=detail)
     telegram_api.send(text)
-    return text
+    return False, text
 
 
-def update(assume_yes: bool = False) -> str:
+def update(assume_yes: bool = False) -> tuple[bool, str]:
+    """Installs the newest release. Returns True when Seahorse runs the newest version, and what happened."""
     found = latest()
     if not found:
-        return "Could not reach GitHub. Check the internet connection of this machine and try again."
+        return False, "Could not reach GitHub. Check the internet connection of this machine and try again."
     if not found["version"]:
-        return f"There is no release on GitHub yet. You have Seahorse {__version__}."
+        return True, f"There is no release on GitHub yet. You have Seahorse {__version__}."
     if not newer(found["version"]):
-        return f"Seahorse is up to date ({__version__})."
+        return True, f"Seahorse is up to date ({__version__})."
     version = found["version"]
     if not assume_yes:
         print(f"Seahorse {version} is available (you have {__version__}).\n\n{found['notes']}\n")
         if input("Install it now? [Y/n] ").strip().lower() not in {"", "y", "yes", "s", "sim", "si"}:
-            return "Nothing changed."
+            return True, "Nothing changed."
     was_running = service.status() in {"active", "running"}
     try:
         install(version)
@@ -230,7 +232,7 @@ def update(assume_yes: bool = False) -> str:
     if was_running and not service.stays_up(HEALTH_SECONDS):
         return _give_up(version, i18n.t("updates.not_started"), restart=True)
     telegram_api.send(i18n.t("updates.done", version=version))
-    return f"Updated to {version}."
+    return True, f"Updated to {version}."
 
 
 def state_summary() -> str:

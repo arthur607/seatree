@@ -206,6 +206,24 @@ class TestConnectToServer(unittest.TestCase):
 
 
 class TestSetupHelpers(unittest.TestCase):
+    def test_paths_for_the_shell_of_the_server(self):
+        self.assertEqual(setup.shell_path("~/seahorse-vault"), '"$HOME"/seahorse-vault')
+        self.assertEqual(setup.shell_path("~/my notes"), '"$HOME"/\'my notes\'')
+        self.assertEqual(setup.shell_path("/srv/notes"), "/srv/notes")
+
+    def test_a_broken_config_on_the_server_keeps_the_vault_on_the_server(self):
+        class Machine:
+            remote, label = True, "root@203.0.113.10"
+
+            def read_file(self, name):
+                return 'name = "Ana\n' if name == "config.toml" else None
+        said = []
+        with mock.patch.object(setup, "M", Machine()), mock.patch.object(setup, "_say", said.append), \
+                mock.patch.object(setup, "_working", lambda *a, **k: contextlib.nullcontext()):
+            settings = setup._load()
+        self.assertEqual(settings["vault"]["path"], "~/seahorse-vault")  # never the folder of this computer
+        self.assertEqual(len(said), 1)  # the error of the file, with its line
+
     def test_linux_names_without_accents(self):
         self.assertEqual(setup.linux_name("João"), "joao")
         self.assertEqual(setup.linux_name(" Zoë "), "zoe")
@@ -430,7 +448,8 @@ class TestUpdate(Base):
                 mock.patch.object(service, "restart") as restart, \
                 mock.patch.object(service, "stays_up", return_value=stays_up), \
                 mock.patch.object(updates.telegram_api, "send") as send:
-            text = updates.update(assume_yes=True)
+            ok, text = updates.update(assume_yes=True)
+        self.assertEqual(ok, migrate_code == 0 and stays_up)  # `seahorse update` exits with 1 when it fails
         return text, [call.args[0] for call in install.call_args_list], send.call_args.args[0], restart
 
     def test_a_good_update_says_so(self):

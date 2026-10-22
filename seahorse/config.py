@@ -51,6 +51,14 @@ def _merge(base: dict, extra: dict) -> dict:
     return merged
 
 
+def read_toml_text(text: str) -> dict:
+    """The data of a TOML text, or {} when it has an error."""
+    try:
+        return tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return {}
+
+
 def read_toml(path: Path) -> tuple[dict, str]:
     """The data of a TOML file, and "". When the file has an error: {} and the error, with the file and the line."""
     if not path.exists():

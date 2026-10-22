@@ -265,7 +265,7 @@ def _load() -> dict:
         _say(_t("config_broken", detail=f"~/.seahorse/config.toml ({M.label}): {error}"))
         data = {}
     settings = config._merge(copy.deepcopy(config.DEFAULTS), data)
-    if M.remote and not text:
+    if M.remote and not data.get("vault", {}).get("path"):  # never the default path of this computer
         settings["vault"]["path"] = "~/seahorse-vault"
     SECRETS.clear()
     SECRETS.update(_parse_secrets(secrets))
@@ -484,50 +484,70 @@ def _install_on_server() -> None:
 
 def _move_to_server() -> None:
     """Seahorse ran on this computer, and moves to the server: its settings, tokens and notes go there, and it stops
-    here, so two copies never answer the same bot. This computer then only drives the server."""
-    global MOVED_FROM
+    here, so two copies never answer the same bot. This computer then only drives the server. When a part of the
+    move fails, Seahorse runs on this computer again, and nothing here is deleted."""
     from . import service
     with _working("move_stopping"):
-        service.uninstall()
-    if not M.read_file("config.toml"):  # a new Seahorse on the server: it gets what this computer had
-        settings = config._merge(copy.deepcopy(config.DEFAULTS), config.read_toml(config.CONFIG_FILE)[0])
-        settings["vault"]["path"] = "~/seahorse-vault"
-        M.write_file("config.toml", config.dumps(settings))
-        secrets = config.SECRETS_FILE.read_text(encoding="utf-8") if config.SECRETS_FILE.exists() else ""
-        if secrets:
-            M.write_file("secrets.env", secrets, private=True)
-        if config.STATE.is_dir():  # the first conversation and what the agents keep between runs
-            M.upload(config.STATE, "~/.seahorse/state")
-    if (config.SYSTEM / "_AGENTS.md").exists():
-        MOVED_FROM = config.VAULT
-        with _working("move_notes"):
-            error = _move_vault()
-        if error:
-            _say(_t("move_failed", detail=error))
-            sys.exit(1)
+        service.stop()  # no new notes while they move
+    with _working("move_notes"):
+        error = _move_settings() or _move_vault()
+    if error:
+        service.install()
+        _say(_t("move_failed", detail=error))
+        sys.exit(1)
+    service.uninstall()
     # Without its own config.toml, this computer drives the server: `seahorse logs` and the others act there.
     config.CONFIG_FILE.replace(config.CONFIG_FILE.with_name("config.toml.moved"))
     config.SECRETS_FILE.unlink(missing_ok=True)
     print(_t("move_done"))
 
 
+def _move_settings() -> str:
+    """Copies the settings, the tokens and the state of this computer to a new Seahorse on the server. A Seahorse
+    that is already there keeps its own. Returns "" or the error."""
+    if M.read_file("config.toml"):
+        return ""
+    settings = config._merge(copy.deepcopy(config.DEFAULTS), config.read_toml(config.CONFIG_FILE)[0])
+    settings["vault"]["path"] = "~/seahorse-vault"
+    secrets = config.SECRETS_FILE.read_text(encoding="utf-8") if config.SECRETS_FILE.exists() else ""
+    if secrets and not M.write_file("secrets.env", secrets, private=True):
+        return "could not write secrets.env on the server"
+    if config.STATE.is_dir() and M.upload(config.STATE, "~/.seahorse/state").returncode != 0:
+        return "could not copy ~/.seahorse/state to the server"
+    # config.toml comes last: when it is there, a second run knows that the settings are on the server.
+    return "" if M.write_file("config.toml", config.dumps(settings)) else "could not write config.toml on the server"
+
+
+def shell_path(path: str) -> str:
+    """A path for the shell of the server, in quotes. A ~ at the start stays out of the quotes, so that it still
+    means the home folder."""
+    if path == "~" or path.startswith("~/"):
+        return '"$HOME"' + (f"/{shlex.quote(path[2:])}" if path[2:] else "")
+    return shlex.quote(path)
+
+
 def _move_vault() -> str:
     """Puts the vault of this computer on the server: a clone of its GitHub repository with the same deploy key,
     or a copy of the folder. Returns "" or the error."""
+    global MOVED_FROM
     from . import vault
-    if M.sh("test -e ~/seahorse-vault/.git").returncode == 0:
+    if not (config.SYSTEM / "_AGENTS.md").exists():
+        return ""  # no notes on this computer
+    MOVED_FROM = config.VAULT
+    there = config.read_toml_text(M.read_file("config.toml") or "").get("vault", {}).get("path") or "~/seahorse-vault"
+    if M.sh(f"test -e {shell_path(there)}/.git").returncode == 0:
         return ""  # the server has the notes already
     vault.save_user_edits()
     if vault.has_remote():
         url = vault.git("remote", "get-url", "origin", check=False).stdout.strip()
         vault.git("push", "-q", check=False)  # the last changes on this computer go first
         key = config.HOME / "vault_key"
-        if key.exists():
-            M.write_file("vault_key", key.read_text(encoding="utf-8"), private=True)
-            M.write_file("vault_key.pub", key.with_suffix(".pub").read_text(encoding="utf-8"))
+        if key.exists() and not (M.write_file("vault_key", key.read_text(encoding="utf-8"), private=True)
+                                 and M.write_file("vault_key.pub", key.with_suffix(".pub").read_text(encoding="utf-8"))):
+            return "could not copy the deploy key to the server"
         result = M.seahorse("provision", "clone", url)
         return "" if result.returncode == 0 else _last_line(result)
-    result = M.upload(config.VAULT, "~/seahorse-vault")
+    result = M.upload(config.VAULT, shell_path(there))
     return "" if result.returncode == 0 else (result.stderr.decode("utf-8", "replace").strip()[-300:] or "tar")
 
 
@@ -949,7 +969,8 @@ def _copy_here(remote: str) -> Path | None:
             _say(_t("obsidian_no_git"))
             return None
     repo = obsidian.repository(remote)
-    moved = MOVED_FROM and (MOVED_FROM / ".git").exists()
+    # After a move, the old folder of the notes is the copy, when it comes from the same repository.
+    moved = MOVED_FROM and obsidian.repository(obsidian.origin(MOVED_FROM)) == repo
     folder = Path(clean_path(_ask("obsidian_folder", str(MOVED_FROM if moved else obsidian.default_folder())))).expanduser()
     token, login = GITHUB.get("token", ""), GITHUB.get("login", "")
     if not token:

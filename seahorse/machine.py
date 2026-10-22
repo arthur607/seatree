@@ -4,6 +4,7 @@ The setup always runs on the person's own computer. For a server, it sends each 
 runs on the server, but its links open in the browser of the computer and its one-time codes go to the
 clipboard, so nobody copies a link out of a terminal.
 """
+import codecs
 import os
 import platform
 import re
@@ -117,6 +118,7 @@ def relay(argv: list[str], open_links: bool, notice, errors: bool = False) -> tu
     With `errors`, what the command writes to stderr is in the text too."""
     process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT if errors else None)
     out = sys.stdout.buffer
+    decoder = codecs.getincrementaldecoder("utf-8")("replace")  # a letter can come in two pieces
     seen: set[str] = set()
     text = ""
     while True:
@@ -125,7 +127,7 @@ def relay(argv: list[str], open_links: bool, notice, errors: bool = False) -> tu
             break
         out.write(chunk)
         out.flush()
-        text += chunk.decode("utf-8", "replace")
+        text += decoder.decode(chunk)
         if not open_links:
             continue
         links, codes = links_and_codes(text)
@@ -185,18 +187,19 @@ class Local:
         path = config.HOME / name
         return path.read_text(encoding="utf-8") if path.exists() else None
 
-    def write_file(self, name: str, text: str, private: bool = False) -> None:
+    def write_file(self, name: str, text: str, private: bool = False) -> bool:
         """A private file is readable only by its owner from the first byte: it is made with mode 600."""
         config.HOME.mkdir(parents=True, exist_ok=True)
         path = config.HOME / name
         if not private:
             path.write_text(text, encoding="utf-8")
-            return
+            return True
         handle = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         if hasattr(os, "fchmod"):
             os.fchmod(handle, 0o600)  # os.open keeps the old mode of a file that was there before
         with os.fdopen(handle, "w", encoding="utf-8") as file:
             file.write(text)
+        return True
 
     def seahorse(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run([sys.executable, "-m", "seahorse", *args], capture_output=True, text=True, encoding="utf-8",
@@ -300,7 +303,7 @@ class Server:
                   f"touch /home/{user}/.ssh/authorized_keys; "
                   f"grep -qxF {public} /home/{user}/.ssh/authorized_keys || echo {public} >> /home/{user}/.ssh/authorized_keys; "
                   f"chown {user}:{user} /home/{user}/.ssh/authorized_keys; chmod 600 /home/{user}/.ssh/authorized_keys; "
-                  "command -v git >/dev/null || (apt-get update -qq && apt-get install -y -qq git curl)")
+                  "(command -v git && command -v curl) >/dev/null || (apt-get update -qq && apt-get install -y -qq git curl)")
         result = self.as_root(script)
         return "" if result.returncode == 0 else (ssh_detail(result.stderr) or f"exit code {result.returncode}")
 

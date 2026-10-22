@@ -16,7 +16,7 @@
             return
         }
     }
-    $env:Path = "$bin;$env:Path"
+    $env:Path = "$bin;$(Join-Path $env:USERPROFILE '.cargo\bin');$env:Path"
 
     # The newest release. The page of the latest release sends to the page of its tag, with no limit. The GitHub
     # API allows only 60 requests an hour for each IP, and many people can share one IP (a phone network, an office).

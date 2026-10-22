@@ -73,7 +73,9 @@ def main() -> None:
         bot.run()
     elif args.command == "update":
         from . import updates
-        print(updates.update(assume_yes=args.yes))
+        ok, text = updates.update(assume_yes=args.yes)
+        print(text)
+        sys.exit(0 if ok else 1)
     elif args.command == "migrate":
         from . import updates
         for line in updates.migrate_vault() or ["nothing to migrate"]:

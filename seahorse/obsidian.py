@@ -180,12 +180,20 @@ def gh_login() -> tuple[str, str]:
     return (token, login) if token and login else ("", "")
 
 
+def origin(folder: Path) -> str:
+    """The address of the repository that a copy comes from, or "" when it has none."""
+    if not (folder / ".git").exists() or not git():
+        return ""
+    return _run(["-C", str(folder), "remote", "get-url", "origin"]).stdout.strip()
+
+
 def safe_store(folder: Path) -> bool:
     """True when git on this computer keeps logins in a safe store (such as the Windows Credential Manager or the
-    macOS keychain), at any level of its settings. git's "store" is a plain file, so it does not count."""
+    macOS keychain), at any level of its settings. git's "store" is a plain file, and "cache" forgets the login
+    after some minutes, so they do not count."""
     found = _run(["-C", str(folder), "config", "--get-all", "credential.helper"]).stdout.splitlines()
     helpers = [line.split()[0] for line in found if line.strip()]
-    return bool(helpers) and not {"store", "git-credential-store"} & set(helpers)
+    return bool(helpers) and not {"store", "git-credential-store", "cache", "git-credential-cache"} & set(helpers)
 
 
 def keep_login(folder: Path, login: str, token: str) -> bool:
