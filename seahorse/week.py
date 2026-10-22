@@ -525,6 +525,7 @@ def reschedule(today: date | None = None) -> list[Move]:
     - Counters in the task note: `moved` + 1 when a task the user committed to moves to another day (see
       `_committed`); `postponed` + 1 when a task with no due date leaves a week unfinished.
     - A task with `planned: <day>` goes on that day: see `_place_planned`.
+    - The titles of the cards are written again when their totals changed, as in `refresh`.
     """
     today = today or datetime.now(config.TIMEZONE).date()
     week = read(today)
@@ -534,7 +535,7 @@ def reschedule(today: date | None = None) -> list[Move]:
     by_name = {t.name: t for t in tasks.all_tasks()}
     ahead = [d for d in week.days if d.date >= today]
     end = week.days[-1].date
-    moves, touched = [], set()
+    moves, previous_changed = [], False
     previous = read(today - timedelta(days=7))
     for w in (previous, week) if previous else (week,):
         for day in w.days:
@@ -545,16 +546,17 @@ def reschedule(today: date | None = None) -> list[Move]:
                 if note and note.done:
                     continue  # checked in the table: `tasks.sync` checks the line, it does not move
                 move = _move(item, day, note, ahead, work, end, w is previous)
-                touched |= {w.path, week.path}
+                previous_changed |= w is previous
                 if move:
                     moves.append(move)
                 if note:  # the counters changed on disk: read the note again for its next line
                     by_name[note.name] = tasks.Task(note.path, notes.read(note.path)[0])
-    if _place_planned(week, by_name, today):
-        touched.add(week.path)
-    for w in (previous, week):
-        if w and w.path in touched:
-            _write(w.path, w.text(work))
+    _place_planned(week, by_name, today)
+    if previous_changed:
+        _write(previous.path, previous.text(work))
+    new = week.text(work)  # also the titles: their totals stay right even when nothing moved
+    if new != week.path.read_text(encoding="utf-8").replace("\r\n", "\n"):
+        _write(week.path, new)
     if moves:
         record_moves(moves)
         log.info("week rescheduled: %s", "; ".join(str(m) for m in moves))

@@ -485,3 +485,130 @@ class TestSyncConflicts(WeekBase):
         git(config.VAULT, "remote", "set-url", "origin", str(self.remote))
         self.assertFalse(vault.publish("messenger: records updated"))  # nothing new, but the old commit goes out
         self.in_step()
+
+
+class TestAgents(WeekBase):
+    """The morning summary and the weekly plan, with a fake AI and a fake Telegram."""
+
+    def setUp(self):
+        super().setUp()
+        from seahorse import agents, llm
+        self.agents, self.prompts, self.sent, self.photos, self.answers = agents, [], [], [], []
+        vault.git("init", "-q", "-b", "main")
+        write(config.DASHBOARD, "---\ntype: dashboard\n---\n![[2026-W40]]\n")
+
+        class Clock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2026, 10, 7, 10, 30, tzinfo=TZ)
+
+        def fake_run(text, role, *args, **kwargs):
+            self.prompts.append((role, text))
+            answer = self.answers.pop(0) if self.answers else "ok"
+            if callable(answer):
+                answer = answer()
+            return llm.Answer(answer or "", None, answer is None)
+
+        saved = (agents.datetime, agents.integrator, llm.run, vault.validate, telegram_api.send, telegram_api.send_photo)
+        agents.datetime, agents.integrator, llm.run = Clock, lambda: None, fake_run
+        vault.validate = lambda: (True, "")
+        telegram_api.send = lambda text, buttons=None, chat_id=None: self.sent.append(text) or 7
+        telegram_api.send_photo = lambda image, caption="": self.photos.append(image) or 8
+
+        def restore():
+            agents.datetime, agents.integrator, llm.run, vault.validate, telegram_api.send, telegram_api.send_photo = saved
+        self.addCleanup(restore)
+
+    def unclear(self, minute: int, asked: int = 0):
+        when = datetime(2026, 10, 3, 9, minute, tzinfo=TZ)
+        path = vault.new_engram("strengths test", "telegram-text", when, {"asked_in_summary": str(asked)} if asked else None)
+        notes.set_field(path, "state", "unclear")
+        return path
+
+    def test_the_morning_tells_what_moved_and_sets_old_doubts_aside(self):
+        task("Book the doctor")
+        self.week_file(Mon="\n> - [ ] [[Book the doctor]] (30m)")
+        week.reschedule(date(2026, 10, 6))  # the Messenger, at midnight on Tuesday
+        old, new = self.unclear(1, asked=2), self.unclear(2)
+        self.answers = ["☀️ Wednesday"]
+        self.agents.morning()
+        role, prompt = self.prompts[0]
+        self.assertEqual(role, "morning")
+        self.assertIn("- Book the doctor: Monday 05/10 → today", prompt)
+        self.assertIn(f"Unclear engrams:\n- {vault.rel(new)}\n", prompt)
+        self.assertIn(f"Code set them aside now:\n- {vault.rel(old)}\n", prompt)
+        self.assertIn("today is 10/07", prompt)  # MM/DD for an English user
+        self.assertEqual((fields(old)["state"], fields(new)["asked_in_summary"]), ("discarded", "1"))
+        self.assertEqual((self.sent, len(self.photos)), (["☀️ Wednesday"], 1))
+        self.assertIn("![[2026-W41]]", text(config.DASHBOARD))
+        self.assertEqual(week.take_moves(date(2026, 10, 7)), [])
+
+    def test_a_failed_morning_text_still_sends_the_image_and_keeps_the_moves(self):
+        task("Book the doctor")
+        self.week_file(Mon="\n> - [ ] [[Book the doctor]] (30m)")
+        old = self.unclear(1, asked=2)
+        self.answers = [None]
+        self.agents.morning()
+        self.assertEqual(len(self.photos), 1)
+        self.assertIn("Morning summary", self.sent[0])
+        self.assertEqual(fields(old)["state"], "unclear")  # the user never saw the summary
+        self.assertEqual([m.name for m in week.take_moves(date(2026, 10, 7))], ["Book the doctor"])
+
+    def test_the_morning_waits_for_the_end_of_the_quiet_hours(self):
+        self.assertEqual(self.agents._quiet_left(datetime(2026, 10, 7, 7, 0, tzinfo=TZ)), 3600)
+        self.assertEqual(self.agents._quiet_left(datetime(2026, 10, 7, 8, 0, tzinfo=TZ)), 0)
+        old = config.QUIET_FROM, config.QUIET_UNTIL
+        config.QUIET_FROM, config.QUIET_UNTIL = 22 * 60, 6 * 60
+        self.addCleanup(lambda: (setattr(config, "QUIET_FROM", old[0]), setattr(config, "QUIET_UNTIL", old[1])))
+        self.assertEqual(self.agents._quiet_left(datetime(2026, 10, 7, 23, 0, tzinfo=TZ)), 7 * 3600)
+
+    def test_the_week_after_any_day(self):
+        monday = date(2026, 10, 12)
+        self.assertEqual([self.agents.week_after(date(2026, 10, d)) for d in (5, 7, 11)], [monday] * 3)
+
+    def broken_plan(self, cards: int):
+        """The Planner writes the week again, with only some of its cards: the first part, up to `cards` blocks."""
+        def write_it():
+            path = self.other_week(Mon="\n> - [ ] [[Gym]] (1h)")
+            write(path, "\n\n".join(text(path).split("\n\n")[:cards]))
+            return "🗓️ Week 12/10 to 18/10"
+        return write_it
+
+    def test_the_planner_gets_a_second_try(self):
+        self.answers = [self.broken_plan(3), self.broken_plan(8)]
+        self.assertEqual(self.agents.plan_week(date(2026, 10, 12)), "🗓️ Week 12/10 to 18/10")
+        self.assertEqual([role for role, _ in self.prompts], ["planner", "planner"])
+        self.assertIn("- no card for Thu 15/10", self.prompts[1][1])
+        self.assertEqual(self.sent, ["🗓️ Week 12/10 to 18/10"])
+        self.assertEqual(week.problems(config.WEEKS / "2026-W42.md"), [])
+
+    def test_a_planner_that_fails_twice_is_reported_and_code_repairs_the_week(self):
+        self.answers = [self.broken_plan(3), self.broken_plan(3)]
+        self.agents.plan_week(date(2026, 10, 12))
+        self.assertEqual(self.sent[0], "🗓️ Week 12/10 to 18/10")
+        self.assertIn("no card for Thu 15/10", self.sent[1])
+        path = config.WEEKS / "2026-W42.md"
+        self.assertEqual(week.problems(path), [])
+        self.assertIn("> [!day] Mon 12/10 · 1h of 4h\n> - [ ] [[Gym]] (1h)\n", text(path))
+
+    def test_planning_this_week_again(self):
+        self.answers = ["🗓️ again"]
+        self.agents.plan_again(date(2026, 10, 7))
+        self.assertIn("1. 🎯 Intention/Week/2026-W41.md`, which starts on 2026-10-05", self.prompts[0][1])
+        self.assertIn("![[2026-W41]]", text(config.DASHBOARD))
+
+
+class TestMigration(Base):
+    def test_the_task_template_gets_the_planned_day(self):
+        from seahorse import migrations
+        template = config.SYSTEM / "_Templates" / "Task.md"
+        write(template, "---\ntype: task\ndone: false\nestimate: 30m\ndue:\nrepeat:\ntags: []\n---\n")
+        migrations._to_1_3_0_week()
+        migrations._to_1_3_0_week()
+        self.assertEqual(text(template), "---\ntype: task\ndone: false\nestimate: 30m\ndue:\nplanned:\nrepeat:\ntags: []\n---\n")
+        write(template, "---\ntype: task\nmine: yes\n---\nMy own body.\n")  # a template the user changed
+        migrations._to_1_3_0_week()
+        self.assertEqual(text(template), "---\ntype: task\nmine: yes\nplanned:\n---\nMy own body.\n")
+        self.assertIn(("1.3.0", migrations._to_1_3_0_week), migrations.MIGRATIONS)
+        new = config.TEMPLATE / "6. ⚙️ System" / "_Templates" / "Task.md"
+        self.assertIn("\ndue:\nplanned:\n", new.read_text(encoding="utf-8"))

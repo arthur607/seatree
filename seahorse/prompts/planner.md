@@ -1,12 +1,18 @@
-## Task: Sunday Planner
-The week that ends: `1. 🎯 Intention/Week/$current_week.md`. The new week: `1. 🎯 Intention/Week/$next_week.md`.
-1. If the week that ends exists, fill in its Review: planned, done, estimated against actual where $user wrote it, and what was postponed.
+## Task: Planner
+The week that ends: `1. 🎯 Intention/Week/$current_week.md`. The week to plan: `1. 🎯 Intention/Week/$next_week.md`, which starts on $week_start.
+1. If the week that ends exists and its Review is empty, fill it in: planned, done, estimated against actual where $user wrote it, and what was postponed.
 2. Update `4. 🪞 Identity/Capacity.md` with what the week showed.
-3. Create the new week from `6. ⚙️ System/_Templates/Week.md`, with the week and the date of each day. Each day is a callout card, `> [!day] Mon 12/01 · 2h30 of $capacity`, with its tasks inside as `> - [ ] [[<task note>]] (<estimate>)`, and a blank line between cards. The card titles stay in English, in this exact format, because code reads them. Tasks are notes in `1. 🎯 Intention/Tasks/`. Plan the open tasks (`done: false`): first the ones not finished in the week that ends, then the ones whose `due` is in the new week (on that day or before), then the rest by priority, goals and active projects. A task carried over from the week that ends gets `postponed: N` in its note, where N counts how many times it moved.
-4. Respect the capacity of each day from Capacity.md: about $capacity a day for things that are not work. Work tasks, tagged `$work_tag`, can go into the week, but they do not count toward the capacity. The title of each card shows the total without work. What does not fit stays open in Tasks for another week.
-5. Do not silently plan again a task that was postponed three times or more. Leave it out of the week and ask if it still makes sense.
-6. Do not repeat suggestions that the logs record as rejected.
-Your final answer is the Telegram message for $user. It is a list, never prose: in $language, plain text, no markdown, no greeting, no exclamation marks. Use this shape, with the words translated into $language:
+3. The week to plan exists already, with one callout card for each day, such as `> [!day] Mon 12/01 · 0h of $capacity`, and a blank line between cards. Put the tasks inside the cards, one per line, as `> - [ ] [[<task note>]] (<estimate>)`. Do not add, remove or change the card titles: code writes them, with the totals, in $language. If the week has tasks already because it is planned again, keep its checked lines and the days before $today as they are, and plan again only from $today on.
+4. Tasks are notes in `1. 🎯 Intention/Tasks/`. Plan the open tasks (`done: false`) in this order:
+   - A task with `planned: YYYY-MM-DD` on a day of this week goes on that day, even over the capacity: $user chose that day.
+   - The tasks still open in the week that ends. Code takes their old lines out of the week that ends on Monday.
+   - The tasks whose `due` is in this week, on that day or before.
+   - Then the rest by priority, goals and active projects.
+   Do not change `moved` or `postponed` in the task notes: code counts them.
+5. Respect the capacity of each day from Capacity.md: about $capacity a day for things that are not work. Work tasks, tagged `$work_tag`, can go into the week, but they do not count toward the capacity. What does not fit stays open in Tasks for another week.
+6. Do not silently plan again a task that was postponed three times or more. Leave it out of the week and ask if it still makes sense.
+7. Do not repeat suggestions that the logs record as rejected.
+Your final answer is the Telegram message for $user. It is a list, never prose: in $language, plain text, no markdown, no greeting, no exclamation marks. Write each date with the day and the month in the order of $language: the first day of this week is $date_example. Use this shape, with the words translated into $language:
 ```
 🗓️ Week 12/01 to 18/01 · 14h of 28h
 

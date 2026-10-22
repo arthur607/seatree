@@ -118,7 +118,59 @@ def _deadlines(today: date, days: int = 7) -> str:
     return "\n".join(lines) or "none"
 
 
+# An unclear capture is asked in this many morning summaries. With no answer, it is then set aside.
+UNCLEAR_ASKS = 2
+
+
+def _quiet_left(moment: datetime) -> float:
+    """Seconds until the quiet hours end, or 0 outside them."""
+    if not messenger.quiet(moment):
+        return 0
+    end = moment.replace(hour=config.QUIET_UNTIL // 60, minute=config.QUIET_UNTIL % 60, second=0, microsecond=0)
+    if end <= moment:
+        end += timedelta(days=1)
+    return (end - moment).total_seconds()
+
+
+def _asked(path) -> int:
+    return int(re.sub(r"\D", "", str(notes.read(path)[0].get("asked_in_summary", ""))) or 0)
+
+
+def _unclear_for_summary() -> tuple[list, list]:
+    """The unclear captures to ask about in the summary, and the ones already asked in two summaries with no
+    answer, to set aside."""
+    ask, drop = [], []
+    for path in vault.engrams("unclear"):
+        (drop if _asked(path) >= UNCLEAR_ASKS else ask).append(path)
+    return ask, drop
+
+
+def _after_summary(ask: list, drop: list) -> None:
+    """Counts the summary in each capture it asked about. The ones set aside become `discarded`: the summary said
+    so once, and their text stays as it is."""
+    for path in ask:
+        notes.set_field(path, "asked_in_summary", str(_asked(path) + 1))
+    for path in drop:
+        notes.set_field(path, "state", "discarded")
+
+
+def _send_week_image(today: date) -> None:
+    """The week as an image. It needs no AI, so it goes out even when the text of the summary failed."""
+    try:
+        image = week_image.week_png(today)
+        if image:
+            telegram_api.send_photo(image)
+    except Exception:  # noqa: BLE001 - the image is an extra
+        log.exception("week image failed")
+
+
 def morning() -> str:
+    """The morning summary: today, what code moved since the last summary, deadlines and doubts, then the week as
+    an image. When the time of the summary is inside the quiet hours, it waits for their end."""
+    wait = _quiet_left(datetime.now(config.TIMEZONE))
+    if wait:
+        log.info("the morning summary waits %d minutes, until the quiet hours end", wait // 60)
+        time.sleep(wait)
     integrator()
     with vault.lock():
         vault.pull()
@@ -126,30 +178,33 @@ def morning() -> str:
         today = datetime.now(config.TIMEZONE).date()
         week.create_if_missing(today)
         tasks.sync(today)
-        moved = "\n".join(f"- {m}" for m in week.reschedule(today)) or "none"
-        unclear = "\n".join(f"- {vault.rel(p)}" for p in vault.engrams("unclear")) or "none"
+        week.reschedule(today)
+        week.refresh(today)
+        _point_dashboard(vault.week_name(today))
+        moves = week.take_moves(today)  # the Messenger moved most of them at midnight
+        ask, drop = _unclear_for_summary()
         answer = llm.run(request(
             "morning",
-            moved=moved,
+            moved="\n".join(f"- {week.describe(m, today)}" for m in moves) or "none",
             week=f"1. 🎯 Intention/Week/{vault.week_name(today)}.md",
             log_yesterday=f"6. ⚙️ System/_Logs/Log {today - timedelta(days=1)}.md",
             log_today=f"6. ⚙️ System/_Logs/Log {today}.md",
             deadlines=_deadlines(today),
-            unclear=unclear,
+            unclear="\n".join(f"- {vault.rel(p)}" for p in ask) or "none",
+            dropped="\n".join(f"- {vault.rel(p)}" for p in drop) or "none",
+            date_example=week_image.day_month(today),
         ), "morning", max_turns=30)
-        if answer.error or not answer.text:
-            _report_failure("Morning summary", answer.text)
-            return answer.text
-        message_id = uuid.uuid4().hex[:6]
-        tg_id = telegram_api.send(answer.text)
-        messenger.record("summary", "[[_Seahorse]]", answer.text, tg_id, message_id)
-        try:
-            image = week_image.week_png(today)
-            if image:
-                telegram_api.send_photo(image)
-        except Exception:  # noqa: BLE001 - the image is an extra: the text summary already went out
-            log.exception("week image failed")
+        failed = answer.error or not answer.text
+        if failed:
+            week.record_moves(moves)  # they wait for the next summary
+        else:
+            tg_id = telegram_api.send(answer.text)
+            messenger.record("summary", "[[_Seahorse]]", answer.text, tg_id, uuid.uuid4().hex[:6])
+            _after_summary(ask, drop)
+        _send_week_image(today)
         vault.publish("messenger: morning summary")
+    if failed:
+        _report_failure("Morning summary", answer.text)
     return answer.text
 
 
@@ -167,34 +222,82 @@ def reviewer() -> str:
     return answer.text
 
 
+def week_after(day: date) -> date:
+    """The Monday of the week that starts after the day: tomorrow on a Sunday, the next Monday on any other day."""
+    return day + timedelta(days=7 - day.weekday())
+
+
 def weekly() -> str:
+    """The Planner plans the week that starts after today, whatever the day of the run, and the plan goes out at
+    once. Then the Observer. Each one holds the vault lock only for its own run, so captures and reminders do
+    not wait for both."""
     integrator()
     today = datetime.now(config.TIMEZONE).date()
-    current, upcoming = vault.week_name(today), vault.week_name(today + timedelta(days=7))
+    plan = plan_week(week_after(today))
     with vault.lock():
         vault.pull()
-        plan = llm.run(request("planner", current_week=current, next_week=upcoming), "planner",
-                       write=True, max_turns=120, timeout=5400)
-        _after_writing()
-        _point_dashboard(upcoming)
-        vault.publish(f"planner: week {upcoming}")
-        observer = llm.run(request("observer", current_week=current), "observer", write=True, max_turns=120, timeout=5400)
+        observer = llm.run(request("observer", current_week=vault.week_name(today)), "observer", write=True,
+                           max_turns=120, timeout=5400)
         _after_writing()
         vault.publish(f"observer: {observer.text[:150]}")
-        if plan.error or not plan.text:
-            _report_failure("Planner", plan.text)
-        else:
-            message_id = uuid.uuid4().hex[:6]
-            tg_id = telegram_api.send(plan.text)
-            messenger.record("week", f"[[{upcoming}]]", plan.text, tg_id, message_id)
-            vault.publish("messenger: week proposal")
     if observer.error:
         _report_failure("Observer", observer.text)
+    return plan
+
+
+PLAN_FIX = ("The week file `1. 🎯 Intention/Week/{name}.md` is not right yet:\n{problems}\nFix it: seven cards, one for "
+            "each day, each title with the weekday and the date as dd/mm, such as `> [!day] Mon 12/01`. Keep the tasks "
+            "you planned. Then give your final answer again.")
+
+
+def plan_week(monday: date) -> str:
+    """Runs the Planner for the week that starts on `monday`, checks the file, and sends the plan.
+
+    Code writes the week file first, with its seven empty cards, and the Planner fills them. Then the file must
+    have seven readable cards (`week.problems`). If not, the Planner runs once more with the problems, code
+    repairs what it can (the titles, a missing day), and the user hears about what was wrong."""
+    name, ending = vault.week_name(monday), vault.week_name(monday - timedelta(days=7))
+    path = config.WEEKS / f"{name}.md"
+    today = datetime.now(config.TIMEZONE).date()
+    with vault.lock():
+        vault.pull()
+        week.create_if_missing(monday)
+        ask = request("planner", current_week=ending, next_week=name, week_start=monday.isoformat(),
+                      date_example=week_image.day_month(monday))
+        plan = llm.run(ask, "planner", write=True, max_turns=120, timeout=5400)
+        _after_writing()
+        problems = week.problems(path)
+        if problems and not plan.error:
+            fix = PLAN_FIX.format(name=name, problems="\n".join(f"- {p}" for p in problems))
+            again = llm.run(f"{ask}\n\n{fix}", "planner", write=True, max_turns=60, timeout=3600)
+            _after_writing()
+            plan = again if not again.error and again.text else plan
+            problems = week.problems(path)
+        week.create_if_missing(monday)
+        week.refresh(monday)
+        if monday <= today + timedelta(days=1):
+            _point_dashboard(name)
+        vault.publish(f"planner: week {name}")
+        if not plan.error and plan.text:
+            tg_id = telegram_api.send(plan.text)
+            messenger.record("week", f"[[{name}]]", plan.text, tg_id, uuid.uuid4().hex[:6])
+            vault.publish("messenger: week proposal")
+    if plan.error or not plan.text:
+        _report_failure("Planner", plan.text)
+    elif problems:
+        _report_failure("Planner", f"the week {name} had problems, code repaired what it could: " + "; ".join(problems))
     return plan.text
 
 
+def plan_again(today: date | None = None) -> str:
+    """Plans the current week again, from today on. For a `/plan` command."""
+    today = today or datetime.now(config.TIMEZONE).date()
+    return plan_week(today - timedelta(days=today.weekday()))
+
+
 def _point_dashboard(week_name: str) -> None:
-    """The Dashboard embeds the current week. This points the embed to the new week, if it exists."""
+    """The Dashboard embeds the current week. This points the embed to the given week, if it exists. The morning
+    summary and the Planner call it."""
     if not config.DASHBOARD.exists() or not (config.WEEKS / f"{week_name}.md").exists():
         return
     text = config.DASHBOARD.read_text(encoding="utf-8")
