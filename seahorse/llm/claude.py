@@ -72,7 +72,8 @@ def answer_from(data: dict) -> Answer:
 def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: bool,
         session: str | None, max_turns: int, timeout: int) -> Answer:
     model = model or TIERS[tier]
-    cmd = [binary(), "-p", text, "--model", model, "--output-format", "json",
+    # The prompt goes on stdin: on a command line, any user of the same server could read it with `ps`.
+    cmd = [binary(), "-p", "--model", model, "--output-format", "json",
            "--strict-mcp-config", "--max-turns", str(max_turns)]
     if tier != "fast":  # the fast model takes no effort setting
         cmd += ["--effort", effort]
@@ -83,8 +84,8 @@ def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: 
     if session:
         cmd += ["--resume", session]
     try:
-        out = subprocess.run(cmd, cwd=workdir(), stdin=subprocess.DEVNULL, capture_output=True,
-                             text=True, timeout=timeout, env=safe_env(LOGIN))
+        out = subprocess.run(cmd, cwd=workdir(), input=text, capture_output=True, text=True, encoding="utf-8",
+                             timeout=timeout, env=safe_env(LOGIN))
     except subprocess.TimeoutExpired:
         return Answer(f"timed out after {timeout}s", None, True)
     except FileNotFoundError:
