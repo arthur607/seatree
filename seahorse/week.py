@@ -179,17 +179,26 @@ class _Card:
         number = _day_names().get(_plain(words[0])) if words else None
         return by_date, (dates[number] if number is not None else None), bool(m)
 
+    def _name_end(self) -> int | None:
+        """Where the day name of a title with no date ends, such as after "Tuesday". None with no day name."""
+        m = re.search(r"[^\s\d·/|:,()\[\]]+", self.rest)
+        return m.end() if m and _plain(m[0]) in _day_names() else None
+
     def _totals(self) -> tuple[re.Match | None, int]:
+        """The totals, and where the text after the date (or the day name) starts."""
         found = DATE.search(self.rest)
-        start = found.end() if found else 0
-        return _totals().search(self.rest, start), start if found else len(self.rest)
+        if found:
+            return _totals().search(self.rest, found.end()), found.end()
+        name = self._name_end()
+        return _totals().search(self.rest), len(self.rest) if name is None else name
 
     def capacity(self) -> int:
         m, _ = self._totals()
         return minutes(m[2]) if m else 0
 
     def extra(self) -> str:
-        """The text after the totals, such as a note the user wrote in the title."""
+        """The text after the totals, such as a note the user wrote in the title. With no totals, the text after the
+        date, or after the day name: "Tuesday - dentist day" keeps "dentist day"."""
         m, start = self._totals()
         if m:
             return self.rest[m.end():].strip()

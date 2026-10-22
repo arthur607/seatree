@@ -213,3 +213,16 @@ class TestOpenLink(Base):
         note = config.VAULT / "3. 📚 Knowledge" / "My idea.md"
         link = urlparse(messenger.obsidian_link(note))
         self.assertEqual((link.query, parse_qs(link.fragment)["file"]), ("", ["3. 📚 Knowledge/My idea"]))
+
+
+class TestDayTitles(Base):
+    def test_the_words_after_a_day_name_stay_in_the_title(self):
+        path = self.week_file()
+        old = path.read_text(encoding="utf-8")
+        write(path, old.replace("> [!day] Tue 06/10 · 0h of 4h", "> [!day] Tuesday - dentist day, bring the x-rays")
+              .replace("> [!day] Wed 07/10 · 0h of 4h", "> [!day] Wednesday"))
+        self.assertTrue(week.refresh(self.today))
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("> [!day] Tue 06/10 · 0h of 4h dentist day, bring the x-rays\n", text)
+        self.assertIn("> [!day] Wed 07/10 · 0h of 4h\n", text)
+        self.assertFalse(week.refresh(self.today))  # the next refresh changes nothing
