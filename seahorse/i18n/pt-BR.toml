@@ -166,9 +166,10 @@ active = "Ativos"
 
 [chat]
 # The bot in a conversation: help, commands, photos and files, voice notes, edits and errors.
-help = "Eu sou o Seahorse, seu segundo cérebro 🌊\n• Me mande qualquer coisa: uma ideia, uma tarefa, um filme para ver, uma foto, um arquivo, um lugar ou um áudio. Eu coloco no lugar certo das suas notas.\n• Faça uma pergunta. Eu respondo com as suas notas ou com a internet.\n• Mande \"semana\" ou \"hoje\" para ver o seu plano.\n• Para mudar algo que você mandou, edite a mensagem. Ou toque em ✏️ Corrigir na minha resposta.\n• Eu também escrevo primeiro: um resumo toda manhã, um lembrete antes de um prazo e, às vezes, uma pergunta ou uma ideia.\n\nComandos:\n/status – o que espera e o que me deixou em dúvida\n/integrate – coloca agora nas notas o que espera\n/plan – planeja de novo esta semana\n/intro – responde de novo às primeiras perguntas\n/update – instala a nova versão do Seahorse\n/help – esta mensagem"
+help = "Eu sou o Seahorse, seu segundo cérebro 🌊\n• Me mande qualquer coisa: uma ideia, uma tarefa, um filme para ver, uma foto, um arquivo, um lugar ou um áudio. Eu coloco no lugar certo das suas notas.\n• Faça uma pergunta. Eu respondo com as suas notas ou com a internet.\n• Mande \"semana\" ou \"hoje\" para ver o seu plano.\n• Diga \"tenho 30 min\", e eu escolho uma tarefa para esse tempo.\n• Para mudar algo que você mandou, edite a mensagem. Ou toque em ✏️ Corrigir na minha resposta.\n• Eu também escrevo primeiro: um resumo toda manhã, um lembrete antes de um prazo e, às vezes, uma pergunta ou uma ideia.\n\nComandos:\n/now – uma tarefa para o tempo que você tem\n/status – o que espera e o que me deixou em dúvida\n/integrate – coloca agora nas notas o que espera\n/plan – planeja de novo esta semana\n/intro – responde de novo às primeiras perguntas\n/update – instala a nova versão do Seahorse\n/help – esta mensagem"
 unknown_command = "Não conheço esse comando. Mande /help para ver os comandos."
 menu_help = "O que o Seahorse faz e os comandos"
+menu_now = "Uma tarefa para o tempo que você tem"
 menu_status = "O que espera e o que me deixou em dúvida"
 menu_integrate = "Coloca agora nas notas o que espera"
 menu_plan = "Planeja de novo esta semana"
@@ -366,3 +367,54 @@ saved_in = "📁 {path}"
 
 [companion]
 source = "🔗 Fonte: {site}"
+
+[now]
+# "What do I do now?": one task for the free time of the user. The lists find the short messages about free time.
+ask = "Quanto tempo você tem?"
+minutes_label = "{minutes} min"
+hours_label = "{hours} h"
+pick = "🎯 {task} ({estimate})\n{why}\nPrimeiro passo: {step}"
+start = "▶️ Começar"
+another = "🔄 Outra"
+not_now = "❌ Agora não"
+started = "▶️ Vai lá! Pergunto de novo em {minutes} min."
+started_quiet = "▶️ Vai lá! Boa sorte."
+closed = "Tudo bem. Me chame de novo quando tiver tempo."
+no_other = "Nenhuma outra tarefa cabe em {minutes} min."
+nothing_fits = "Nada cabe em {minutes} min. A tarefa mais curta é “{task}” ({estimate})."
+nothing_open = "Você não tem tarefas abertas agora 🌿 Descanse um pouco, ou me mande uma tarefa."
+check = "⏰ Você terminou “{task}”?"
+done = "✅ Feito"
+more = "⏳ Mais {minutes} min"
+done_plan = "✅ Muito bem. Você fez {done} de {total} tarefas do plano de hoje."
+done_all = "✅ Muito bem. Você fez todo o plano de hoje 🌿"
+done_line = "✅ Muito bem. Uma tarefa a menos."
+more_line = "⏳ Combinado. Pergunto de novo em {minutes} min."
+more_quiet = "⏳ Combinado. Faça no seu tempo."
+stop_line = "Tudo bem. “{task}” continua aberta para outro momento."
+morning = "🎲 O que eu faço agora?"
+step_default = "abra a tarefa e faça a primeira parte pequena"
+why_overdue = "O prazo era {date}."
+why_due_today = "O prazo é hoje."
+why_tomorrow = "O prazo é amanhã."
+why_soon = "O prazo é em {days} dias."
+why_moved = "Ela já mudou de dia {count} vezes. Agora é uma boa chance."
+why_planned = "Você escolheu hoje para ela."
+why_today = "Ela está no plano de hoje."
+why_fits = "Ela cabe nos seus {minutes} min."
+# A short message is about free time when it is mostly these words. Code ignores case and accents.
+ask_phrases = ["o que eu faço agora", "o que faço agora", "que faço agora", "oq eu faço agora", "oq faço agora", "o que eu posso fazer agora", "o que posso fazer agora", "o que eu devo fazer agora", "o que devo fazer agora", "o que fazer agora", "e agora o que eu faço", "e agora o que faço", "o que eu faço", "o que faço", "oq eu faço", "oq faço", "o que eu posso fazer", "o que posso fazer"]
+have_words = ["tenho", "eu tenho", "tô com", "estou com", "tou com"]
+free_words = ["livre", "livres", "de folga", "sobrando", "vago", "vagos", "à toa", "disponível"]
+now_words = ["agora", "agorinha"]
+filler_words = ["eu", "só", "uns", "umas", "um", "uma", "mais", "ou", "menos", "aí", "aqui", "tô", "tou", "estou", "e", "bom", "ok", "então", "tempo", "tempinho", "pouco"]
+# A message with one of these words is about another moment: it stays a normal capture.
+later_words = ["amanhã", "depois", "mais tarde", "ontem", "à noite", "semana que vem", "próxima", "próximo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo", "fim de semana"]
+# Times in words, with their minutes.
+amounts = ["meia hora = 30", "meia horinha = 30", "uma hora e meia = 90", "1 hora e meia = 90", "1h e meia = 90", "hora e meia = 90", "um quarto de hora = 15", "uma hora = 60", "uma horinha = 60", "duas horas = 120", "três horas = 180", "dez minutos = 10", "quinze minutos = 15", "vinte minutos = 20", "trinta minutos = 30", "quarenta minutos = 40", "quarenta e cinco minutos = 45"]
+# Words that the routine uses for the time of best focus, for work, and for the parts of the day.
+focus_words = ["foco", "focad", "focar", "concentr", "produtiv", "rendo melhor", "rendo mais", "mais energia", "penso melhor", "trabalho melhor"]
+work_words = ["trabalho", "trabalhar", "trabalh", "expediente", "escritório", "emprego"]
+morning_words = ["manhã", "cedo"]
+afternoon_words = ["tarde"]
+evening_words = ["noite", "madrugada"]

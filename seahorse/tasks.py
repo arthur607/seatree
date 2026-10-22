@@ -81,6 +81,17 @@ def with_due_date() -> list[Task]:
     return sorted((t for t in all_tasks() if not t.done and t.due), key=lambda t: t.due)
 
 
+def mark_done(name: str, today: date | None = None) -> bool:
+    """Marks an open task done in code, as a check in its note does: `sync` then checks its open lines in the
+    week, or opens a task that repeats again with its next date. False when there is no such open task."""
+    task = next((t for t in all_tasks() if t.name == name), None)
+    if not task or task.done:
+        return False
+    _set(task, "done", "true")
+    sync(today)
+    return True
+
+
 def tags(path: Path) -> list[str]:
     """The tags of a note: `tags: [a, b]`, `tags: a`, or a YAML list under `tags:`, indented or not."""
     raw = path.read_text(encoding="utf-8").replace("\r\n", "\n")
