@@ -1,14 +1,15 @@
 from test_seahorse import Base, write, task, message, remove  # sets up the throwaway vault
 
-"""Fixes from the review of 1.3.0: an AI outage, the unclear captures of the summary, free-text lines of the week,
-a deleted checked line, and the bot token kept out of the logs."""
+"""Fixes from the reviews of 1.3.0: an AI outage, the unclear captures of the summary, free-text lines of the week,
+a deleted checked line, the bot token kept out of the logs; then the vault sync, the link to Obsidian, the day
+titles, the Integrator runs, the durations and the Done of Now, the birthday dates, the texts and the retro."""
 import logging
 import unittest
 from datetime import date, datetime
 
 import requests
 
-from seahorse import agents, config, notes, tasks, telegram_api, vault, week
+from seahorse import agents, config, i18n, messenger, notes, tasks, telegram_api, vault, week
 from seahorse.llm import Answer
 
 TZ = config.TIMEZONE
@@ -392,3 +393,76 @@ class TestTexts(PeopleBase):
         self.assertEqual(i18n.t("now.why_overdue", "pt-BR", date="02/10"), "O prazo era dia 02/10.")
         self.assertEqual(i18n.t("now.why_planned", "es"), "La elegiste para hoy.")
         self.assertEqual(i18n.t("now.started", "en", minutes=15), "▶️ Go! I'll check back in 15 min.")
+
+
+from contextlib import contextmanager  # noqa: E402
+from datetime import timedelta  # noqa: E402
+
+from test_now import NowBase, make  # noqa: E402
+from test_telegram import Patch  # noqa: E402
+
+
+@contextmanager
+def busy_vault(wait: bool = True):
+    """An agent holds the vault: a caller that does not wait gets Busy at once."""
+    if not wait:
+        raise vault.Busy
+    yield
+
+
+class TestNowDone(NowBase):
+    """"✅ Done" under the question of Now: one session of a task, and never a wait for the vault."""
+
+    def sessions(self):
+        make("Write the report", "3h")
+        line = "\n> - [ ] [[Write the report]] (1h)"
+        return self.week_file(Mon=line, Wed=line, Fri=line)
+
+    async def done_now(self, text: str = "I have 1h") -> object:
+        """Asks for a task, starts it, waits for the question and taps Done."""
+        msg = await self.pick(text)
+        await self.press("now|start|1", 1001, msg.texts()[0])
+        self.clock += timedelta(hours=1)
+        await self.fire()
+        fid = self.ctx.job_queue.jobs[-1].data
+        return await self.press(f"now|done|{fid}", 77, self.sent[-1][0]), fid
+
+    async def test_done_checks_only_the_session_of_the_day(self):
+        path = self.sessions()
+        note = config.TASKS / "Write the report.md"
+        await self.done_now()
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("> [!day] Mon 05/10 · 1h of 4h\n> - [x] [[Write the report]] (1h)", text)
+        self.assertEqual(text.count("- [ ] [[Write the report]]"), 2)  # Wednesday and Friday stay open
+        self.assertEqual(notes.read(note)[0]["done"], "false")
+        week.check("Write the report", date(2026, 10, 7))  # Wednesday, checked on the phone
+        tasks.sync(date(2026, 10, 7))
+        self.assertEqual(notes.read(note)[0]["done"], "false")
+        self.clock = datetime(2026, 10, 9, 10, 30, tzinfo=TZ)  # Friday: the last session
+        await self.done_now()
+        self.assertNotIn("- [ ] [[Write the report]]", path.read_text(encoding="utf-8"))
+        self.assertEqual(notes.read(note)[0]["done"], "true")
+
+    async def test_a_task_out_of_the_week_is_done_in_its_note(self):
+        make("Renew the passport", "30m", due=self.today)
+        self.week_file()
+        query, _ = await self.done_now("I have 30 min")
+        self.assertTrue(query.edits[0][0].endswith(i18n.t("now.done_line")))
+        self.assertEqual(notes.read(config.TASKS / "Renew the passport.md")[0]["done"], "true")
+
+    async def test_done_while_an_agent_holds_the_vault(self):
+        path = self.sessions()
+        note = config.TASKS / "Write the report.md"
+        with Patch(vault, lock=busy_vault):
+            query, fid = await self.done_now()
+            again = await self.press(f"now|done|{fid}", 77, self.sent[-1][0])
+        self.assertTrue(query.edits[0][0].endswith("\n\n" + i18n.t("now.done_later")))
+        self.assertEqual(again.answers, [i18n.t("chat.already_done")])
+        self.assertEqual(self.state()["follow_ups"][fid]["status"], "queued")
+        self.assertNotIn("- [x]", path.read_text(encoding="utf-8"))  # nothing done yet
+        self.assertEqual([m.reaction for m in self.now_lines()], ["acted", "acted"])
+        with Patch(config, QUIET_FROM=0, QUIET_UNTIL=24 * 60 - 1):  # the next Messenger run sends nothing
+            messenger.run()
+        self.assertIn("> - [x] [[Write the report]] (1h)", path.read_text(encoding="utf-8"))
+        self.assertEqual(path.read_text(encoding="utf-8").count("- [ ] [[Write the report]]"), 2)
+        self.assertEqual((notes.read(note)[0]["done"], self.state()["follow_ups"][fid]["status"]), ("false", "done"))

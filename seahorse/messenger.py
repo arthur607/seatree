@@ -555,6 +555,7 @@ def run() -> str:
     """The timer calls this every ten minutes. At most one message per run. The model of the Companion, or of a
     message about a person, runs after the lock is free again, so the captures and the buttons do not wait for it."""
     from . import companion, people  # imported here: they use this module
+    from .now import apply_waiting
     ask = None
     with vault.lock():
         vault.pull()
@@ -563,6 +564,7 @@ def run() -> str:
         moment = now()
         tasks.sync(moment.date())
         people.update(moment.date())  # the buttons pressed under messages about people, and the calls done
+        apply_waiting()  # the Done presses of Now that came while an agent held the vault
         week.reschedule(moment.date())
         calibrate_reminders(moment)
         done = None

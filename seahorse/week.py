@@ -380,6 +380,19 @@ def create_if_missing(day: date) -> Path:
     return path
 
 
+def check(name: str, when: date) -> bool:
+    """Checks the open line of a task on the card of a day, as a tap in Obsidian does. `tasks.sync` then does the
+    rest. False when the card has no open line of the task."""
+    w = read(when)
+    day = w.day(when) if w else None
+    item = next((i for i in day.items if i.name == name and not i.done), None) if day else None
+    if not item:
+        return False
+    day.lines[day.lines.index(item.line)] = item.line.replace("[ ]", "[x]", 1)
+    _write(w.path, w.text(tasks.work_tasks()))
+    return True
+
+
 def refresh(today: date | None = None) -> bool:
     """Writes again the titles of the week that holds the day, with the totals computed in code, and puts the
     cards in order. It changes the file only when something changed. True if it did."""
