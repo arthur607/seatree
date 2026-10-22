@@ -26,3 +26,6 @@ Topics paused until a date, one per line: `- [[note]] until 2026-03-01`.
 None.
 ## Muted topics
 None.
+## Stopped reminders
+Code writes this part. A kind of reminder stops when the last 3 of that kind were ignored, and starts again when {{user}} acts on a reminder. To start it again now, delete its line.
+None.

@@ -221,7 +221,7 @@ class TestMessenger(Base):
     def test_reminder_header(self):
         task("Pay the car tax", date(2026, 10, 8))
         found = tasks.with_due_date()[0]
-        self.assertEqual(messenger.reminder_header(found, self.today), "⏰ Pay the car tax\nDue Thursday, 08/10 · 15m")
+        self.assertEqual(messenger.reminder_header(found, self.today), "⏰ Pay the car tax\nDue Thursday, 10/08 · 15m")
         self.assertIn("Due tomorrow", messenger.reminder_header(found, date(2026, 10, 7)))
 
     def test_reactions(self):
