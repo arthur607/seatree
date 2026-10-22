@@ -354,7 +354,7 @@ class TestReconnect(PeopleBase):
         person("Grandma", EMPTY_PAGE, keep_in_touch="monthly", last_contact="2026-08-28")
         self.answers = ['{"text": "Call your grandmother on Tuesday?"}']
         messenger.run()
-        self.assertEqual(people.press(self.message_id(), "later"), "💤 OK. I'll ask again in 14 days.")
+        self.assertEqual(people.press(self.message_id(), "later"), "💤 OK. I will ask again in 14 days.")
         people.apply_now()
         self.assertEqual(people._load()["reconnect"]["Grandma"]["snooze"], "2026-10-19")
         lines = config.MESSAGES.read_text(encoding="utf-8").splitlines()[3:]

@@ -337,7 +337,7 @@ class TestTheFlow(NowBase):
         msg = await self.pick()
         first = await self.press("now|start|1", 1001, msg.texts()[0])
         second = await self.press("now|start|1", 1001, msg.texts()[0])
-        self.assertTrue(first.edits[0][0].endswith("\n\n▶️ Go! I'll check back in 15 min."))
+        self.assertTrue(first.edits[0][0].endswith("\n\n▶️ Go! I will check back in 15 min."))
         self.assertIsNone(first.edits[0][1])
         self.assertEqual(second.answers, [i18n.t("chat.already_done")])
         jobs = self.ctx.job_queue.jobs
@@ -386,7 +386,7 @@ class TestTheFlow(NowBase):
         await self.fire()
         fid = self.ctx.job_queue.jobs[0].data
         more = await self.press(f"now|more|{fid}", 77, self.sent[-1][0])
-        self.assertTrue(more.edits[0][0].endswith("⏳ OK. I'll check back in 15 min."))
+        self.assertTrue(more.edits[0][0].endswith("⏳ OK. I will check back in 15 min."))
         self.assertEqual([j.when for j in self.ctx.job_queue.jobs], [15 * 60, 15 * 60])
         self.assertEqual((await self.press(f"now|more|{fid}", 77)).answers, [i18n.t("chat.already_done")])
         self.clock += timedelta(minutes=15)

@@ -392,7 +392,7 @@ class TestTexts(PeopleBase):
         from seahorse import i18n
         self.assertEqual(i18n.t("now.why_overdue", "pt-BR", date="02/10"), "O prazo era dia 02/10.")
         self.assertEqual(i18n.t("now.why_planned", "es"), "La elegiste para hoy.")
-        self.assertEqual(i18n.t("now.started", "en", minutes=15), "▶️ Go! I'll check back in 15 min.")
+        self.assertEqual(i18n.t("now.started", "en", minutes=15), "▶️ Go! I will check back in 15 min.")
 
 
 from contextlib import contextmanager  # noqa: E402
