@@ -14,11 +14,12 @@ flowchart LR
 
 | Agent | When | What it does |
 |---|---|---|
-| **Integrator** | Seconds after each message | Files the capture in the right notes, makes tasks, and tells you in one line |
+| **Integrator** | Seconds after each message | Files each part of the capture in the right notes, makes tasks, and tells you where each part went |
 | **Notes reader** | Every 5 minutes | Reads the notes you write in Obsidian after 15 quiet minutes, and links them. It never changes your text |
 | **Morning summary** | Each morning | Today's tasks, moved tasks, next deadlines, and the week as an image |
 | **Companion** | 1 to 4 times a day, and each morning about yesterday | Asks about your day, tells you about releases and news you would like, asks about quiet projects and stuck tasks |
-| **Messenger** | Every 10 minutes | Sends deadline reminders. Never in your quiet hours |
+| **Messenger** | Every 10 minutes | Sends deadline reminders, the research that you asked for, and messages about people: a birthday, a meeting today, someone you want to keep in touch with. At most 5 messages a day that you did not ask for. Never in your quiet hours |
+| **Retrospective** | Sunday, before the Planner | Sends your week in one image, with one pattern and the change that it makes next week |
 | **Planner** | Sunday | Makes the next week from your tasks and your free hours |
 | **Observer** | Sunday | Finds patterns and updates Identity |
 | **Reviewer** | Each night | Fixes errors, merges duplicates, and checks each note against its sources |
@@ -30,9 +31,13 @@ Each claim in the vault points to the engram it came from. A trait in Identity s
 | On Telegram | What it does |
 |---|---|
 | `week`, `today` | The week, or today, as an image (`semana` and `hoje` in Portuguese, `semana` and `hoy` in Spanish) |
+| `/now`, "I have 30 min" | One task for the time you have. Later, it asks if you finished |
+| `/retro`, `retro` | Your last week in one image |
+| `/plan` | Plans this week again, from today on |
 | `/status` | Pending captures and the version |
 | `/integrate` | Integrates the pending captures now |
 | `/update` | Installs the newest version |
+| `/help` | What Seahorse does, and the commands |
 | `/intro` | Asks the first questions again, to get to know you |
 
 | In the terminal | What it does |
@@ -46,6 +51,8 @@ Each claim in the vault points to the engram it came from. A trait in Identity s
 | `seahorse migrate` | Applies the vault changes of this version. The update and the setup do this for you |
 | `seahorse agent <name>` | Runs one agent now: `integrator`, `notes`, `morning`, `reviewer`, `weekly`, `messenger` |
 | `seahorse uninstall` | Removes Seahorse. The vault stays |
+
+You can also send photos, files of up to 10 MB, locations and contacts. To correct a message, edit it.
 
 On the computer that set up a server, these commands run on the server. When the server cannot be reached, the command says so. Before a setup, the commands tell you to run `seahorse setup`.
 

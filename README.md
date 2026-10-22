@@ -20,6 +20,9 @@ Seahorse is that kind of second brain. It is an agent that learns who you are, c
 - **It organizes your life.** It puts each message in one of [four areas](#the-four-areas), and links it to what you told it before.
 - **It plans your week.** Tasks fit in your free hours. A task that you do not do moves to the next free day.
 - **It talks to you first.** It asks about your day, tells you about new releases that you would like, and reminds you of real deadlines.
+- **It remembers people.** It keeps the stories of the people in your life. It brings them back before a birthday, before you meet someone, and when someone important has been quiet for too long.
+- **It helps you start.** Tell it "I have 30 minutes". It picks one task that fits, says why, and later asks if you finished.
+- **It shows you your week.** Every Sunday, one image: what you did, lived and learned, who you met, and one pattern it noticed.
 - **Your notes stay yours.** They are plain Markdown in your own private Git repository.
 
 <p align="center"><img src="assets/telegram.jpg" width="380" alt="Seahorse on Telegram: the morning summary, the week, and a suggestion it found for you"></p>
@@ -93,9 +96,11 @@ The setup saves each answer at once. If you stop it (Ctrl+C), or if a step fails
 
 ## Use it
 
-- **Capture**: "Pay the car tax by the 20th", "I watched Dune, 9/10", "Idea: an offline mode for the app".
-- **Ask**: "When is my dentist appointment?"
-- **See the week**: send `week`, or `today`.
+- **Capture**: "Pay the car tax by the 20th", "I watched Dune, 9/10", "Idea: an offline mode for the app". A voice note, a photo, a PDF, a location or a contact works too.
+- **Correct**: edit the message that you sent. Seahorse corrects what it filed.
+- **Ask**: "When is my dentist appointment?" Questions about the world get an answer from the web, with its source.
+- **Start something**: "I have 30 min", or `/now`.
+- **See the week**: send `week` or `today`, and `retro` for the last week.
 
 <p align="center"><img src="assets/telegram-capture.jpg" width="380" alt="A capture on Telegram, and where Seahorse put it"></p>
 
@@ -104,9 +109,13 @@ The setup saves each answer at once. If you stop it (Ctrl+C), or if a step fails
 | On Telegram | What it does |
 |---|---|
 | `week`, `today` | The week, or today, as an image |
+| `/now`, "I have 30 min" | One task for the time you have. Later, it asks if you finished |
+| `/retro`, `retro` | Your last week in one image |
+| `/plan` | Plans this week again, from today on |
 | `/status` | The captures that wait, and the version |
 | `/integrate` | Integrates the waiting captures now |
 | `/update` | Installs the newest version |
+| `/help` | What Seahorse does, and the commands |
 | `/intro` | Asks the first questions again, to get to know you |
 
 | In the terminal | What it does |

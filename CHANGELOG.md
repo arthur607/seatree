@@ -2,6 +2,28 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.3.0
+
+New:
+- **People.** Seahorse keeps the stories of the people in your life and brings them back: a week before a birthday (with your gift idea), on the day (with a message you can send), before you meet someone, and when someone you want to keep in touch with has been quiet for too long.
+- **`/now`.** Send "I have 30 min", `/now`, or tap 🎲 under the morning summary. Seahorse picks one task that fits, says why, gives a first step, and asks later if you finished.
+- **Your week.** Every Sunday, before the plan, one image of the week: what you did, lived and learned, who you met, and one pattern with the change it makes next week. Send `retro` to see it again.
+- **Photos and files.** Send a photo, a PDF or a file with a caption: Seahorse keeps it in your notes and reads it. Locations and contacts work too.
+- **Edit to correct.** Edit a message that you sent, and Seahorse corrects what it filed.
+- **Answers from the web.** A question about the world gets an answer from the web, with its source.
+- `/help`, a menu of commands, and `/plan` to plan this week again.
+
+Better:
+- Nothing that you say is lost. Every story, feeling and detail goes to a note, and the reply shows each place.
+- Research arrives as text that you can read, with a button that opens the note in Obsidian.
+- The bot answers at once, also while it works. A message sent during a run no longer waits for 15 minutes.
+- The first questions wait for your answer, and a question that you ask meanwhile gets an answer.
+- The morning summary tells you which tasks moved to another day, and why.
+- Fewer messages: at most 5 a day that you did not ask for, no reminder right after the morning summary, and no more day-before reminders when you always ignore them.
+- The week image is made for the phone and uses your language.
+- The sync between the server and your phone never stops on a conflict.
+- Install and setup: work on a Mac with no developer tools, on servers that ask for a new password or accept only a key, and when GitHub limits requests. An update checks that the bot started again, and goes back to the old version when it did not.
+
 ## 1.2.0
 
 - The day check-in moved to the morning: from 45 minutes to 2 hours after the morning summary, Seahorse asks how yesterday was, by name ("How was your Saturday?"). The answer goes to the journal of yesterday. No other conversation comes within an hour of it.
