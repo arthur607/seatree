@@ -26,8 +26,10 @@ Ties: today's card first, then the other days of the week, then the rest; then t
 The words come from one fast model call: it gets the best three, the time of day and a part of the routine, and
 writes one line on why and a first step. When it fails or is slow, code writes the line.
 
-Start: when the task's time ends (at most the free time), the bot asks "Did you finish it?". Done marks the task
-done in code, 15 more asks again later, Not now changes nothing. No question goes out in the quiet hours.
+Start: when the task's time ends (at most the free time), the bot asks "Did you finish it?". Done checks, in code,
+the line of the day the task was offered for: a task with sessions on several days is done only when no other line
+of the week is open (see `_finish`). Done never waits for the vault: when an agent holds it, the next Messenger run
+applies the press. 15 more asks again later, Not now changes nothing. No question goes out in the quiet hours.
 Each round and each question lives in `state/now.json`, so a restart loses nothing. Messages records these
 messages with the kind `now`: the user asked for them, so they never count toward the daily limit.
 """
@@ -81,11 +83,20 @@ def _take(text: str, phrases: list[str]) -> tuple[str, bool]:
     return text, found
 
 
-# "30 min", "1h", "1h30", "1 h 30 m", "1.5h", "2 horas", "1 hora e 30 min", "20 minutes".
+# What may come after hours: "and a half", "e meia", "y media"; or "and 30", "e 30 min".
+AFTER_HOURS = (rf"\s*(?:(?P<half>(?:e|and|y)\s+(?:a\s+)?(?:meia|half|media))(?![a-z\d])"
+               rf"|(?:e|and|y)\s+(?P<more>\d{{1,2}})(?:\s*(?:{week.MINUTES}))?(?![a-z\d]))")
+# "30 min", "1h", "1h30", "1 h 30 m", "1.5h", "2 horas", "1 hora e 30 min", "1h e 30", "2 horas e meia", "20 minutes".
 NUMBER = re.compile(
-    rf"(?<![\w.,])(\d+(?:[.,]\d+)?)\s*(?:{week.HOURS})(?![a-z])"
-    rf"(?:\s*(?:e|and|y)\s+(\d{{1,2}})\s*(?:{week.MINUTES})(?![a-z])|\s*(\d{{1,2}})\s*(?:{week.MINUTES})?(?![a-z\d]))?"
-    rf"|(?<![\w.,])(\d+)\s*(?:{week.MINUTES})(?![a-z])")
+    rf"(?<![\w.,])(?P<hours>\d+(?:[.,]\d+)?)\s*(?:{week.HOURS})(?![a-z])"
+    rf"(?:{AFTER_HOURS}|\s*(?P<rest>\d{{1,2}})\s*(?:{week.MINUTES})?(?![a-z\d]))?"
+    rf"|(?<![\w.,])(?P<minutes>\d+)\s*(?:{week.MINUTES})(?![a-z])")
+TAIL = re.compile(AFTER_HOURS)
+
+
+def _after_hours(m: re.Match) -> int:
+    """The minutes that "and a half" or "and 30" add to the hours."""
+    return 30 if m["half"] else int(m["more"] or 0)
 
 
 def _amounts(language: str | None) -> list[tuple[str, int]]:
@@ -99,15 +110,23 @@ def _amounts(language: str | None) -> list[tuple[str, int]]:
 
 
 def _duration(text: str, language: str | None = None) -> tuple[str, int]:
-    """The first duration in a plain text, in minutes, and the text without it. Zero when there is none."""
+    """The first duration in a plain text, in minutes, and the text without it. Zero when there is none. Whole
+    hours in words can take "and a half" or "and 30" after them: "duas horas e meia" is 150."""
     for phrase, value in _amounts(language):
-        pattern = rf"(?<!\w){re.escape(phrase)}(?!\w)"
-        if re.search(pattern, text):
-            return re.sub(pattern, " ", text, count=1), value
+        m = re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", text)
+        if not m:
+            continue
+        end = m.end()
+        if value % 60 == 0 and (tail := TAIL.match(text, end)):
+            value, end = value + _after_hours(tail), tail.end()
+        return f"{text[:m.start()]} {text[end:]}", value
     m = NUMBER.search(text)
     if not m:
         return text, 0
-    total = round(float(m[1].replace(",", ".")) * 60) + int(m[2] or m[3] or 0) if m[1] else int(m[4])
+    if m["hours"]:
+        total = round(float(m["hours"].replace(",", ".")) * 60) + (_after_hours(m) or int(m["rest"] or 0))
+    else:
+        total = int(m["minutes"])
     return f"{text[:m.start()]} {text[m.end():]}", total
 
 
@@ -444,6 +463,7 @@ class Offer:
     buttons: list[tuple[str, str]]
     task: str = ""
     minutes: int = 0  # the estimate of the task
+    day: str = ""  # the day of the week card it comes from, as YYYY-MM-DD; empty for a task out of the week
 
 
 def offer(minutes: int, moment: datetime | None = None, shown=(), n: int = 1) -> Offer | None:
@@ -466,7 +486,7 @@ def offer(minutes: int, moment: datetime | None = None, shown=(), n: int = 1) ->
         buttons.append((i18n.t("now.another"), f"now|next|{n}"))
     buttons.append((i18n.t("now.not_now"), f"now|skip|{n}"))
     text = i18n.t("now.pick", task=choice.name, estimate=choice.estimate(), why=why, step=step)
-    return Offer(text, buttons, choice.name, choice.minutes)
+    return Offer(text, buttons, choice.name, choice.minutes, choice.day.isoformat() if choice.day else "")
 
 
 # ---- the state of the rounds and the questions ---------------------------------------------------------
@@ -494,7 +514,8 @@ def _save(state: dict) -> None:
         except (TypeError, ValueError):
             return False
     state["rounds"] = {k: r for k, r in state.get("rounds", {}).items() if recent(r)}
-    state["follow_ups"] = {k: f for k, f in state.get("follow_ups", {}).items() if f.get("status") == "waiting" or recent(f)}
+    state["follow_ups"] = {k: f for k, f in state.get("follow_ups", {}).items()
+                           if f.get("status") in ("waiting", "queued") or recent(f)}
     _path().parent.mkdir(parents=True, exist_ok=True)
     _path().write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
 
@@ -532,7 +553,7 @@ def _show(message_id: int, minutes: int, found: Offer, n: int, shown: list[str])
     """The round shows `found` now."""
     status = "showing" if found.task else "asking" if found.buttons else "closed"
     _update("rounds", message_id, minutes=minutes, status=status, picks=n, task=found.task, estimate=found.minutes,
-            text=found.text, shown=shown + [found.task] if found.task else shown)
+            day=found.day, text=found.text, shown=shown + [found.task] if found.task else shown)
 
 
 def open_round(message_id: int, minutes: int = 0, found: Offer | None = None) -> None:
@@ -642,8 +663,8 @@ def _start(message_id: int, n: int, moment: datetime) -> Reply:
     def change(state):
         state["rounds"][str(message_id)]["status"] = "started"
         state.setdefault("follow_ups", {})[fid] = {
-            "task": r["task"], "at": at.isoformat(timespec="seconds"), "status": "waiting", "message": 0,
-            "text": "", "record": "", "round": message_id}
+            "task": r["task"], "day": r.get("day", ""), "at": at.isoformat(timespec="seconds"), "status": "waiting",
+            "message": 0, "text": "", "record": "", "round": message_id}
     _change(change)
     return Reply(f"{r['text']}\n\n{i18n.t('now.started', minutes=wait)}", wait=wait * 60, follow_up=fid)
 
@@ -701,25 +722,64 @@ def _progress(today: date) -> str:
     return i18n.t("now.done_plan", done=done, total=len(items))
 
 
+def _date(value) -> date | None:
+    try:
+        return date.fromisoformat(str(value or ""))
+    except ValueError:
+        return None
+
+
+def _finish(name: str, offered: date | None, today: date) -> None:
+    """Done, in code. A task with open lines in this week, such as sessions on several days: only one line is
+    checked, the one of the day it was offered for, else today's, else its first open line. `tasks.sync` then
+    makes the task done only when no other line of that week is open, and a task that repeats opens again with
+    its next date. A task with no open line in the week is done in its note (`tasks.mark_done`)."""
+    tasks.sync(today)  # the sync sees the week as it is now, so the check below is the only change it finds
+    w = week.read(today)
+    days = [d.date for d in w.days if any(i.name == name and not i.done for i in d.items)] if w else []
+    if not days:
+        tasks.mark_done(name, today)
+        return
+    week.check(name, next((d for d in (offered, today) if d in days), days[0]))
+    tasks.sync(today)
+
+
 def _done(fid: str, moment: datetime) -> Reply:
-    """Done: the task is done in its note and in the week, in code. A task that repeats opens again with its next
-    date (see `tasks.mark_done`)."""
+    """Done: the task is done in code (see `_finish`). The press never waits for the vault: when an agent holds
+    it, the press waits in the state file as "queued", the user reads that it is coming, and the next Messenger
+    run applies it (see `apply_waiting`)."""
     f = _claim("follow_ups", fid, {"asked"})
     if not f:
         return _already()
+    today = moment.date()
     try:
-        with vault.lock():
+        with vault.lock(wait=False):
             vault.pull()
-            tasks.mark_done(f["task"], moment.date())
-            line = _progress(moment.date())
+            _finish(f["task"], _date(f.get("day")), today)
+            line, status = _progress(today), "done"
             vault.publish(f"now: {f['task']} done")
+    except vault.Busy:
+        line, status = i18n.t("now.done_later"), "queued"
     except Exception:
         _update("follow_ups", fid, status="asked")
         raise
     if f.get("record"):
         messenger.set_reaction(f["record"], "acted")
-    _update("follow_ups", fid, status="done")
+    _update("follow_ups", fid, status=status, pressed=today.isoformat())
     return Reply(f"{f['text']}\n\n{line}")
+
+
+def apply_waiting() -> list[str]:
+    """For the Messenger, with the vault lock: the Done presses that came while an agent held the vault. Returns
+    the names of their tasks."""
+    queued = {fid: f for fid, f in _load().get("follow_ups", {}).items() if f.get("status") == "queued"}
+    for fid, f in queued.items():
+        try:
+            _finish(f["task"], _date(f.get("day")), _date(f.get("pressed")) or messenger.now().date())
+        except Exception:  # noqa: BLE001 - one broken press must not stop the Messenger run
+            log.exception("now: could not apply the Done of %s", f.get("task"))
+        _update("follow_ups", fid, status="done")
+    return [f["task"] for f in queued.values()]
 
 
 def _more(fid: str, moment: datetime) -> Reply:

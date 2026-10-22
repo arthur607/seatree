@@ -6,7 +6,8 @@
 <meta name="robots" content="noindex">
 <title>Open in Obsidian</title>
 <!-- The "Open in Obsidian" button of Seahorse comes here, because Telegram buttons take only web links.
-     The page reads `vault` and `file` from the address and opens obsidian://open with them. Nothing else. -->
+     The page reads `vault` and `file` from the part of the address after "#", which the browser never sends to
+     the server, and opens obsidian://open with them. Nothing else. Old links have them after "?": they still work. -->
 <style>
   :root { --bg: #f7f7f8; --text: #1c1c1e; --button: #6d4ae8; --button-text: #ffffff; }
   @media (prefers-color-scheme: dark) {
@@ -26,7 +27,8 @@
 </main>
 <script>
   (function () {
-    var query = new URLSearchParams(window.location.search);
+    var fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    var query = fragment.get("vault") && fragment.get("file") ? fragment : new URLSearchParams(window.location.search);
     var vault = query.get("vault");
     var file = query.get("file");
     if (!vault || !file) {

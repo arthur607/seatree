@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import re
+import threading
 import time
 import uuid
 from datetime import date, datetime, timedelta
@@ -154,13 +155,43 @@ MAX_BATCHES = 10
 MAX_ATTEMPTS = 3
 KEEP_RESULTS = 300
 WAIT_DAYS = 2
+_integrating = threading.Lock()  # one Integrator run at a time: the bot, the morning summary and the weekly run call it
+_called_again = threading.Event()  # a call came while a run was going: that run goes once more, for what came in
+_captures_lock = threading.Lock()  # each read and write of captures.json, one thread at a time
 
 
 def integrator() -> str | None:
     """Integrates the pending captures in batches of a few, oldest first, so one run never reaches the turn
     limit. It goes on while batches succeed. It is safe to call at any time: what a run leaves behind goes
-    into the next one, and every confirmation still on "Integrating…" is edited when its capture is done."""
-    send_held_alerts()
+    into the next one, and every confirmation still on "Integrating…" is edited when its capture is done.
+    A call while another run goes returns None at once: that run goes once more, for what came in meanwhile."""
+    if not _integrating.acquire(blocking=False):
+        _called_again.set()
+        log.info("the Integrator runs already: it goes once more right after")
+        return None
+    try:
+        send_held_alerts()
+        answers = []
+        while True:
+            _called_again.clear()
+            answers += _batches()
+            if not _called_again.is_set():
+                break
+        if not answers:
+            _update_confirmations([], {})
+            return None
+        return "\n".join(answers)
+    finally:
+        _integrating.release()
+
+
+def integrating() -> bool:
+    """An Integrator run goes now in this process, such as the one of the morning summary."""
+    return _integrating.locked()
+
+
+def _batches() -> list[str]:
+    """The batches of one run, while they succeed. Their answers."""
     answers = []
     for _ in range(MAX_BATCHES):
         answer, go_on = _integrate_batch()
@@ -169,10 +200,7 @@ def integrator() -> str | None:
         answers.append(answer)
         if not go_on:
             break
-    if not answers:
-        _update_confirmations([], {})
-        return None
-    return "\n".join(answers)
+    return answers
 
 
 def _integrate_batch() -> tuple[str | None, bool]:
@@ -290,15 +318,21 @@ def _save_captures(data: dict) -> None:
 def _remember(batch: list[Path]) -> None:
     """Before a run: the captures whose confirmation says "Integrating…". If the run stops halfway, as in a
     restart, a later run still edits them."""
-    data = _captures()
-    data["waiting"] = list(dict.fromkeys(data["waiting"] + [p.stem for p in batch]))
-    _save_captures(data)
+    with _captures_lock:
+        data = _captures()
+        data["waiting"] = list(dict.fromkeys(data["waiting"] + [p.stem for p in batch]))
+        _save_captures(data)
 
 
 def _update_confirmations(batch: list[Path], results: dict[str, str]) -> None:
     """Replaces the "Integrating…" of each capture that left `pending` with what the Integrator did with it:
     its result line, or a short text from its state when the run wrote none. Captures still pending wait for
     the next run."""
+    with _captures_lock:
+        _update_confirmations_now(batch, results)
+
+
+def _update_confirmations_now(batch: list[Path], results: dict[str, str]) -> None:
     data = _captures()
     oldest = (datetime.now(config.TIMEZONE) - timedelta(days=WAIT_DAYS)).strftime("%Y-%m-%d")
     in_batch = [p.stem for p in batch]

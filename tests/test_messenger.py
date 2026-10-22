@@ -165,7 +165,8 @@ class TestDeliveries(Fakes):
         link = urlparse(open_button["url"])
         self.assertEqual(f"{link.scheme}://{link.netloc}{link.path}", messenger.OPEN_PAGE)
         name = getattr(config, "OBSIDIAN_VAULT", None) or config.VAULT.name
-        self.assertEqual(parse_qs(link.query), {"vault": [name], "file": ["3. 📚 Knowledge/Misc/Torterra cards"]})
+        self.assertEqual(link.query, "")  # the path of the note never goes to the server of the page
+        self.assertEqual(parse_qs(link.fragment), {"vault": [name], "file": ["3. 📚 Knowledge/Misc/Torterra cards"]})
         self.assertEqual([b["text"] for b in answers], ["👍 Thanks", "👎 Not useful"])
         self.assertTrue(answers[0]["callback_data"].endswith("|useful") and answers[1]["callback_data"].endswith("|ign"))
         self.assertEqual([(m.kind, m.source) for m in messenger.messages()], [("delivery", "[[Torterra cards]]")])
@@ -173,7 +174,7 @@ class TestDeliveries(Fakes):
 
     def test_the_vault_name_for_obsidian_comes_from_the_settings(self):
         with setting("OBSIDIAN_VAULT", "My Brain"):
-            query = parse_qs(urlparse(messenger.obsidian_link(self.note)).query)
+            query = parse_qs(urlparse(messenger.obsidian_link(self.note)).fragment)
         self.assertEqual(query["vault"], ["My Brain"])
 
     def test_a_long_note_goes_folded(self):
@@ -185,6 +186,8 @@ class TestDeliveries(Fakes):
     def test_the_open_page_has_no_outside_files(self):
         page = (DOCS / "open.html").read_text(encoding="utf-8")
         self.assertIn('"obsidian://open?vault=" + encodeURIComponent(vault) + "&file=" + encodeURIComponent(file)', page)
+        # The part after "#" first; the part after "?" only for the links of old messages.
+        self.assertLess(page.index("window.location.hash"), page.index("window.location.search"))
         self.assertIsNone(re.search(r'(src|href)="(https?:)?//', page))
         self.assertTrue(messenger.OPEN_PAGE.endswith("/open.html"))
 

@@ -92,13 +92,19 @@ def pull() -> None:
 def publish(message: str) -> bool:
     """Commits everything as Seahorse and pushes. True if there was something to commit. It also pushes what an
     earlier push left behind, so the server never stays ahead of the other devices."""
-    git("add", "-A")
-    committed = git("diff", "--cached", "--quiet", check=False).returncode != 0
-    if committed:
-        git(*SEAHORSE, "commit", "-q", "-m", message)
+    committed = _commit(message)
     if has_remote():
         _push()
     return committed
+
+
+def _commit(message: str) -> bool:
+    """Commits everything as Seahorse, without a push. True if there was something to commit."""
+    git("add", "-A")
+    if git("diff", "--cached", "--quiet", check=False).returncode == 0:
+        return False
+    git(*SEAHORSE, "commit", "-q", "-m", message)
+    return True
 
 
 def new_engram(text: str, channel: str, when: datetime, extra: dict | None = None) -> Path:
@@ -303,7 +309,8 @@ def _push() -> None:
 
 
 def _resolve_merge(merged: subprocess.CompletedProcess) -> None:
-    """Resolves each file in conflict, commits the merge as Seahorse, syncs the tasks again and pushes."""
+    """Resolves each file in conflict, commits the merge as Seahorse, syncs the tasks again, commits what the sync
+    changed as Seahorse too, and pushes."""
     out = git("-c", "core.quotepath=off", "diff", "--name-only", "--diff-filter=U", "-z", check=False).stdout
     conflicted = [p for p in out.split("\0") if p]
     if not conflicted:
@@ -324,6 +331,7 @@ def _resolve_merge(merged: subprocess.CompletedProcess) -> None:
     log.warning("sync conflict resolved: %s", ", ".join(conflicted))
     from . import tasks
     tasks.sync()
+    _commit("sync: tasks after a merge")  # else the next pull commits these changes as the user's
     git("push", "-q", check=False)
     _tell(conflicted, copies)
 
@@ -374,9 +382,14 @@ def _merge_body(base: str, ours: str, theirs: str) -> str | None:
     if conflicts == 0:
         return merged
     start = base.rstrip("\n")
-    if ours.startswith(start) and theirs.startswith(start):  # both only added at the end, as in a log
+    if _only_added(ours, start) and _only_added(theirs, start):  # both only added at the end, as in a log
         return theirs.rstrip("\n") + "\n" + ours[len(start):].lstrip("\n")
     return None
+
+
+def _only_added(text: str, start: str) -> bool:
+    """The text is `start` with whole lines after it. A change to the last line of `start` is not an addition."""
+    return not start or text.rstrip("\n") == start or text.startswith(start + "\n")
 
 
 def merge_note(base: str, ours: str, theirs: str) -> str | None:
@@ -409,6 +422,7 @@ def _resolve(path: str) -> str | None:
     """Resolves one file in conflict, without losing either side. Returns the conflict copy, if it made one.
 
     - Changed on one side, deleted on the other: the changed file stays.
+    - Moved away on both sides, as when both renamed it: nothing stays at the old path (each new name stays).
     - A week file: the union of the lines of both sides, repaired by code (see `week.merge_conflict`).
     - A note: merged field by field and line by line (see `merge_note`).
     - Otherwise the other device's version (the user's edit) stays, and this machine's version (the agent's)
@@ -416,6 +430,9 @@ def _resolve(path: str) -> str | None:
     base, ours, theirs = (_stage(n, path) for n in (1, 2, 3))
     target = config.VAULT / path
     target.parent.mkdir(parents=True, exist_ok=True)
+    if ours is None and theirs is None:
+        target.unlink(missing_ok=True)
+        return None
     if ours is None or theirs is None:
         target.write_bytes(ours if theirs is None else theirs)
         return None
@@ -440,7 +457,10 @@ def _keep_both(path: str) -> str | None:
     """The other device's version stays in the file, and this machine's version goes to a conflict copy."""
     ours, theirs = _stage(2, path), _stage(3, path)
     target = config.VAULT / path
-    target.write_bytes(theirs if theirs is not None else ours or b"")
+    if ours is None and theirs is None:  # both sides moved it away: never an empty file at the old path
+        target.unlink(missing_ok=True)
+        return None
+    target.write_bytes(theirs if theirs is not None else ours)
     if ours is None or theirs is None:
         return None
     copy = _copy_path(target)

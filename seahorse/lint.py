@@ -197,6 +197,8 @@ def _check_person(path: str, fm: dict, bad: list[str], warnings: list[str]) -> N
             continue
         if isinstance(value, list) or not readers[field](value):
             bad.append(f"{path}: {field} = '{value}' is not readable, write {form}")
+        elif field != "keep_in_touch" and people.ambiguous(value):
+            warnings.append(f"{path}: {field} = '{value}' can be day/month or month/day, write {form}")
         elif not people.CANONICAL[field].fullmatch(value):
             warnings.append(f"{path}: {field} = '{value}', write {form}")
 

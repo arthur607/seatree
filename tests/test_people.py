@@ -135,7 +135,8 @@ class TestFields(unittest.TestCase):
 
     def test_the_last_contact_is_a_full_date(self):
         self.assertEqual(people.parse_day("2026-09-01"), date(2026, 9, 1))
-        self.assertEqual(people.parse_day("01/09/2026"), date(2026, 9, 1))
+        self.assertEqual(people.parse_day("01/09/2026"), date(2026, 1, 9))  # the tests run in English: month first
+        self.assertEqual(people.parse_day("13/09/2026"), date(2026, 9, 13))
         self.assertIsNone(people.parse_day("--09-01"))
         self.assertIsNone(people.parse_day("yesterday"))
 
@@ -178,7 +179,7 @@ class TestBirthdays(PeopleBase):
         self.answers = [WRITTEN]
         messenger.run()
         message_id = self.message_id()
-        self.assertEqual(people.press(message_id, "gift"), "🎁 Buy a gift for Brandão: in the week on Tuesday, 10/06")
+        self.assertEqual(people.press(message_id, "gift"), "🎁 Buy a gift for Brandão: planned for Tuesday, 10/06.")
         self.assertIsNone(people.press(message_id, "gift"))  # a double tap
         self.assertIsNone(people.press(message_id, "sorted"))
         self.assertEqual(people.apply_now(), ["Buy a gift for Brandão on 2026-10-06"])
@@ -202,7 +203,7 @@ class TestBirthdays(PeopleBase):
         self.assertEqual(messenger.run(), "birthday about [[Brandão]]")
         self.assertIn('- Open gift task: "Buy Brandão\'s present", not in the week yet.', self.prompts[0])
         self.assertEqual(self.sent[-1]["text"], "🎂 The birthday of Brandão is on Monday, 10/12.\nGift: Buy Brandão's present.")
-        self.assertEqual(people.press(self.message_id(), "gift"), "🎁 Buy Brandão's present: in the week on Tuesday, 10/06")
+        self.assertEqual(people.press(self.message_id(), "gift"), "🎁 Buy Brandão's present: planned for Tuesday, 10/06.")
         people.apply_now()
         self.assertEqual(notes.read(gift)[0]["planned"], "2026-10-06")
         self.assertEqual([p.name for p in config.TASKS.glob("*.md")], ["Buy Brandão's present.md"])
@@ -313,7 +314,7 @@ class TestReconnect(PeopleBase):
         self.answers = [llm.Answer("", None, True)]
         self.assertEqual(messenger.run(), "reconnect about [[Grandma]]")
         self.assertIn("- Last contact: 2026-08-28, 38 days ago.", self.prompts[0])
-        self.assertEqual(self.sent[-1]["text"], "It is 38 days since you last talked to Grandma. Do you want to call on Tuesday, 10/06?")
+        self.assertEqual(self.sent[-1]["text"], "You last talked to Grandma 38 days ago. Do you want to call on Tuesday, 10/06?")
         self.assertEqual([label for label, _ in self.buttons()], ["📅 Put it in the week", "💤 Not now"])
 
     def test_with_no_last_contact_code_counts_from_the_day_it_saw_the_wish(self):
@@ -338,7 +339,7 @@ class TestReconnect(PeopleBase):
         page = person("Grandma", EMPTY_PAGE, keep_in_touch="monthly", last_contact="2026-08-28")
         self.answers = ['{"text": "38 days since you talked to your grandmother. Call her on Tuesday?"}']
         messenger.run()
-        self.assertEqual(people.press(self.message_id(), "week"), "📅 Call Grandma: in the week on Tuesday, 10/06")
+        self.assertEqual(people.press(self.message_id(), "week"), "📅 Call Grandma: planned for Tuesday, 10/06.")
         people.apply_now()
         call = config.TASKS / "Call Grandma.md"
         fm = notes.read(call)[0]
@@ -353,7 +354,7 @@ class TestReconnect(PeopleBase):
         person("Grandma", EMPTY_PAGE, keep_in_touch="monthly", last_contact="2026-08-28")
         self.answers = ['{"text": "Call your grandmother on Tuesday?"}']
         messenger.run()
-        self.assertEqual(people.press(self.message_id(), "later"), "💤 OK. I ask again in 14 days.")
+        self.assertEqual(people.press(self.message_id(), "later"), "💤 OK. I'll ask again in 14 days.")
         people.apply_now()
         self.assertEqual(people._load()["reconnect"]["Grandma"]["snooze"], "2026-10-19")
         lines = config.MESSAGES.read_text(encoding="utf-8").splitlines()[3:]
@@ -406,7 +407,7 @@ class TestButtons(PeopleBase, unittest.IsolatedAsyncioTestCase):
         await bot.on_people_button(SimpleNamespace(callback_query=first), context())
         await bot.on_people_button(SimpleNamespace(callback_query=second), context())
         self.assertEqual(first.edits[0][0], "38 days since you talked to your grandmother. Call her on Tuesday?\n\n"
-                                            "→ 📅 Call Grandma: in the week on Tuesday, 10/06")
+                                            "→ 📅 Call Grandma: planned for Tuesday, 10/06.")
         self.assertEqual((first.answers, second.answers), ([None], [i18n.t("chat.already_done")]))
         self.assertEqual([p.name for p in config.TASKS.glob("*.md")], ["Call Grandma.md"])
         self.assertEqual(people._load()["calls"], {"Call Grandma": "Grandma"})

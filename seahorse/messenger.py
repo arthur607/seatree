@@ -515,10 +515,11 @@ def location(note: Path) -> str:
 
 
 def obsidian_link(note: Path) -> str:
-    """The web link of the "Open in Obsidian" button. The page opens obsidian://open with the same vault and file."""
+    """The web link of the "Open in Obsidian" button. The page opens obsidian://open with the same vault and file.
+    They go after "#": a browser does not send that part to the server, so the path of the note stays private."""
     name = getattr(config, "OBSIDIAN_VAULT", None) or config.VAULT.name
     file = note.relative_to(config.VAULT).with_suffix("").as_posix()
-    return f"{OPEN_PAGE}?{urlencode({'vault': name, 'file': file}, quote_via=quote)}"
+    return f"{OPEN_PAGE}#{urlencode({'vault': name, 'file': file}, quote_via=quote)}"
 
 
 def delivery_html(summary: str, note: Path | None) -> str:
@@ -554,6 +555,7 @@ def run() -> str:
     """The timer calls this every ten minutes. At most one message per run. The model of the Companion, or of a
     message about a person, runs after the lock is free again, so the captures and the buttons do not wait for it."""
     from . import companion, people  # imported here: they use this module
+    from .now import apply_waiting
     ask = None
     with vault.lock():
         vault.pull()
@@ -562,6 +564,7 @@ def run() -> str:
         moment = now()
         tasks.sync(moment.date())
         people.update(moment.date())  # the buttons pressed under messages about people, and the calls done
+        apply_waiting()  # the Done presses of Now that came while an agent held the vault
         week.reschedule(moment.date())
         calibrate_reminders(moment)
         done = None
