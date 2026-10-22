@@ -69,9 +69,21 @@ planned = "planificadas"
 today = "hoy"
 nothing = "nada planificado"
 summary = "semana"
+more = "+{n} más"
+work = "(2h) trabajo: fuera del total"
+day_month = "{day}/{month}"
+full_date = "{day}/{month}/{year}"
 
 [task]
 renewed = "hecha, la del {old}; la próxima es {new}"
+
+[week]
+of = "de"
+
+[sync]
+merged = "🔀 Tú y yo cambiamos las mismas notas al mismo tiempo. Guardé los dos cambios: {names}"
+copy = "🔀 Tú y yo cambiamos \"{name}\" al mismo tiempo. Tu versión está en la nota. La mía está en \"{copy}\"."
+copy_name = "copia del conflicto"
 
 [base]
 title = "Título"

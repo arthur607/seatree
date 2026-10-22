@@ -71,9 +71,22 @@ planned = "planned"
 today = "today"
 nothing = "nothing planned"
 summary = "week"
+more = "+{n} more"
+work = "(2h) work: not in the total"
+day_month = "{month}/{day}"
+full_date = "{month}/{day}/{year}"
 
 [task]
 renewed = "done, the one of {old}; the next is {new}"
+
+[week]
+# The connector word in the title of a day card: "Mon 05/10 · 1h of 4h".
+of = "of"
+
+[sync]
+merged = "🔀 You and I changed the same notes at the same time. I kept the two changes: {names}"
+copy = "🔀 You and I changed \"{name}\" at the same time. Your version is in the note. My version is in \"{copy}\"."
+copy_name = "conflict copy"
 
 [base]
 title = "Title"
