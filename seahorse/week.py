@@ -293,7 +293,7 @@ def parse(text: str, path: Path, monday: date, estimates: dict | None = None) ->
             days[when] = Day(card.rest.split(" ")[0] if card.rest else "", f"{when:%d/%m}", card.capacity() or default,
                              when, _tidy(card.body), card.fold, card.extra(), estimates)
     for i, when in joins.items():
-        days[when].lines = _tidy(days[when].lines + [""] + cards[i].body)
+        days[when].lines = _tidy(days[when].lines + cards[i].body)
     for i in range(7):
         when = monday + timedelta(days=i)
         days.setdefault(when, Day(i18n.words("days_short")[i].capitalize(), f"{when:%d/%m}", default, when,
@@ -584,7 +584,17 @@ def merge_conflict(path: Path, union: str, base: str, ours: str, theirs: str) ->
     for name in _names(union):
         found = [(day, item) for day in w.days for item in day.items if item.name == name]
         extra = len(found) - max(mine[name], phone[name], 1)
-        order = sorted(found, key=lambda p: (p[1].done, (p[0].date, name) not in in_base, p[0].date))
-        for day, item in order[:max(extra, 0)]:
-            day.lines.remove(item.line)
+        order = sorted(range(len(found)), key=lambda k: (found[k][1].done, (found[k][0].date, name) not in in_base,
+                                                         found[k][0].date))
+        drop = set(order[:max(extra, 0)])
+        for k in sorted(drop):
+            day, item = found[k]
+            at = day.lines.index(item.line)
+            # A line that stays, later in the same day, takes the place of the one that goes.
+            later = next((found[j][1] for j in range(k + 1, len(found)) if j not in drop and found[j][0] is day), None)
+            if later and later.line != item.line:
+                day.lines.pop(day.lines.index(later.line, at + 1))
+                day.lines[at] = later.line
+            else:
+                day.lines.pop(at)
     return w.text(tasks.work_tasks())

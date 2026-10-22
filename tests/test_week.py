@@ -362,3 +362,126 @@ class TestImages(WeekBase):
         self.assertEqual([(line.name, line.work) for line in lines], [("Write the report", True), ("Read", False)])
         self.assertEqual(week_image._hours(w.days[2], tasks.work_tasks()), ("5h/4h", True))
         self.assertEqual(week_image._duration(lines[0]), "(3h)")
+
+
+def git(folder, *args: str) -> str:
+    result = subprocess.run(["git", "-C", str(folder), *args], capture_output=True, text=True, encoding="utf-8")
+    return (result.stdout + result.stderr).strip()
+
+
+class TestSyncConflicts(WeekBase):
+    """The server (the vault) and the phone (another clone) change the same files at the same time."""
+
+    def setUp(self):
+        super().setUp()
+        root = config.VAULT.parent
+        self.remote, self.phone = root / "remote.git", root / "phone"
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remote)], check=True)
+        git(config.VAULT, "init", "-q", "-b", "main")
+        git(config.VAULT, "config", "core.autocrlf", "false")
+        git(config.VAULT, "remote", "add", "origin", str(self.remote))
+        self.sent = []
+        old = telegram_api.send, config.QUIET_FROM, config.QUIET_UNTIL
+        telegram_api.send = lambda text, buttons=None, chat_id=None: self.sent.append(text) or 1
+        config.QUIET_FROM = config.QUIET_UNTIL = 0  # no quiet hours: the notice goes out at once
+        self.addCleanup(lambda: (setattr(telegram_api, "send", old[0]), setattr(config, "QUIET_FROM", old[1]),
+                                 setattr(config, "QUIET_UNTIL", old[2])))
+
+    def start(self) -> None:
+        """The first commit of the server, and the phone's copy of it."""
+        vault.publish("start")
+        git(config.VAULT, "push", "-q", "-u", "origin", "main")
+        subprocess.run(["git", "clone", "-q", str(self.remote), str(self.phone)], check=True)
+        git(self.phone, "config", "core.autocrlf", "false")
+
+    def on_phone(self, path: str, change) -> None:
+        """The user edits a file on the phone, and Obsidian Git commits and pushes it."""
+        file = self.phone / path
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(change(file.read_text(encoding="utf-8") if file.exists() else "").encode("utf-8"))
+        git(self.phone, "add", "-A")
+        git(self.phone, "-c", "user.name=Ada", "-c", "user.email=ada@x", "commit", "-q", "-m", "vault backup")
+        self.assertEqual(git(self.phone, "push", "-q"), "")
+
+    def in_step(self) -> None:
+        git(config.VAULT, "fetch", "-q")
+        self.assertEqual(git(config.VAULT, "rev-list", "--left-right", "--count", "HEAD...@{u}").split(), ["0", "0"])
+        self.assertEqual(git(config.VAULT, "status", "--porcelain"), "")
+        self.assertIn("Fast-forward", git(self.phone, "pull", "--no-rebase"))
+
+    def test_the_integrator_and_a_check_on_the_phone(self):
+        task("Book the doctor")
+        task("Buy bread")
+        path = self.week_file(Wed="\n> - [ ] [[Book the doctor]] (30m)")
+        self.start()
+        vault.pull()  # the Integrator starts; the model works for a minute
+        rel = vault.rel(path)
+        self.on_phone(rel, lambda t: t.replace("- [ ] [[Book the doctor]]", "- [x] [[Book the doctor]]"))
+        write(path, text(path).replace("> [!day] Wed 07/10 · 0h of 4h\n> - [ ] [[Book the doctor]] (30m)",
+                                       "> [!day] Wed 07/10 · 45m of 4h\n> - [ ] [[Book the doctor]] (30m)\n> - [ ] [[Buy bread]] (15m)"))
+        vault.publish("integrator: 1 engram(s)")
+        merged = git(config.VAULT, "show", f"@{{u}}:{rel}")
+        self.assertIn("> [!day] Wed 07/10 · 45m of 4h\n> - [x] [[Book the doctor]] (30m)\n> - [ ] [[Buy bread]] (15m)\n\n", merged)
+        self.assertEqual(merged.count("Book the doctor"), 1)
+        self.assertNotIn("<<<<", merged)
+        self.in_step()
+        self.assertEqual(len(self.sent), 1)
+        self.assertIn("2026-W41", self.sent[0])
+
+    def test_a_move_on_the_server_and_a_check_on_the_phone(self):
+        task("Book the doctor")
+        task("Buy bread")
+        path = self.week_file(Tue="\n> - [ ] [[Book the doctor]] (30m)\n> - [ ] [[Buy bread]] (15m)")
+        self.start()
+        vault.pull()
+        self.on_phone(vault.rel(path), lambda t: t.replace("- [ ] [[Buy bread]]", "- [x] [[Buy bread]]"))
+        week.reschedule(date(2026, 10, 7))
+        vault.publish("messenger: records updated")
+        merged = text(path)
+        # Git decides on which day the checked line lands. What matters: one line each, the move and the check.
+        self.assertIn("> - [x] [[Buy bread]] (15m)\n", merged)
+        self.assertIn("> [!day] Wed 07/10", merged.split("> - [ ] [[Book the doctor]] (30m)\n")[0])
+        self.assertEqual((merged.count("Book the doctor"), merged.count("Buy bread")), (1, 1))
+        self.assertNotIn("<<<<", merged)
+        self.in_step()
+
+    def test_a_note_changed_on_both_sides_keeps_a_copy(self):
+        idea = config.VAULT / "3. 📚 Knowledge" / "Idea.md"
+        write(idea, "---\ntype: knowledge\n---\nAn offline mode.\n")
+        self.start()
+        vault.pull()
+        self.on_phone(vault.rel(idea), lambda t: t.replace("An offline mode.", "An offline mode for the app."))
+        write(idea, text(idea).replace("An offline mode.", "An offline mode, as in Notion."))
+        vault.publish("reviewer: idea")
+        self.assertIn("An offline mode for the app.", text(idea))
+        copies = [p for p in idea.parent.glob("Idea (conflict copy *).md")]
+        self.assertEqual(len(copies), 1)
+        self.assertIn("An offline mode, as in Notion.", text(copies[0]))
+        self.in_step()
+        self.assertIn(f'My version is in "{copies[0].stem}"', self.sent[0])
+
+    def test_lines_added_on_both_sides_and_fields_changed_on_both_sides(self):
+        log_file = config.LOGS / "Log 2026-10-07.md"
+        write(log_file, "---\ntype: log\n---\n- 09:00 · integrator · one\n")
+        note = task("Book the doctor")
+        self.start()
+        vault.pull()
+        self.on_phone(vault.rel(log_file), lambda t: t + "- 09:05 · my own line\n")
+        self.on_phone(vault.rel(note), lambda t: t.replace("done: false", "done: true"))
+        write(log_file, text(log_file) + "- 09:06 · messenger · two\n")
+        notes.set_field(note, "moved", "2")
+        vault.publish("messenger: records updated")
+        self.assertTrue(text(log_file).endswith("- 09:00 · integrator · one\n- 09:05 · my own line\n- 09:06 · messenger · two\n"))
+        self.assertEqual((fields(note)["done"], fields(note)["moved"]), ("true", "2"))
+        self.assertEqual(list(config.VAULT.rglob("*conflict copy*")), [])
+        self.in_step()
+
+    def test_a_push_that_failed_goes_out_later(self):
+        write(config.VAULT / "_Seahorse.md", "---\ntype: summary\n---\nOld.\n")
+        self.start()
+        git(config.VAULT, "remote", "set-url", "origin", str(self.remote) + "-gone")
+        write(config.VAULT / "_Seahorse.md", "---\ntype: summary\n---\nNew.\n")
+        self.assertTrue(vault.publish("integrator: offline"))
+        git(config.VAULT, "remote", "set-url", "origin", str(self.remote))
+        self.assertFalse(vault.publish("messenger: records updated"))  # nothing new, but the old commit goes out
+        self.in_step()
