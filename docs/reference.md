@@ -124,6 +124,7 @@ Run `seahorse uninstall` on the computer where you installed Seahorse. It stops 
 - Your AI provider (Anthropic or OpenAI) gets the notes that the agents read, under the terms of your account.
 - With a subscription, Seahorse uses the limits of your plan: a few dozen agent runs a day, and the deepest model once a week.
 - With voice notes, Groq gets your audio to make the text.
+- The agents work only in your vault. With Claude, they cannot read the Seahorse secrets, the AI logins or your ssh keys, also when a web page or a forwarded text tells them to. With Codex, the sandbox cannot block reads outside the vault: on a server that other people use too, choose Claude.
 - The setup logs in to GitHub on the server only to make the repository, then logs out. The server keeps only a deploy key for the vault. On your computer, the setup saves the GitHub login in the safe credential store of the system (the Windows Credential Manager, or the macOS keychain), so Obsidian can sync. It never writes the login to a plain file, and it never puts the login in a command line.
 - To connect to a server, the setup uses its own key (`~/.seahorse/server_key`) and its own list of known servers (`~/.seahorse/known_hosts`). If you give it a key file, it uses the key file once and keeps no copy.
 - To suggest your time zone, the setup reads the clock of your computer. On Windows, it asks ipinfo.io once.
