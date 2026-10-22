@@ -89,10 +89,15 @@ def _year(text: str | None) -> int | None:
     return year if year <= date.today().year else year - 100
 
 
+def _month_first() -> bool:
+    """English users write the month first, such as 11/13. The other languages write the day first."""
+    return str(config.LANGUAGE).lower().startswith("en")
+
+
 def parse_birthday(value) -> Birthday | None:
     """`YYYY-MM-DD`, or `--MM-DD` when the year is unknown. Code also reads what a model or the user may write:
-    `13/11`, `13/11/1990` or `13.11`, with the day first as in the week cards, or the month first when that is
-    not a date, such as `11/30`."""
+    `13/11`, `13/11/1990` or `13.11`: the month first for an English user, the day first in the other languages,
+    and the other order when that is not a date, such as `13/11` for an English user."""
     text = str(value or "").strip().strip("\"'")
     if m := ISO.fullmatch(text):
         return _birthday(int(m[2]), int(m[3]), int(m[1]))
@@ -100,8 +105,16 @@ def parse_birthday(value) -> Birthday | None:
         return _birthday(int(m[1]), int(m[2]))
     if m := SHORT.fullmatch(text):
         year, first, second = _year(m[3]), int(m[1]), int(m[2])
+        if _month_first():
+            return _birthday(first, second, year) or _birthday(second, first, year)
         return _birthday(second, first, year) or _birthday(first, second, year)
     return None
+
+
+def ambiguous(value) -> bool:
+    """A short date that is a date in both orders, such as `3/4`: the 3rd of April, or the 4th of March."""
+    m = SHORT.fullmatch(str(value or "").strip().strip("\"'"))
+    return bool(m) and int(m[1]) != int(m[2]) and 1 <= int(m[1]) <= 12 and 1 <= int(m[2]) <= 12
 
 
 def parse_day(value) -> date | None:

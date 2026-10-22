@@ -319,3 +319,40 @@ class TestNowDurations(unittest.TestCase):
         from seahorse import now
         self.assertIsNone(now.trigger("tenho 4h e meia", "pt-BR"))  # more than MOST_MINUTES
         self.assertIsNone(now.trigger("tenho 1h e 30 de reunião", "pt-BR"))  # "I have" takes no other word
+
+
+class TestBirthdayOrder(Base):
+    """"3/4" is the 4th of March for an English user, and the 3rd of April in the other languages."""
+
+    def in_language(self, language: str) -> None:
+        old = config.LANGUAGE
+        config.LANGUAGE = language
+        self.addCleanup(setattr, config, "LANGUAGE", old)
+
+    def test_the_month_first_in_english_and_the_day_first_in_the_other_languages(self):
+        from seahorse import people
+        for language, ambiguous in (("en", people.Birthday(3, 4)), ("pt-BR", people.Birthday(4, 3)),
+                                    ("es", people.Birthday(4, 3))):
+            self.in_language(language)
+            self.assertEqual(people.parse_birthday("3/4"), ambiguous, language)
+            self.assertEqual(people.parse_birthday("13/11"), people.Birthday(11, 13), language)
+            self.assertEqual(people.parse_birthday("11/13/1990"), people.Birthday(11, 13, 1990), language)
+            self.assertEqual(people.parse_birthday("--04-03"), people.Birthday(4, 3), language)
+
+    def test_lint_warns_about_a_date_that_reads_in_both_orders(self):
+        from seahorse import lint, people
+        from test_people import person
+        vault.create(self.today)
+        person("Ana", birthday="3/4", last_contact="02/09/2026")
+        person("Bia", birthday="13/11")
+        person("Carla", birthday="--04-03", last_contact="2026-09-02")
+        errors, warnings, _ = lint.check(config.VAULT)
+        folder = people.FOLDER
+        self.assertFalse([e for e in errors if "People/" in e])
+        self.assertIn(f"{folder}/Ana.md: birthday = '3/4' can be day/month or month/day, write YYYY-MM-DD, or --MM-DD "
+                      "when the year is unknown", warnings)
+        self.assertIn(f"{folder}/Ana.md: last_contact = '02/09/2026' can be day/month or month/day, write YYYY-MM-DD",
+                      warnings)
+        self.assertIn(f"{folder}/Bia.md: birthday = '13/11', write YYYY-MM-DD, or --MM-DD when the year is unknown",
+                      warnings)
+        self.assertFalse([w for w in warnings if "Carla.md" in w and "write" in w])

@@ -135,7 +135,8 @@ class TestFields(unittest.TestCase):
 
     def test_the_last_contact_is_a_full_date(self):
         self.assertEqual(people.parse_day("2026-09-01"), date(2026, 9, 1))
-        self.assertEqual(people.parse_day("01/09/2026"), date(2026, 9, 1))
+        self.assertEqual(people.parse_day("01/09/2026"), date(2026, 1, 9))  # the tests run in English: month first
+        self.assertEqual(people.parse_day("13/09/2026"), date(2026, 9, 13))
         self.assertIsNone(people.parse_day("--09-01"))
         self.assertIsNone(people.parse_day("yesterday"))
 
