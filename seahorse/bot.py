@@ -951,6 +951,32 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         log.warning("could not tell the user about the error")
 
 
+# --- People: the buttons under a birthday or a friend to call ---
+
+async def on_people_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """A button under a message about a person, `ppl|<id>|<action>`. Code does what it says, with no AI run: it
+    plans the gift or the call in the week, waits, or notes the contact. The message shows what was done under it.
+    A double tap does it once. The press never waits for the vault: when an agent holds it, the next Messenger
+    run applies the press."""
+    from . import people  # imported here: it is only for these buttons
+    query = update.callback_query
+    if query.from_user.id != config.USER_ID:
+        return
+    key = f"ppl {query.message.message_id}"
+    if key in _pressed:
+        await _answer_query(query, i18n.t("chat.already_done"))
+        return
+    _keep(_pressed, key)
+    _, target, action = (query.data.split("|") + ["", ""])[:3]
+    done = await asyncio.to_thread(people.press, target, action)
+    if done is None:  # an old message, or one that got its answer already
+        await _answer_query(query, i18n.t("chat.already_done"))
+        return
+    await _answer_query(query)
+    await _mark_answered(query, done)
+    await asyncio.to_thread(people.apply_now)
+
+
 # --- The process ---
 
 def _at(hhmm: str) -> time:
@@ -1007,6 +1033,7 @@ def run() -> None:
     buttons = r"^(msg|eng|intro|upd)\|"  # Seahorse messages, captures, the first conversation, the update
     app.add_handler(CallbackQueryHandler(on_button, pattern=buttons))
     app.add_error_handler(on_error)
+    app.add_handler(CallbackQueryHandler(on_people_button, pattern=r"^ppl\|"))  # birthdays and friends to call
     schedule(app)
     log.info("Seahorse %s is running for %s, vault %s, provider %s", __version__, config.USER_NAME, config.VAULT, config.PROVIDER)
     app.run_polling(allowed_updates=Update.ALL_TYPES)

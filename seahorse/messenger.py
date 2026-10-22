@@ -22,9 +22,12 @@ from . import config, i18n, llm, notes, tasks, telegram_api, vault, week
 
 log = logging.getLogger(__name__)
 
+# The messages about the people of the user: code chooses when (people.py), and a model writes them. They are
+# conversations: a reply links to them, they count toward the daily limit, and one with no answer is ignored.
+PEOPLE = {"birthday", "briefing", "reconnect"}
 # The kinds of conversation the Companion starts. "proposal" comes from the other agents, through the queue.
 CONVERSATION = {"revival", "question", "recommendation", "curiosity", "research", "connection", "proposal",
-                "checkin", "release", "news", "unblock"}
+                "checkin", "release", "news", "unblock"} | PEOPLE
 SPONTANEOUS = CONVERSATION | {"reminder", "delivery"}
 # What the user did not ask for. It counts toward the daily limit. Deliveries, the summary and the week do not.
 PROACTIVE = CONVERSATION | {"reminder"}
@@ -547,9 +550,9 @@ def _deliver(moment: datetime) -> str | None:
 
 
 def run() -> str:
-    """The timer calls this every ten minutes. At most one message per run. The Companion's model runs after the
-    lock is free again, so the captures and the buttons do not wait for it."""
-    from . import companion  # imported here: the Companion uses this module
+    """The timer calls this every ten minutes. At most one message per run. The model of the Companion, or of a
+    message about a person, runs after the lock is free again, so the captures and the buttons do not wait for it."""
+    from . import companion, people  # imported here: they use this module
     ask = None
     with vault.lock():
         vault.pull()
@@ -557,14 +560,17 @@ def run() -> str:
         _expire_queue()
         moment = now()
         tasks.sync(moment.date())
+        people.update(moment.date())  # the buttons pressed under messages about people, and the calls done
         week.reschedule(moment.date())
         calibrate_reminders(moment)
         done = None
         if not quiet(moment):
             done = _remind(moment) or _deliver(moment)
             if not done:
+                ask = people.prepare(moment)  # a birthday, an encounter of today or a friend to call
+            if not done and not ask:
                 done, ask = companion.prepare(moment)
         vault.publish(f"messenger: {done or 'records updated'}")
     if ask:
-        done = companion.converse(ask)
+        done = (people.converse if isinstance(ask, people.Ask) else companion.converse)(ask)
     return done or "silence"
