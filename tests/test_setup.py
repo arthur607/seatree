@@ -136,6 +136,75 @@ class TestSsh(Folder):
         self.assertIn(f"userknownhostsfile {(self.tmp / 'my home' / 'known_hosts').as_posix()}", out)
 
 
+class TestConnectToServer(unittest.TestCase):
+    """The way from the IP to a server that the setup key opens, with a fake server and fake answers."""
+
+    def connect(self, address: str, checks: list[str], logins: list[str], answers: dict | None = None):
+        said, keys, forgot = [], [], []
+
+        class FakeServer:
+            def __init__(self, host, user="root", admin=None):
+                self.host, self.user = host, user
+
+            def check(self):
+                return checks.pop(0)
+
+            def add_key(self, identity=None):
+                keys.append((self.user, identity))
+                return logins.pop(0)
+
+            def forget_host(self):
+                forgot.append(self.host)
+
+        answers = answers or {}
+        with mock.patch.object(setup, "Server", FakeServer), \
+                mock.patch.object(setup, "_working", lambda *a, **k: contextlib.nullcontext()), \
+                mock.patch.object(setup, "_say", said.append), \
+                mock.patch.object(setup, "_t", lambda name, **values: name), \
+                mock.patch.object(setup, "_confirm", lambda name, **values: answers.get(name, True)), \
+                mock.patch.object(setup, "_ask", lambda name, *a, **k: answers[name]), \
+                mock.patch.object(setup, "_key_file", lambda: Path("login_key")):
+            server = setup._open_server(address)
+        return server, said, keys, forgot
+
+    def test_a_new_hetzner_server_asks_for_a_new_password_first(self):
+        server, said, keys, _ = self.connect("203.0.113.10", [machine.NO_SETUP_KEY, machine.NO_SETUP_KEY, ""],
+                                             [TestSsh.HETZNER, ""])
+        self.assertEqual((server.host, server.user), ("203.0.113.10", "root"))
+        self.assertIn("server_password_changed", said)
+        self.assertEqual(len(keys), 2)  # the old password, then the new one
+
+    def test_a_server_that_takes_only_a_key_file(self):
+        server, said, keys, _ = self.connect("203.0.113.10", [machine.NO_SETUP_KEY, machine.NO_SETUP_KEY, ""],
+                                             ["root@203.0.113.10: Permission denied (publickey).", ""],
+                                             {"server_user": "ubuntu"})
+        self.assertEqual(server.user, "ubuntu")
+        self.assertIn("server_key_only", said)
+        self.assertEqual(keys, [("root", None), ("ubuntu", Path("login_key"))])
+
+    def test_a_server_that_asks_for_another_user(self):
+        server, said, _, _ = self.connect("203.0.113.10", [machine.NO_SETUP_KEY, ""],
+                                          ['Please login as the user "ubuntu" rather than the user "root".'])
+        self.assertEqual(server.user, "ubuntu")
+
+    def test_a_rebuilt_server_asks_before_it_trusts_the_new_identity(self):
+        server, _, _, forgot = self.connect("ubuntu@203.0.113.10", [TestSsh.CHANGED, ""], [])
+        self.assertEqual((server.user, forgot), ("ubuntu", ["203.0.113.10"]))
+        server, _, _, _ = self.connect("203.0.113.10", [TestSsh.CHANGED], [], {"server_host_changed": False})
+        self.assertIsNone(server)
+
+    def test_errors_that_end_the_try_in_plain_words(self):
+        cases = [
+            (["ssh: connect to host 203.0.113.10 port 22: Connection timed out"], [], "server_unreachable"),
+            ([machine.NO_SETUP_KEY], ["root@x: Permission denied (publickey,password)."], "server_password_wrong"),
+            ([machine.NO_SETUP_KEY, "root@x: Permission denied (publickey)."], [""], "server_failed"),
+        ]
+        for checks, logins, text in cases:
+            server, said, _, _ = self.connect("203.0.113.10", checks, logins)
+            self.assertIsNone(server)
+            self.assertEqual(said[-1], text)
+
+
 class TestSetupHelpers(unittest.TestCase):
     def test_linux_names_without_accents(self):
         self.assertEqual(setup.linux_name("João"), "joao")
