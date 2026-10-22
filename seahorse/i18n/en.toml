@@ -173,12 +173,13 @@ active = "Active"
 
 [chat]
 # The bot in a conversation: help, commands, photos and files, voice notes, edits and errors.
-help = "I am Seahorse, your second brain 🌊\n• Send me anything: a thought, a task, a movie to watch, a photo, a file, a place or a voice note. I put it in the right place in your notes.\n• Ask me a question. I answer from your notes, or from the web.\n• Send \"week\" or \"today\" to see your plan.\n• To change something you sent, edit your message, or tap ✏️ Fix under my reply.\n• I also write first: a summary each morning, a reminder before a deadline, and sometimes a question or an idea.\n\nCommands:\n/status – what waits, and what I was not sure about\n/integrate – put what waits into your notes now\n/plan – plan this week again\n/intro – answer the first questions again\n/update – install the new version of Seahorse\n/help – this message"
+help = "I am Seahorse, your second brain 🌊\n• Send me anything: a thought, a task, a movie to watch, a photo, a file, a place or a voice note. I put it in the right place in your notes.\n• Ask me a question. I answer from your notes, or from the web.\n• Send \"week\" or \"today\" to see your plan.\n• To change something you sent, edit your message, or tap ✏️ Fix under my reply.\n• I also write first: a summary each morning, a reminder before a deadline, and sometimes a question or an idea.\n\nCommands:\n/status – what waits, and what I was not sure about\n/integrate – put what waits into your notes now\n/plan – plan this week again\n/retro – your last week in one image\n/intro – answer the first questions again\n/update – install the new version of Seahorse\n/help – this message"
 unknown_command = "I do not know this command. Send /help to see the commands."
 menu_help = "What Seahorse does, and the commands"
 menu_status = "What waits, and what I was not sure about"
 menu_integrate = "Put what waits into your notes now"
 menu_plan = "Plan this week again"
+menu_retro = "Your last week in one image"
 menu_intro = "Answer the first questions again"
 menu_update = "Install the new version"
 status_unclear = "I was not sure about these. Reply to my question under each one, or send the missing detail:"
@@ -375,3 +376,42 @@ saved_in = "📁 {path}"
 [companion]
 # Under a release, news or curiosity: the web page that confirms it.
 source = "🔗 Source: {site}"
+
+[retro]
+# Your week in one image: every Sunday before the plan, and with /retro. The image labels are short and lower-case.
+# Sending only one of these words asks for the image of the last week.
+words = ["retro", "retrospective", "week retro", "weekly retro", "week retrospective"]
+title = "your week"
+did = "did"
+lived = "lived"
+learned = "learned"
+people = "people"
+captured = "captured"
+pattern = "pattern"
+work = "work is not in the hours"
+journal = "journal"
+day = "1 day"
+days = "{count} days"
+trip = "trip"
+caption = "🪞 Your week {number} · {first} → {last}"
+nothing = "Your last week has nothing to show: no tasks and no captures."
+failed = "I could not draw your week now. Try again later."
+
+[retro.kind]
+movies = "movie"
+series = "series"
+books = "book"
+games = "game"
+places = "place"
+
+[retro.channel]
+text = "text"
+voice = "voice"
+photo = "photo"
+file = "file"
+video = "video"
+place = "place"
+contact = "contact"
+claude = "claude"
+obsidian = "obsidian"
+other = "other"

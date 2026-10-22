@@ -37,6 +37,7 @@ ROLES = {
     "question": ("standard", "low"),
     "morning": ("standard", "low"),
     "fix": ("standard", "low"),
+    "retro": ("standard", "low"),
     "integrator": ("standard", "medium"),
     "notes": ("standard", "medium"),
     "companion": ("standard", "medium"),

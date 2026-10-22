@@ -285,3 +285,25 @@ def week_png(today: date | None = None) -> bytes | None:
 def day_png(today: date | None = None) -> bytes | None:
     """The PNG of only today, or None when no week is planned."""
     return _render(draw_day, today)
+
+
+# ---- for other images in the same style, such as the retrospective (retro.py) ------------------------------
+
+def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+    """The typewriter font of the images."""
+    return _font(size, bold)
+
+
+def wrap(d: ImageDraw.ImageDraw, text: str, face, width: int) -> list[str]:
+    """The text broken into lines that fit the width."""
+    return _wrap(d, text, face, width)
+
+
+def progress(d: ImageDraw.ImageDraw, x: int, y: int, width: int, squares: int, done: int, total: int,
+             height: int = 22) -> None:
+    """A row of squares: the first ones, for what is done, in the accent colour."""
+    _progress(d, x, y, width, squares, done, total, height)
+
+
+def png(image: Image.Image) -> bytes:
+    return _png(image)
