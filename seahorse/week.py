@@ -179,18 +179,21 @@ class _Card:
         number = _day_names().get(_plain(words[0])) if words else None
         return by_date, (dates[number] if number is not None else None), bool(m)
 
+    def _totals(self) -> tuple[re.Match | None, int]:
+        found = DATE.search(self.rest)
+        start = found.end() if found else 0
+        return _totals().search(self.rest, start), start if found else len(self.rest)
+
     def capacity(self) -> int:
-        m = _totals().search(self.rest, DATE.search(self.rest).end() if DATE.search(self.rest) else 0)
+        m, _ = self._totals()
         return minutes(m[2]) if m else 0
 
     def extra(self) -> str:
         """The text after the totals, such as a note the user wrote in the title."""
-        found = DATE.search(self.rest)
-        m = _totals().search(self.rest, found.end() if found else 0)
+        m, start = self._totals()
         if m:
             return self.rest[m.end():].strip()
-        tail = self.rest[found.end():] if found else ""
-        tail = tail.strip().strip("·-–—:").strip()
+        tail = self.rest[start:].strip().strip("·-–—:").strip()
         return "" if minutes(tail) or tail == "0h" else tail
 
 

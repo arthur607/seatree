@@ -92,7 +92,7 @@ def tags(path: Path) -> list[str]:
         if not re.match(r"tags\s*:", line):
             continue
         value = line.split(":", 1)[1].strip()
-        items = value.strip("[]").split(",") if value else []
+        items = value.strip("\"'").strip("[]").split(",") if value else []
         for following in [] if value else lines[i + 1:]:
             item = re.match(r"\s*-\s*(.*)$", following)
             if not item:
@@ -293,12 +293,13 @@ def _line_unchecked(task: Task, path: Path, today: date, state: dict) -> int:
 
 def _note_done(task: Task, weeks: _Weeks, today: date, state: dict) -> int:
     """The task became done in its note (in the table, or by an agent). A repeating task opens again with its
-    next date, and only the line of the occurrence that was done is checked: in the week of its old due date,
-    or the nearest week before it. Another task: its open lines from this week on are checked."""
+    next date, and only the line of the occurrence that was done is checked: in the week of its old due date
+    (this week, if that date passed), or the nearest week before it. Another task: its open lines from this
+    week on are checked."""
     if task.repeats:
         old = task.due or today
         _renew(task, today, state, None)
-        for path in reversed(weeks.files(end=old)):
+        for path in reversed(weeks.files(end=max(old, today))):
             found = weeks.find(path, task.name, checked=False)
             if found:
                 weeks.mark(path, found[0], True)
