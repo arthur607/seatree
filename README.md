@@ -62,14 +62,16 @@ A new fact changes old notes. "I started a new job" updates your career, your ro
 
 ## Install
 
-You need:
+Before you start, have these ready:
 
 - **Telegram** on your phone.
 - **Claude or ChatGPT**: a subscription or an API key.
-- **A machine that is always on**: a small server (about US$5 a month), or your own computer. See [where Seahorse runs](docs/server.md).
-- **GitHub** (free, optional): to open your notes on your phone.
+- **A machine that is always on**, one of these:
+  - **A server** with Ubuntu (about US$5 a month): its IP, and its password or key file. Rent it before you start. See [where Seahorse runs](docs/server.md).
+  - **Your own computer**: macOS or Linux. On Windows, only inside WSL. Seahorse works only while the computer is on.
+- **GitHub** (free, optional): to open your notes on your phone and on other computers.
 
-Run the install on your own computer, also when Seahorse will run on a server.
+Run the install on your own computer, also when Seahorse will run on a server. The install needs no git and no Python: it installs what it needs.
 
 Windows (PowerShell):
 
@@ -86,6 +88,8 @@ curl -fsSL https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.sh 
 <p align="center"><img src="assets/setup.png" width="720" alt="The setup asks one thing at a time"></p>
 
 The setup asks one thing at a time, in English, Portuguese or Spanish, in about 15 minutes. It opens each login in your browser and copies the codes for you. At the end, Seahorse sends you a message, and your notes open in Obsidian.
+
+The setup saves each answer at once. If you stop it (Ctrl+C), or if a step fails, run `seahorse setup` again: it continues from your answers. When a step fails, the setup shows the error and says what to do.
 
 ## Use it
 
