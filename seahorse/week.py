@@ -487,6 +487,8 @@ def _move(item: Item, old: Day, note: tasks.Task | None, ahead: list[Day], work:
         target, reason = None, "postponed"  # postponed again and again: the Planner asks about it
     else:
         target, reason = _target(item, note, ahead, work, end)
+    if note is None and target is None and reason != "in this week already" and ahead:
+        target, reason = ahead[-1], ""  # a line with no task note has no other home: it stays in the week, never lost
     if target:
         target.add(item.line)
     if note and target and _committed(note, end):

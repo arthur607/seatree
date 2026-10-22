@@ -20,8 +20,20 @@ def _url(method: str) -> str:
     return f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/{method}"
 
 
+def _post(method: str, **kwargs) -> requests.Response | None:
+    """A request to the Bot API. A network error is logged by its kind only: its text holds the address, and the
+    address holds the bot token."""
+    try:
+        return requests.post(_url(method), **kwargs)
+    except requests.RequestException as error:
+        log.error("telegram %s: %s", method, type(error).__name__)
+        return None
+
+
 def _call(method: str, body: dict) -> dict | None:
-    r = requests.post(_url(method), json=body, timeout=30)
+    r = _post(method, json=body, timeout=30)
+    if r is None:
+        return None
     if not r.ok:
         log.error("telegram %s: %s", method, r.text[:300])
         return None
@@ -141,8 +153,10 @@ def send(text: str, buttons: list[tuple[str, str]] | None = None, chat_id: int |
 
 
 def send_photo(image: bytes, caption: str = "") -> int | None:
-    r = requests.post(_url("sendPhoto"), data={"chat_id": config.USER_ID, "caption": caption},
-                      files={"photo": ("week.png", image, "image/png")}, timeout=60)
+    r = _post("sendPhoto", data={"chat_id": config.USER_ID, "caption": caption},
+              files={"photo": ("week.png", image, "image/png")}, timeout=60)
+    if r is None:
+        return None
     if not r.ok:
         log.error("telegram sendPhoto: %s", r.text[:300])
         return None
@@ -152,8 +166,10 @@ def send_photo(image: bytes, caption: str = "") -> int | None:
 def send_document(path: Path, caption: str = "") -> int | None:
     """Sends a vault file, such as the note of a research, to read in Telegram itself."""
     with open(path, "rb") as handle:
-        r = requests.post(_url("sendDocument"), data={"chat_id": config.USER_ID, "caption": caption},
-                          files={"document": (path.name, handle, "text/markdown")}, timeout=60)
+        r = _post("sendDocument", data={"chat_id": config.USER_ID, "caption": caption},
+                  files={"document": (path.name, handle, "text/markdown")}, timeout=60)
+    if r is None:
+        return None
     if not r.ok:
         log.error("telegram sendDocument: %s", r.text[:300])
         return None

@@ -192,7 +192,7 @@ def _integrate_batch() -> tuple[str | None, bool]:
                          write=True, max_turns=120)
         _after_writing()
         results = parse_results(answer.text)
-        left = _count_attempts(batch)
+        left = _still_pending(batch) if outage(answer) else _count_attempts(batch)
         vault.publish(f"integrator: {len(batch)} engram(s)\n\n{answer.text[:2000]}")
     if answer.error:
         _report_failure("integrator", answer.text)
@@ -205,6 +205,22 @@ def _delivery_time() -> str:
     if messenger.quiet(datetime.now(config.TIMEZONE)):
         return f"at {config.QUIET_UNTIL // 60:02d}:{config.QUIET_UNTIL % 60:02d}, after the quiet hours"
     return "in a few minutes"
+
+
+# A failure of the AI service itself, not of one capture: a usage limit, a login, an overload, the network. It is not
+# counted as an attempt, so an outage never turns the captures that wait into unclear ones.
+OUTAGE = re.compile(r"usage limit|session limit|rate.?limit|limit (?:reached|exceeded)|quota|credit balance|overloaded"
+                    r"|\b(?:401|403|429|5\d\d)\b|authenticat|unauthori[sz]ed|not logged in|log ?in |api key|"
+                    r"network|connection|could not resolve|econn|etimedout|eai_again|not installed", re.IGNORECASE)
+
+
+def outage(answer) -> bool:
+    """True when a run failed because the AI could not be reached or used, whatever the captures were."""
+    return bool(answer.error) and bool(OUTAGE.search(answer.text or ""))
+
+
+def _still_pending(batch: list[Path]) -> list[Path]:
+    return [p for p in batch if p.exists() and notes.read(p)[0].get("state") == "pending"]
 
 
 def _count_attempts(batch: list[Path]) -> list[Path]:
@@ -382,6 +398,7 @@ def _deadlines(today: date, days: int = 7) -> str:
 
 # An unclear capture is asked in this many morning summaries. With no answer, it is then set aside.
 UNCLEAR_ASKS = 2
+SUMMARY_QUESTIONS = 2  # the morning summary asks about two unclear captures at most
 
 
 def _quiet_left(moment: datetime) -> float:
@@ -403,7 +420,10 @@ def _unclear_for_summary() -> tuple[list, list]:
     answer, to set aside."""
     ask, drop = [], []
     for path in vault.engrams("unclear"):
-        (drop if _asked(path) >= UNCLEAR_ASKS else ask).append(path)
+        if _asked(path) >= UNCLEAR_ASKS:
+            drop.append(path)
+        elif len(ask) < SUMMARY_QUESTIONS:
+            ask.append(path)  # the oldest first; the others wait for a later summary, and are not counted
     return ask, drop
 
 
@@ -685,6 +705,8 @@ def user_notes() -> str | None:
             if not answer.error:
                 pending.pop(path, None)
                 continue
+            if outage(answer):
+                continue  # the AI could not be used: the note waits for the next run, with no attempt counted
             pending[path]["attempts"] = pending[path].get("attempts", 0) + 1
             if pending[path]["attempts"] >= MAX_ATTEMPTS:
                 given_up.append(path)

@@ -361,10 +361,12 @@ def sync(today: date | None = None) -> int:
                 if not monday or monday < recent or (task.repeats and _already_counted(task, monday)):
                     continue
                 before = [0, total]
-            done = 0
-            for _ in range(checked - before[0]):
+            # A check turns an open line into a checked one, and an uncheck does the opposite. A line that was
+            # deleted or copied changes only one of the two counts: it is not a check, and not an uncheck.
+            done, opened = 0, (total - checked) - (before[1] - before[0])
+            for _ in range(min(checked - before[0], -opened)):
                 done += _line_checked(task, path, weeks, today, state)
-            if checked < before[0]:
+            if checked < before[0] and opened > 0:
                 done += _line_unchecked(task, path, today, state)
             if done:
                 changes += done
