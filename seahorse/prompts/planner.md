@@ -1,6 +1,6 @@
 ## Task: Planner
 The week that ends: `1. 🎯 Intention/Week/$current_week.md`. The week to plan: `1. 🎯 Intention/Week/$next_week.md`, which starts on $week_start.
-1. If the week that ends exists and its Review is empty, fill it in: planned, done, estimated against actual where $user wrote it, and what was postponed.
+1. If the week that ends exists and you did not fill in its Review yet (the `Retro:` block of code does not count), fill it in: planned, done, estimated against actual where $user wrote it, and what was postponed. Code writes a `Retro:` block in that Review: never change it. When it has an `Adjustment:` line, apply that adjustment to the plan of the new week, because the retrospective already told $user that you would.
 2. Update `4. 🪞 Identity/Capacity.md` with what the week showed.
 3. The week to plan exists already, with one callout card for each day, such as `> [!day] Mon 12/01 · 0h of $capacity`, and a blank line between cards. Put the tasks inside the cards, one per line, as `> - [ ] [[<task note>]] (<estimate>)`. Do not add, remove or change the card titles: code writes them, with the totals, in $language. If the week has tasks already because it is planned again, keep its checked lines and the days before $today as they are, and plan again only from $today on.
 4. Tasks are notes in `1. 🎯 Intention/Tasks/`. Plan the open tasks (`done: false`) in this order:
