@@ -47,6 +47,7 @@ log = logging.getLogger(__name__)
 
 TIMES = (15, 30, 60, 120)  # the time buttons, in minutes
 SHORT = 60  # a longer message is never a request for a task: it is a capture
+MOST_MINUTES = 240  # more "free time" than this is a time of day, such as "14h", or not free time at all
 DEFAULT_ESTIMATE = 30  # the minutes of a task with no estimate
 NEAR_DAYS = 7  # a task out of the week takes part when its due date is this near, or passed
 SOON_DAYS = 3
@@ -132,14 +133,20 @@ def trigger(text: str, language: str | None = None) -> int | None:
     rest = _plain(text)
     if _take(rest, i18n.words("now.later_words", language))[1]:
         return None
+    says_now = _take(rest, i18n.words("now.now_words", language))[1]
     rest, asked = _take(rest, i18n.words("now.ask_phrases", language))
     rest, minutes = _duration(rest, language)
+    if minutes > MOST_MINUTES:
+        return None  # "tenho dentista 14h" is a time of day, not 14 hours of free time
     rest, free = _take(rest, i18n.words("now.free_words", language))
     rest, has = _take(rest, i18n.words("now.have_words", language))
     rest, right_now = _take(rest, i18n.words("now.now_words", language))
     fillers = {_plain(w) for w in i18n.words("now.filler_words", language)}
     left = [w for w in rest.split() if w not in fillers]
-    if (asked and len(left) <= 1) or (minutes and free and len(left) <= 2) or (minutes and has and len(left) <= 1):
+    # In doubt, a message stays a capture: a lost capture is worse than a missed offer. So "what do I do?" alone
+    # is not enough (it is often a follow-up), and "I have" takes no other word ("I have a 2h meeting").
+    if (asked and (minutes or says_now) and len(left) <= 1) or (minutes and free and len(left) <= 2) \
+            or (minutes and has and not left):
         return minutes
     if free and right_now and not left:
         return 0

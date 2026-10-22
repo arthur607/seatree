@@ -109,3 +109,52 @@ class TestToken(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestNowTrigger(unittest.TestCase):
+    """A message about an appointment, or a follow-up in a chat, stays a capture. Free time asks for a task."""
+    CAPTURES = {
+        "pt-BR": ["tenho dentista 14h", "tenho reunião 15h30", "tenho aula 19h", "tenho prova 8h", "tenho 1h reunião",
+                  "o que eu faço?", "o que eu faço primeiro", "o que eu faço então?", "tenho 2h de reunião amanhã",
+                  "tenho 30 minutos pra entregar o relatório", "livre amanhã às 15h"],
+        "es": ["tengo médico 15h", "tengo reunión 10h", "libre a las 15h", "qué hago?"],
+        "en": ["I have a 2h meeting", "I have a 30 min call", "got gym 7h", "I got 2h sleep", "what do I do here",
+               "free tonight?"],
+    }
+    REQUESTS = {
+        "pt-BR": {"tenho 30 min": 30, "tenho meia hora livre": 30, "1h livre": 60, "o que eu faço agora?": 0},
+        "es": {"tengo media hora": 30, "qué hago ahora?": 0},
+        "en": {"I have 20 minutes": 20, "what should I do now?": 0, "I have 30 min, what should I do?": 30},
+    }
+
+    def test_appointments_and_follow_ups_stay_captures(self):
+        from seahorse import now
+        for language, texts in self.CAPTURES.items():
+            for text in texts:
+                self.assertIsNone(now.trigger(text, language), f"{language}: {text}")
+
+    def test_free_time_still_asks_for_a_task(self):
+        from seahorse import now
+        for language, texts in self.REQUESTS.items():
+            for text, minutes in texts.items():
+                self.assertEqual(now.trigger(text, language), minutes, f"{language}: {text}")
+
+
+class TestNowInAConversation(Base):
+    """"tenho 30 min" as a Reply, or inside a chat with Seahorse, answers that conversation: it is a capture."""
+
+    def ask(self, msg, ctx) -> bool:
+        import asyncio
+        from seahorse import bot
+        return asyncio.run(bot._asks_for_now(__import__("test_telegram").update(msg), ctx))
+
+    def test_a_reply_or_a_chat_is_not_a_request(self):
+        from datetime import timedelta
+        from test_telegram import FakeMessage, context
+        alone = FakeMessage(5, "tenho 30 min")
+        self.assertTrue(self.ask(alone, context()))
+        reply = FakeMessage(6, "tenho 30 min", reply_to_message=FakeMessage(4, "⏰ Pagar o IPVA"))
+        self.assertFalse(self.ask(reply, context()))
+        chatting = context()
+        chatting.bot_data["session_at"] = datetime.now() - timedelta(minutes=5)
+        self.assertFalse(self.ask(FakeMessage(7, "tenho 30 min"), chatting))

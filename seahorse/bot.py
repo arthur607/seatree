@@ -502,10 +502,23 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _send_retro(update)
         return
     minutes = now.trigger(message.text)
-    if minutes is not None and getattr(message, "forward_origin", None) is None:
+    if minutes is not None and await _asks_for_now(update, context):
         await _now_reply(message, update.effective_chat, minutes)
         return
     await _capture(update, context, message_text(message), "telegram-text")
+
+
+async def _asks_for_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """A message that looks like free time asks for a task only when it is not part of a conversation: not a Reply,
+    not forwarded, not inside a chat with Seahorse, and not the answer to what Seahorse asked last. In doubt it is a
+    capture: a lost capture is worse than a missed offer."""
+    message = update.effective_message
+    if message.reply_to_message or getattr(message, "forward_origin", None) is not None:
+        return False
+    if datetime.now() - context.bot_data.get("session_at", datetime.min) < timedelta(minutes=config.CHAT_WINDOW_MINUTES):
+        return False
+    link = await _soft_link(context)
+    return link.step is None and link.sent is None
 
 
 async def on_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
