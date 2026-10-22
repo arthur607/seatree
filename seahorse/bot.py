@@ -96,8 +96,21 @@ def asks_for_day(text: str) -> bool:
     return _word(text) in {w.lower() for w in i18n.words("day_words")}
 
 
-def asks_for_retro(text: str) -> bool:
-    return _word(text) in {w.lower() for w in i18n.words("retro.words")}
+def asks_for_retro(text: str) -> str | None:
+    """Which week a message asks for: "this" for a retro word alone, "previous" for a retro word with words for
+    the week before, such as "retro last week". None for any other message."""
+    said = _word(text)
+    for word in (w.lower() for w in i18n.words("retro.words")):
+        if said == word:
+            return "this"
+        if said.startswith(word + " ") and the_week_before(said[len(word):]):
+            return "previous"
+    return None
+
+
+def the_week_before(words: str) -> bool:
+    """The words after /retro or a retro word ask for the week before: "last week", "semana passada"."""
+    return " ".join(words.lower().split()) in {w.lower() for w in i18n.words("retro.previous")}
 
 
 def with_hidden_links(text: str, entities) -> str:
@@ -491,11 +504,12 @@ async def _send_week(update: Update, only_today: bool = False) -> None:
         await update.effective_message.reply_text(i18n.t("bot.no_week"))
 
 
-async def _send_retro(update: Update) -> None:
-    """The last week that ended, in one image. Its pattern line comes from the state file: no new AI run."""
+async def _send_retro(update: Update, previous: bool = False) -> None:
+    """This week, or the week before with `previous`, in one image. Its pattern line comes from the state file: no
+    new AI run."""
     await update.effective_chat.send_action(ChatAction.UPLOAD_PHOTO)
     try:
-        found = await asyncio.to_thread(retro.on_demand)
+        found = await asyncio.to_thread(retro.on_demand, None, previous)
     except Exception:  # noqa: BLE001 - a broken file must not leave the user with no answer
         log.exception("the retrospective failed")
         await update.effective_message.reply_text(i18n.t("retro.failed"))
@@ -504,7 +518,7 @@ async def _send_retro(update: Update) -> None:
         image, caption = found
         await update.effective_message.reply_photo(photo=image, caption=caption)
     else:
-        await update.effective_message.reply_text(i18n.t("retro.nothing"))
+        await update.effective_message.reply_text(i18n.t("retro.nothing_previous" if previous else "retro.nothing"))
 
 
 async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -512,8 +526,9 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if asks_for_week(message.text) or asks_for_day(message.text):
         await _send_week(update, only_today=asks_for_day(message.text))
         return
-    if asks_for_retro(message.text):
-        await _send_retro(update)
+    which = asks_for_retro(message.text)
+    if which:
+        await _send_retro(update, previous=which == "previous")
         return
     minutes = now.trigger(message.text)
     if minutes is not None and await _asks_for_now(update, context):
@@ -1006,7 +1021,7 @@ async def on_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def on_retro(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await _send_retro(update)
+    await _send_retro(update, previous=the_week_before(" ".join(getattr(context, "args", None) or [])))
 
 
 async def on_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

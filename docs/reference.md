@@ -32,7 +32,7 @@ Each claim in the vault points to the engram it came from. A trait in Identity s
 |---|---|
 | `week`, `today` | The week, or today, as an image (`semana` and `hoje` in Portuguese, `semana` and `hoy` in Spanish) |
 | `/now`, "I have 30 min" | One task for the time you have. Later, it asks if you finished |
-| `/retro`, `retro` | Your last week in one image |
+| `/retro`, `retro` | This week in one image. `/retro last week` shows the week before |
 | `/plan` | Plans this week again, from today on |
 | `/status` | Pending captures and the version |
 | `/integrate` | Integrates the pending captures now |

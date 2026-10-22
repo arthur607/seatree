@@ -166,14 +166,14 @@ active = "Activos"
 
 [chat]
 # The bot in a conversation: help, commands, photos and files, voice notes, edits and errors.
-help = "Soy Seahorse, tu segundo cerebro 🌊\n• Envíame lo que sea: una idea, una tarea, una película para ver, una foto, un archivo, un lugar o un audio. Lo pongo en el lugar correcto de tus notas.\n• Hazme una pregunta. Respondo con tus notas o con la web.\n• Envía \"semana\" u \"hoy\" para ver tu plan.\n• Para cambiar algo que enviaste, edita tu mensaje o toca ✏️ Corregir en mi respuesta.\n• También escribo primero: un resumen cada mañana, un recordatorio antes de una fecha límite y, a veces, una pregunta o una idea.\n\nComandos:\n/now – una tarea para el tiempo que tienes\n/status – lo que espera y lo que me dejó con dudas\n/integrate – pone ahora en tus notas lo que espera\n/plan – planifica de nuevo esta semana\n/retro – tu última semana en una imagen\n/intro – responde de nuevo las primeras preguntas\n/update – instala la nueva versión de Seahorse\n/help – este mensaje"
+help = "Soy Seahorse, tu segundo cerebro 🌊\n• Envíame lo que sea: una idea, una tarea, una película para ver, una foto, un archivo, un lugar o un audio. Lo pongo en el lugar correcto de tus notas.\n• Hazme una pregunta. Respondo con tus notas o con la web.\n• Envía \"semana\" u \"hoy\" para ver tu plan.\n• Para cambiar algo que enviaste, edita tu mensaje o toca ✏️ Corregir en mi respuesta.\n• También escribo primero: un resumen cada mañana, un recordatorio antes de una fecha límite y, a veces, una pregunta o una idea.\n\nComandos:\n/now – una tarea para el tiempo que tienes\n/status – lo que espera y lo que me dejó con dudas\n/integrate – pone ahora en tus notas lo que espera\n/plan – planifica de nuevo esta semana\n/retro – esta semana en una imagen. /retro semana pasada – la semana anterior\n/intro – responde de nuevo las primeras preguntas\n/update – instala la nueva versión de Seahorse\n/help – este mensaje"
 unknown_command = "No conozco ese comando. Envía /help para ver los comandos."
 menu_help = "Qué hace Seahorse y sus comandos"
 menu_now = "Una tarea para el tiempo que tienes"
 menu_status = "Lo que espera y lo que me dejó con dudas"
 menu_integrate = "Pone ahora en tus notas lo que espera"
 menu_plan = "Planifica de nuevo esta semana"
-menu_retro = "Tu última semana en una imagen"
+menu_retro = "Esta semana en una imagen"
 menu_intro = "Responde de nuevo las primeras preguntas"
 menu_update = "Instala la nueva versión"
 status_unclear = "Tengo dudas sobre estos. Responde a mi pregunta debajo de cada uno, o envía el detalle que falta:"
@@ -463,8 +463,10 @@ source = "🔗 Fuente: {site}"
 
 [retro]
 # Your week in one image: every Sunday before the plan, and with /retro. The image labels are short and lower-case.
-# Sending only one of these words asks for the image of the last week.
+# One of these words alone asks for the image of this week. With a word from `previous` after it, such as
+# "retro semana pasada" or "/retro semana pasada", it asks for the week before.
 words = ["retro", "retrospectiva", "retrospectiva de la semana", "retrospectiva semanal", "retrospective"]
+previous = ["semana pasada", "semana anterior", "de la semana pasada", "de la semana anterior", "pasada", "anterior"]
 title = "tu semana"
 did = "hiciste"
 lived = "viviste"
@@ -478,7 +480,8 @@ day = "1 día"
 days = "{count} días"
 trip = "viaje"
 caption = "🪞 Tu semana {number} · {first} → {last}"
-nothing = "Tu última semana no tiene nada que mostrar: ni tareas ni mensajes."
+nothing = "Esta semana todavía no tiene nada que mostrar: ni tareas, ni vivencias, ni aprendizajes."
+nothing_previous = "La semana pasada no tiene nada que mostrar: ni tareas, ni vivencias, ni aprendizajes."
 failed = "No pude dibujar tu semana ahora. Inténtalo más tarde."
 
 [retro.kind]

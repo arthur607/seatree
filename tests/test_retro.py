@@ -126,6 +126,9 @@ class TestCounting(RetroBase):
         note(f"{EXPERIENCES}/Movies/The Others.md", "---\ntype: experience\ndone: true\nsource: [\"[[2026-10-06 1917]]\"]\n---\n")
         note(f"{EXPERIENCES}/Movies/Alien.md", "---\ntype: experience\ndone: true\nwhen: 2026-10\n---\n")
         note(f"{KNOWLEDGE}/Rust/Split.md", "---\ntype: knowledge\nsource: [\"[[2026-09-01 1000]]\"]\n---\nOld captures.\n")
+        # made this week, but not something learned: a project, and the index note of a new subject folder
+        note(f"{KNOWLEDGE}/Projects/Books/Books.md", "---\ntype: project\n---\nThe books.\n")
+        note(f"{KNOWLEDGE}/Politics/Politics.md", "---\ntype: knowledge\n---\nThe subject.\n")
         note(f"{PEOPLE}/Ana.md", "---\ntype: entity\n---\n## Appearances\n- 2026-09-01 · [[x]] · met\n- 2026-10-07 · [[y]] · lunch\n")
         note(f"{PEOPLE}/João.md", "---\ntype: entity\n---\n## Current\nA friend from work.\n## Stories\n- The trip.\n")
         note(f"{PEOPLE}/Marta.md", "---\ntype: entity\n---\nSee [[New]].\n")
@@ -176,6 +179,7 @@ class TestCounting(RetroBase):
         note(f"{PEOPLE}/Bia.md", "---\ntype: entity\n---\n## Appearances\n- 2026-09-01 · [[x]] · met\n")
         note(f"{KNOWLEDGE}/Rust/Ownership.md", "---\ntype: knowledge\ncreated: 2026-10-06\n---\nOne owner.\n")
         note(f"{KNOWLEDGE}/Rust/Old.md", "---\ntype: knowledge\n---\nNo date.\n")
+        note(f"{KNOWLEDGE}/Projects/Books/Books.md", "---\ntype: project\ncreated: 2026-10-06\n---\nNot learned.\n")
         note(f"{EXPERIENCES}/Movies/Dune.md", "---\ntype: experience\ndone: true\nwhen: 2026-10-08\n---\n")
         note(f"{EXPERIENCES}/Movies/Old favorite.md", "---\ntype: experience\ndone: true\n---\n")
         for path, day in ((f"{KNOWLEDGE}/Rust/Old.md", at(1, month=9)), (f"{EXPERIENCES}/Movies/Old favorite.md", at(8))):
@@ -214,6 +218,8 @@ class TestImage(RetroBase):
         for label in ("people", "captured"):
             self.assertNotIn(i18n.t(f"retro.{label}"), texts)  # alone, they say little about the week
         self.assertNotIn(i18n.t("retro.learned"), texts)  # an empty section is left out
+        self.assertNotIn(i18n.t("retro.journal"), texts)  # the days of the journal say little about the week
+        self.assertNotIn(i18n.t("retro.day"), texts)
         self.assertIn("(7h)", texts)  # a work task shows its time in parentheses
 
     def test_empty_sections_and_no_pattern_make_a_short_image(self):
@@ -234,10 +240,23 @@ class TestImage(RetroBase):
                             [f"Note {i}" for i in range(40)], [f"Person {i} with a long surname" for i in range(80)],
                             "word " * 300, "other " * 300)
         image = Image.open(io.BytesIO(retro.png(stats)))
-        self.assertLessEqual(image.size[1], retro.MAX_HEIGHT)
+        self.assertLessEqual(image.size[1], retro.FIT)
         self.assertLessEqual(sum(image.size), 10000)  # Telegram's limit for a photo
-        self.assertIn(i18n.t("image.more", n=30), texts)  # the lived section: 30 + 9 + journal, 10 shown
+        more = [t for t in texts if t in {i18n.t("image.more", n=n) for n in range(1, 100)}]
+        self.assertEqual(len(more), 3)  # each section is cut, and ends with "+N more"
         self.assertTrue(any(t.endswith("…") for t in texts))
+
+    def test_every_row_shows_while_the_image_fits(self):
+        texts = self.drawn()
+        lines = [retro.Planned(f"Task {i}", MONDAY, 30 * (i + 1), True, False) for i in range(8)]
+        stats = retro.Stats(MONDAY, lines, [], [("Movies", f"Movie {i}") for i in range(12)], [], ["Lisbon"],
+                            [f"Note {i}" for i in range(6)], pattern="One line.")
+        image = Image.open(io.BytesIO(retro.png(stats)))
+        self.assertLessEqual(image.size[1], retro.FIT)
+        names = [f"Task {i}" for i in range(8)] + [f"Movie {i}" for i in range(12)] + [f"Note {i}" for i in range(6)]
+        for name in names + ["Lisbon"]:
+            self.assertIn(name, texts)
+        self.assertFalse([t for t in texts if t.startswith("+")])  # nothing hidden
 
     def test_texts_in_the_language_of_the_user(self):
         config.LANGUAGE = "pt-BR"
@@ -378,29 +397,33 @@ class TestDelivery(RetroBase):
 
 
 class TestOnDemand(RetroBase):
-    def test_the_last_week_with_its_kept_line_and_no_model_call(self):
+    def test_this_week_or_the_week_before_with_its_kept_line_and_no_model_call(self):
         self.plain_week()
         retro._remember("2026-W41", pattern="You did 4 of 5.", adjustment="Next week I keep Monday light.", sent="x")
         seen, old = [], retro.png
         retro.png = lambda stats: seen.append(stats) or b"png"
         self.addCleanup(setattr, retro, "png", old)
-        image, text = retro.on_demand(date(2026, 10, 13))
-        stats = seen[0]
-        self.assertEqual((image, stats.name, stats.pattern, stats.total), (b"png", "2026-W41", "You did 4 of 5.", 5))
+        image, text = retro.on_demand(date(2026, 10, 8))  # a Thursday: the week so far
+        self.assertEqual((image, seen[-1].name, seen[-1].total), (b"png", "2026-W41", 5))
         self.assertEqual(text, "🪞 Your week 41 · 10/05 → 10/11")
-
-    def test_which_week(self):
-        self.assertEqual(retro.last_week(SUNDAY), date(2026, 9, 28))  # before the Sunday image: the week before
-        retro._remember("2026-W41", sent="2026-10-11T18:05")
-        self.assertEqual(retro.last_week(SUNDAY), MONDAY)
-        self.assertEqual(retro.last_week(date(2026, 10, 14)), MONDAY)
+        self.assertIsNone(retro.on_demand(date(2026, 10, 13)))  # the next week has nothing yet
+        image, text = retro.on_demand(date(2026, 10, 13), previous=True)
+        self.assertEqual((seen[-1].name, seen[-1].pattern, seen[-1].adjustment),
+                         ("2026-W41", "You did 4 of 5.", "Next week I keep Monday light."))
 
     def test_the_command_and_the_words(self):
         self.assertIn("retro", bot.COMMANDS)
-        self.assertTrue(bot.asks_for_retro("Retro") and bot.asks_for_retro(" retrospective! "))
+        self.assertEqual([bot.asks_for_retro(t) for t in ("Retro", " retrospective! ", "retro last week", "Retro  Previous week")],
+                         ["this", "this", "previous", "previous"])
         self.assertFalse(bot.asks_for_retro("retro games are fun") or bot.asks_for_week("retro"))
+        self.assertFalse(bot.asks_for_retro("retro last week was fun"))
         config.LANGUAGE = "pt-BR"
-        self.assertTrue(bot.asks_for_retro("Retrospectiva da semana"))
+        self.assertEqual([bot.asks_for_retro(t) for t in ("Retrospectiva da semana", "retro semana passada",
+                                                          "retrospectiva da semana anterior", "/retro anterior")],
+                         ["this", "previous", "previous", None])  # a command comes with its words as arguments
+        self.assertTrue(bot.the_week_before(" Semana  passada"))
+        config.LANGUAGE = "es"
+        self.assertEqual(bot.asks_for_retro("retro semana pasada"), "previous")
         for language in i18n.LANGUAGES:
             self.assertIn("/retro", i18n.t("chat.help", language))
             self.assertNotEqual(i18n.t("chat.menu_retro", language), "chat.menu_retro")
@@ -411,7 +434,7 @@ class TestOnDemand(RetroBase):
         replies = []
 
         class Message:
-            text = "retro"
+            text = "retro last week"
 
             async def reply_photo(self, photo, caption=None):
                 replies.append(("photo", caption))
@@ -426,13 +449,15 @@ class TestOnDemand(RetroBase):
         update = SimpleNamespace(effective_message=Message(), effective_chat=Chat())
         engrams = len(list(config.ENGRAMS.rglob("*.md")))
         asyncio.run(bot.on_text(update, SimpleNamespace(bot_data={})))
-        asyncio.run(bot.on_retro(update, None))
+        asyncio.run(bot.on_retro(update, SimpleNamespace(args=["last", "week"])))
         self.assertEqual(replies, [("photo", "🪞 Your week 41 · 10/05 → 10/11")] * 2)
         self.assertEqual(len(list(config.ENGRAMS.rglob("*.md"))), engrams)
+        asyncio.run(bot.on_retro(update, SimpleNamespace(args=[])))  # this week has nothing yet
+        self.assertEqual(replies[-1], ("text", i18n.t("retro.nothing")))
         remove(config.WEEKS)
         remove(config.ENGRAMS)
-        asyncio.run(bot.on_retro(update, None))
-        self.assertEqual(replies[-1], ("text", i18n.t("retro.nothing")))
+        asyncio.run(bot.on_retro(update, SimpleNamespace(args=["previous"])))
+        self.assertEqual(replies[-1], ("text", i18n.t("retro.nothing_previous")))
 
 
 class TestMigration(Base):

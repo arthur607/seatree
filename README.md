@@ -100,7 +100,7 @@ The setup saves each answer at once. If you stop it (Ctrl+C), or if a step fails
 - **Correct**: edit the message that you sent. Seahorse corrects what it filed.
 - **Ask**: "When is my dentist appointment?" Questions about the world get an answer from the web, with its source.
 - **Start something**: "I have 30 min", or `/now`.
-- **See the week**: send `week` or `today`, and `retro` for the last week.
+- **See the week**: send `week` or `today`. Send `retro` for this week in one image, and `retro last week` for the week before.
 
 <p align="center"><img src="assets/telegram-capture.jpg" width="380" alt="A capture on Telegram, and where Seahorse put it"></p>
 
@@ -110,7 +110,7 @@ The setup saves each answer at once. If you stop it (Ctrl+C), or if a step fails
 |---|---|
 | `week`, `today` | The week, or today, as an image |
 | `/now`, "I have 30 min" | One task for the time you have. Later, it asks if you finished |
-| `/retro`, `retro` | Your last week in one image |
+| `/retro`, `retro` | This week in one image. `/retro last week` shows the week before |
 | `/plan` | Plans this week again, from today on |
 | `/status` | The captures that wait, and the version |
 | `/integrate` | Integrates the waiting captures now |

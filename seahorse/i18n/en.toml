@@ -173,14 +173,14 @@ active = "Active"
 
 [chat]
 # The bot in a conversation: help, commands, photos and files, voice notes, edits and errors.
-help = "I am Seahorse, your second brain 🌊\n• Send me anything: a thought, a task, a movie to watch, a photo, a file, a place or a voice note. I put it in the right place in your notes.\n• Ask me a question. I answer from your notes, or from the web.\n• Send \"week\" or \"today\" to see your plan.\n• To change something you sent, edit your message, or tap ✏️ Fix under my reply.\n• I also write first: a summary each morning, a reminder before a deadline, and sometimes a question or an idea.\n\nCommands:\n/now – one task for the time you have\n/status – what waits, and what I was not sure about\n/integrate – put what waits into your notes now\n/plan – plan this week again\n/retro – your last week in one image\n/intro – answer the first questions again\n/update – install the new version of Seahorse\n/help – this message"
+help = "I am Seahorse, your second brain 🌊\n• Send me anything: a thought, a task, a movie to watch, a photo, a file, a place or a voice note. I put it in the right place in your notes.\n• Ask me a question. I answer from your notes, or from the web.\n• Send \"week\" or \"today\" to see your plan.\n• To change something you sent, edit your message, or tap ✏️ Fix under my reply.\n• I also write first: a summary each morning, a reminder before a deadline, and sometimes a question or an idea.\n\nCommands:\n/now – one task for the time you have\n/status – what waits, and what I was not sure about\n/integrate – put what waits into your notes now\n/plan – plan this week again\n/retro – this week in one image. /retro last week – the week before\n/intro – answer the first questions again\n/update – install the new version of Seahorse\n/help – this message"
 unknown_command = "I do not know this command. Send /help to see the commands."
 menu_help = "What Seahorse does, and the commands"
 menu_now = "One task for the time you have"
 menu_status = "What waits, and what I was not sure about"
 menu_integrate = "Put what waits into your notes now"
 menu_plan = "Plan this week again"
-menu_retro = "Your last week in one image"
+menu_retro = "This week in one image"
 menu_intro = "Answer the first questions again"
 menu_update = "Install the new version"
 status_unclear = "I was not sure about these. Reply to my question under each one, or send the missing detail:"
@@ -477,8 +477,10 @@ source = "🔗 Source: {site}"
 
 [retro]
 # Your week in one image: every Sunday before the plan, and with /retro. The image labels are short and lower-case.
-# Sending only one of these words asks for the image of the last week.
+# One of these words alone asks for the image of this week. With a word from `previous` after it, such as
+# "retro last week" or "/retro last week", it asks for the week before.
 words = ["retro", "retrospective", "week retro", "weekly retro", "week retrospective"]
+previous = ["last week", "previous week", "the last week", "the previous week", "the week before", "last", "previous"]
 title = "your week"
 did = "did"
 lived = "lived"
@@ -492,7 +494,8 @@ day = "1 day"
 days = "{count} days"
 trip = "trip"
 caption = "🪞 Your week {number} · {first} → {last}"
-nothing = "Your last week has nothing to show: no tasks and no captures."
+nothing = "This week has nothing to show yet: no tasks, nothing lived and nothing learned."
+nothing_previous = "Last week has nothing to show: no tasks, nothing lived and nothing learned."
 failed = "I could not draw your week now. Try again later."
 
 [retro.kind]

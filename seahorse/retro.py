@@ -98,7 +98,7 @@ class Stats:
     @property
     def empty(self) -> bool:
         """No task, nothing lived and nothing learned: nothing to show."""
-        return not (self.lines or self.experiences or self.trips or self.journal or self.learned)
+        return not (self.lines or self.experiences or self.trips or self.learned)
 
     def top(self, count: int = 3) -> list[tuple[str, int]]:
         """The biggest tasks done, by their time. The sessions of one task on several days add up."""
@@ -319,8 +319,8 @@ def _order(experiences: list[tuple[str, str]]) -> list[tuple[str, str]]:
 
 
 def _from_git(stats: Stats, changes: dict[str, Change]) -> None:
-    """People: new, or with new lines, the most new lines first. Learned: notes new in Knowledge, from what came in
-    this week. A fix of a link or of a field changes lines but adds none: it does not count. What the week lived
+    """People: new, or with new lines, the most new lines first. Learned: notes of knowledge new in Knowledge, from
+    what came in this week. A fix of a link or of a field changes lines but adds none: it does not count. What the week lived
     comes from the dates of the notes, not from their changes: see `_lived`."""
     people = []
     for path, change in sorted(changes.items()):
@@ -329,7 +329,8 @@ def _from_git(stats: Stats, changes: dict[str, Change]) -> None:
         name = Path(path).stem
         if path.startswith(PEOPLE) and (_new_in(change, PEOPLE) or change.grew > 0):
             people.append((-change.grew, name))
-        elif path.startswith(KNOWLEDGE) and _new_in(change, KNOWLEDGE) and _from_this_week(config.VAULT / path, stats.monday):
+        elif (path.startswith(KNOWLEDGE) and _new_in(change, KNOWLEDGE) and _taught(config.VAULT / path)
+              and _from_this_week(config.VAULT / path, stats.monday)):
             stats.learned.append(name)
     _lived(stats)
     stats.people = [name for _, name in sorted(people)]
@@ -361,6 +362,18 @@ def _day(value) -> date | None:
 def _lived(stats: Stats) -> None:
     stats.experiences = _order([(_kind(vault.rel(p)), p.stem) for p in _notes_in(EXPERIENCES) if _happened(p, stats.monday)])
     stats.trips = [p.stem for p in _notes_in(TRIPS) if _happened(p, stats.monday)]
+
+
+def _taught(path: Path) -> bool:
+    """A note of knowledge: `type: knowledge`, or no type when the user wrote it. A project is not something
+    learned, and neither is the index note of a subject folder, named as its folder, such as `Politics/Politics`."""
+    if path.stem == path.parent.name:
+        return False
+    try:
+        kind = notes.read(path)[0].get("type")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return kind in (None, "", "knowledge")
 
 
 def _from_this_week(path: Path, monday: date) -> bool:
@@ -404,7 +417,7 @@ def _from_files(stats: Stats) -> None:
     monday = stats.monday
     _lived(stats)
     stats.people = [p.stem for p in _notes_in(PEOPLE) if _dated(p, monday)]
-    stats.learned = [p.stem for p in _notes_in(KNOWLEDGE) if _dated(p, monday)]
+    stats.learned = [p.stem for p in _notes_in(KNOWLEDGE) if _dated(p, monday) and _taught(p)]
 
 
 def _journal(monday: date) -> list[date]:
@@ -600,7 +613,8 @@ def write_review(stats: Stats) -> bool:
 WIDTH, MARGIN, LABEL = week_image.WIDTH, 64, 236  # LABEL: the column of the section labels
 STEP, GAP = 50, 34  # the height of a line of text, and the space between two sections
 MAX_HEIGHT = 3000  # far below Telegram's limit: width and height add up to 10000 at most
-SHOWN = {"did": 3, "lived": 10, "learned": 4}  # rows per section, at most; the rest is "+N more"
+FIT = 2800  # about one phone screen at this width: every row shows while the image is this tall or less
+LEAST = 3  # the rows that a section keeps when the image must be shorter
 
 
 class _Fonts:
@@ -617,47 +631,41 @@ def clean(text: str) -> str:
     return week_image.clean(text)
 
 
-def _pack(d: ImageDraw.ImageDraw, names: list[str], face, width: int, most: int) -> tuple[list[str], int]:
-    """Names on lines of the width, joined by " · ", never cut in the middle. Returns the lines and how many names
-    did not fit in `most` lines."""
-    lines, current = [], ""
-    for n, name in enumerate(names):
-        if d.textlength(name, font=face) > width:
-            name = _cut(d, name, face, width, 1)[0]
-        attempt = f"{current} · {name}" if current else name
-        if current and d.textlength(attempt, font=face) > width:
-            if len(lines) + 1 == most:
-                return lines + [current], len(names) - n
-            lines.append(current)
-            attempt = name
-        current = attempt
-    return (lines + [current] if current else lines), 0
-
-
 def _rows(stats: Stats) -> list[tuple[str, list[tuple[str, str]], int]]:
-    """The sections that have something: their label, their rows (text, note at the right), how many rows did not
-    fit, and the short items that share lines. What the week was: done, lived and learned. The people and the
-    number of captures stay out of the image: alone, they say little about the week."""
+    """The sections that have something: their label, all their rows (text, note at the right), and how many rows
+    are hidden, none yet. What the week was: done, lived and learned. The people, the number of captures and the
+    days of the journal stay out of the image: alone, they say little about the week."""
     work = {line.name for line in stats.lines if line.work}
 
     def time_of(name: str, total: int) -> str:  # a work task shows its time in parentheses, as in the week image
         return "" if not total else f"({week.duration(total)})" if name in work else week.duration(total)
 
-    did = [(name, time_of(name, m)) for name, m in stats.top(SHOWN["did"])]
+    did = [(name, time_of(name, m)) for name, m in stats.top(len(stats.lines))]
     lived = [(name, _kind_word(kind)) for kind, name in stats.experiences]
     lived += [(name, i18n.t("retro.trip")) for name in stats.trips]
-    if stats.journal:
-        lived.append((_days(len(stats.journal)), i18n.t("retro.journal")))
     learned = [(name, "") for name in stats.learned]
-    found = []
-    for key, rows in (("did", did), ("lived", lived), ("learned", learned)):
-        if rows:
-            found.append((key, rows[:SHOWN[key]], max(0, len(rows) - SHOWN[key]), []))
-    return found
+    return [(key, rows, 0) for key, rows in (("did", did), ("lived", lived), ("learned", learned)) if rows]
 
 
-def _kind_items(stats: Stats) -> list[str]:
-    return [counted(kind, n) for kind, n in stats.kinds()]
+def _row_lines(d: ImageDraw.ImageDraw, f: _Fonts, text: str, note: str) -> list[str]:
+    """The lines of one row: its text, wrapped beside its note, in two lines at most."""
+    room = WIDTH - 2 * MARGIN - LABEL - (int(d.textlength(note, font=f.small)) + 28 if note else 0)
+    return _cut(d, text, f.text, room, 2)
+
+
+def _fit(d: ImageDraw.ImageDraw, f: _Fonts, sections: list, excess: int) -> list:
+    """Hides rows until the image is `excess` pixels shorter: each time, the last row of the longest section. A
+    section keeps LEAST rows at least. A section with hidden rows ends with "+N more", which takes one line."""
+    rows = {key: list(found) for key, found, _ in sections}
+    hidden = dict.fromkeys(rows, 0)
+    while excess > 0:
+        key = max(rows, key=lambda k: len(rows[k]))
+        if len(rows[key]) <= LEAST:
+            break
+        text, note = rows[key].pop()
+        excess -= len(_row_lines(d, f, text, note)) * STEP - (0 if hidden[key] else STEP)
+        hidden[key] += 1
+    return [(key, rows[key], hidden[key]) for key in rows]
 
 
 def _cut(d: ImageDraw.ImageDraw, text: str, face, width: int, most: int) -> list[str]:
@@ -706,20 +714,13 @@ def _numbers(d: ImageDraw.ImageDraw, f: _Fonts, stats: Stats, y: int) -> int:
     return y + GAP + 30
 
 
-def _section(d: ImageDraw.ImageDraw, f: _Fonts, key: str, rows: list, hidden: int, items: list[str], y: int) -> int:
-    """One section: the label at the left and, at the right, its rows, each with a note at the right edge, or its
-    short items on shared lines."""
+def _section(d: ImageDraw.ImageDraw, f: _Fonts, key: str, rows: list, hidden: int, y: int) -> int:
+    """One section: the label at the left and, at the right, its rows, each with a note at the right edge."""
     x = MARGIN + LABEL
     base = y + 36
     d.text((MARGIN, base), i18n.t(f"retro.{key}"), font=f.label, fill=FAINT, anchor="ls")
-    if items:
-        packed, hidden = _pack(d, [clean(item) for item in items], f.text, WIDTH - MARGIN - x, 3)
-        for line in packed:
-            d.text((x, base), line, font=f.text, fill=INK, anchor="ls")
-            base += STEP
     for text, note in rows:
-        room = WIDTH - MARGIN - x - (int(d.textlength(note, font=f.small)) + 28 if note else 0)
-        pieces = _cut(d, text, f.text, room, 2)
+        pieces = _row_lines(d, f, text, note)
         for j, piece in enumerate(pieces):
             d.text((x, base + j * STEP), piece, font=f.text, fill=INK, anchor="ls")
         if note:
@@ -756,17 +757,27 @@ def _pattern(d: ImageDraw.ImageDraw, f: _Fonts, stats: Stats, y: int) -> int:
     return y
 
 
-def draw(stats: Stats) -> Image.Image:
-    """The week in one image, in the style of the week image: header, the big line, the sections, the pattern."""
-    f = _Fonts()
+def _draw(f: _Fonts, stats: Stats, sections: list) -> tuple[Image.Image, ImageDraw.ImageDraw, int]:
+    """Draws the image on a canvas of MAX_HEIGHT. Returns it with the height that its content needs."""
     img = Image.new("RGB", (WIDTH, MAX_HEIGHT), PAPER)
     d = ImageDraw.Draw(img)
     y = _numbers(d, f, stats, _header(d, f, stats))
-    for key, rows, hidden, items in _rows(stats):
-        y = _section(d, f, key, rows, hidden, items, y)
+    for key, rows, hidden in sections:
+        y = _section(d, f, key, rows, hidden, y)
     y = _pattern(d, f, stats, y) + 40
     d.text((WIDTH - MARGIN, y + 30), "seahorse", font=f.small, fill=MUTED, anchor="rs")
-    return img.crop((0, 0, WIDTH, min(y + 30 + MARGIN, MAX_HEIGHT)))
+    return img, d, y + 30 + MARGIN
+
+
+def draw(stats: Stats) -> Image.Image:
+    """The week in one image, in the style of the week image: header, the big line, the sections, the pattern.
+    Every row shows while the image is FIT tall or less. A taller week hides rows of its longest sections."""
+    f = _Fonts()
+    sections = _rows(stats)
+    img, d, height = _draw(f, stats, sections)
+    if height > FIT:
+        img, _, height = _draw(f, stats, _fit(d, f, sections, height - FIT))
+    return img.crop((0, 0, WIDTH, min(height, MAX_HEIGHT)))
 
 
 def png(stats: Stats) -> bytes:
@@ -872,17 +883,12 @@ def send_held() -> str | None:
     return f"retrospective of week {held.get('week')}" if sent else None
 
 
-def last_week(today: date) -> date:
-    """The Monday of the last week that ended. After the image of this week went out, on its Sunday, this week."""
-    this = monday_of(today)
-    return this if remembered(vault.week_name(this)).get("sent") else this - timedelta(days=7)
-
-
-def on_demand(today: date | None = None) -> tuple[bytes, str] | None:
-    """For `/retro`: the image of the last week that ended, with numbers counted again and the two lines kept from
-    its Sunday. No model call. None when the week had no task and no capture."""
+def on_demand(today: date | None = None, previous: bool = False) -> tuple[bytes, str] | None:
+    """For `/retro`: the image of this week as it is today, or of the week before with `previous`. The numbers are
+    counted again, and the two lines kept from its Sunday come back. No model call. None when the week has
+    nothing to show."""
     today = today or now().date()
-    stats = compute(last_week(today), today)
+    stats = compute(monday_of(today) - timedelta(days=7 if previous else 0), today)
     if stats.empty:
         return None
     kept = remembered(stats.name)

@@ -2,6 +2,14 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.3.2
+
+- `/retro` shows this week, as it is today. Send `retro last week` (or `/retro last week`) to see the week before.
+- The image of your week shows every task, experience and note while it fits one phone screen. Only a very full week shows "+N more".
+- "Did" lists every task that you finished, not only the 3 longest.
+- "Lived" no longer shows the number of journal days.
+- "Learned" shows only notes of knowledge: a project or the main note of a subject is not something you learned.
+
 ## 1.3.1
 
 - Your week shows only what the week lived. A movie, a book or a trip counts in a week only when it happened in that week, not when Seahorse filed it. A favorite movie from years ago no longer shows as this week.
