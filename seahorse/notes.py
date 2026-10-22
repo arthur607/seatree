@@ -5,7 +5,12 @@ from pathlib import Path
 
 def read(path: Path) -> tuple[dict, str]:
     """The frontmatter as a dict and the body. Lists written inline, `[a, b]`, become Python lists."""
-    text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    return parse(path.read_text(encoding="utf-8"))
+
+
+def parse(text: str) -> tuple[dict, str]:
+    """The same as `read`, for a text that is not a file, such as an older version from git."""
+    text = text.replace("\r\n", "\n")
     if not text.startswith("---\n"):
         return {}, text
     end = text.find("\n---", 4)

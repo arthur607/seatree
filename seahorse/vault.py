@@ -204,3 +204,16 @@ def create(today: date) -> list[str]:
     if not (config.VAULT / ".git").exists():
         git("init", "-q", "-b", "main")
     return created
+
+
+def created_by_user(path: str) -> bool:
+    """True when the user made this note: its first commit, before any rename, is not an agent's."""
+    result = git("-c", "core.quotepath=off", "log", "--follow", "--diff-filter=A", "--format=%an", "--", path, check=False)
+    authors = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return not authors or authors[-1] not in AGENT_AUTHORS
+
+
+def text_at(commit: str, path: str) -> str | None:
+    """The text of a note at one commit. None when the note did not exist then."""
+    result = git("show", f"{commit}:{path}", check=False)
+    return result.stdout if result.returncode == 0 else None

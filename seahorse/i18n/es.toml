@@ -53,6 +53,35 @@ update_failed = "La actualización falló: {detail}"
 up_to_date = "Seahorse está actualizado ({version})."
 first_message = "✓ Seahorse está conectado. Envíame lo que sea: una idea, una tarea, una película que quieres ver. Texto o audio."
 
+[saved]
+photo = "✓ Foto guardada"
+file = "✓ Archivo guardado"
+video = "✓ Video guardado"
+location = "✓ Ubicación guardada"
+contact = "✓ Contacto guardado"
+
+[result]
+filed = "Guardado en tus notas"
+nothing = "Nada nuevo que guardar"
+unclear = "¿Qué hago con esto?"
+gave_up = "No pude guardar esto después de {tries} intentos. Está a salvo. Responde a este mensaje y lo intento de nuevo."
+
+[agent]
+integrator = "El Integrador"
+notes = "El lector de notas"
+morning = "El resumen de la mañana"
+reviewer = "El Revisor"
+planner = "El Planificador"
+observer = "El Observador"
+
+[alert]
+failed = "⚠️ {agent} falló. {next}\nEl comando `seahorse doctor` revisa la instalación.\nDetalle: {detail}"
+next_integrator = "Tus capturas están a salvo. Lo intento de nuevo en 15 minutos."
+next_notes = "Tus notas están a salvo. Lo intento de nuevo en 5 minutos."
+next_other = "Vuelve a ejecutarse a su hora de siempre."
+gave_up = "⚠️ No pude guardar {count} captura(s) después de {tries} intentos. Están a salvo. El resumen de la mañana te pregunta por ellas."
+notes_gave_up = "⚠️ No pude leer estas notas después de {tries} intentos: {notes}. Están a salvo. Edita la nota otra vez y la leo de nuevo."
+
 [reminder]
 due = "Vence {when}, {date}"
 today = "hoy"
