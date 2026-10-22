@@ -54,6 +54,7 @@ inspires: ["[[Side Project]]"]
 | `estimate` | tasks | time it takes, such as `30m` or `2h`. A `?` at the end means the agent guessed |
 | `due` | tasks with a fixed date | `2026-01-15` |
 | `planned` | tasks | the day {{user}} chose to do it, such as `2026-01-15`. It is not a deadline. Code puts the task on that day |
+| `when` | experiences | the day it happened, `YYYY-MM-DD`. `YYYY-MM` when only the month is known. Empty when it happened long ago or the date is not known |
 | `repeat` | tasks that repeat | a value from the block above |
 | `last_done` | tasks that repeat | when the last occurrence was done. Set by code |
 | `postponed` | tasks | how many times a task with no due date left a week unfinished. Set by code only. At three, the Planner asks about it |

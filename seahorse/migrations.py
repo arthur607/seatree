@@ -475,3 +475,28 @@ def _to_1_3_0_people() -> None:
 
 
 MIGRATIONS.append(("1.3.0", _to_1_3_0_people))
+
+# 1.3.1: an experience gets the day it happened. The template filled `when` with the month of the day the note was
+# made, so a favorite movie seen years ago looked like something of this month.
+EXPERIENCE_TEMPLATE = "_Templates/Experience.md"
+WHEN_ROW = ("| `when` | experiences | the day it happened, `YYYY-MM-DD`. `YYYY-MM` when only the month is known. Empty "
+            "when it happened long ago or the date is not known |")
+
+
+def _to_1_3_1() -> None:
+    """The Experience template leaves `when` empty, and the vocabulary says what goes in it. Only Seahorse's own
+    files change, never an experience note."""
+    path = config.SYSTEM / EXPERIENCE_TEMPLATE
+    if path.exists():
+        text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        if "\nwhen: {{YYYY-MM}}\n" in text:
+            path.write_bytes(text.replace("\nwhen: {{YYYY-MM}}\n", "\nwhen:\n", 1).encode("utf-8"))
+    path = config.SYSTEM / "_Vocabulary.md"
+    if path.exists():
+        text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        new = _table_rows(text, "`planned`", "## Common fields", [WHEN_ROW])  # after `planned`: the 1.3.0 step keeps `due` and `planned` together
+        if new != text:
+            path.write_bytes(new.encode("utf-8"))
+
+
+MIGRATIONS.append(("1.3.1", _to_1_3_1))

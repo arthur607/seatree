@@ -1,7 +1,7 @@
 ---
 type: experience
 done: true
-when: {{YYYY-MM}}
+when:
 source: []
 ---
 ## What I thought

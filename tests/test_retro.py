@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 from PIL import Image, ImageDraw
 
-from seahorse import agents, bot, config, i18n, llm, messenger, notes, retro, telegram_api, vault, week, week_image
+from seahorse import agents, bot, config, i18n, llm, messenger, migrations, notes, retro, telegram_api, vault, week, week_image
 
 TZ = config.TIMEZONE
 MONDAY, SUNDAY = date(2026, 10, 5), date(2026, 10, 11)  # week 41
@@ -106,7 +106,7 @@ class TestCounting(RetroBase):
         vault.new_engram("after", "telegram-voice", at(12, 0, 1))
         stats = retro.compute(MONDAY, SUNDAY)
         self.assertEqual(dict(stats.kinds()), {"text": 2, "voice": 1, "photo": 1, "claude": 1})
-        self.assertFalse(stats.empty)
+        self.assertTrue(stats.empty)  # captures alone say little about the week: no image
 
     def test_notes_made_and_changed_in_each_area_from_git(self):
         self.git_vault()
@@ -120,7 +120,12 @@ class TestCounting(RetroBase):
         # a note moved between subjects, two journal days and a trip.
         (config.VAULT / f"{EXPERIENCES}/Movies").mkdir(parents=True)
         vault.git("mv", "--", "1. 🎯 Intention/Wishlist/Movies/Dune.md", f"{EXPERIENCES}/Movies/Dune.md")
-        note(f"{EXPERIENCES}/Series/The Bear.md", "---\ntype: experience\ndone: true\n---\n")
+        note(f"{EXPERIENCES}/Movies/Dune.md", "---\ntype: experience\ndone: true\nwhen: 2026-10-06\n---\n")
+        note(f"{EXPERIENCES}/Series/The Bear.md", "---\ntype: experience\ndone: true\nwhen: 2026-10-08\n---\n")
+        # filed this week, but seen long ago, or only with a month: not something this week lived
+        note(f"{EXPERIENCES}/Movies/The Others.md", "---\ntype: experience\ndone: true\nsource: [\"[[2026-10-06 1917]]\"]\n---\n")
+        note(f"{EXPERIENCES}/Movies/Alien.md", "---\ntype: experience\ndone: true\nwhen: 2026-10\n---\n")
+        note(f"{KNOWLEDGE}/Rust/Split.md", "---\ntype: knowledge\nsource: [\"[[2026-09-01 1000]]\"]\n---\nOld captures.\n")
         note(f"{PEOPLE}/Ana.md", "---\ntype: entity\n---\n## Appearances\n- 2026-09-01 · [[x]] · met\n- 2026-10-07 · [[y]] · lunch\n")
         note(f"{PEOPLE}/João.md", "---\ntype: entity\n---\n## Current\nA friend from work.\n## Stories\n- The trip.\n")
         note(f"{PEOPLE}/Marta.md", "---\ntype: entity\n---\nSee [[New]].\n")
@@ -130,7 +135,8 @@ class TestCounting(RetroBase):
         vault.git("mv", "--", f"{KNOWLEDGE}/Misc/Loose.md", f"{KNOWLEDGE}/Rust/Loose.md")
         for day in ("2026-10-06", "2026-10-07"):
             note(f"2. 📓 Memory/Journal/{day}.md", "---\ntype: journal\n---\nA day.\n")
-        note("2. 📓 Memory/Trips/Lisbon.md", "---\ntype: trip\n---\nThe plan.\n")
+        note("2. 📓 Memory/Trips/Lisbon.md", "---\ntype: trip\nstart: 2026-10-09\nend: 2026-10-13\n---\nThe plan.\n")
+        note("2. 📓 Memory/Trips/Rome.md", "---\ntype: trip\nstart: 2027-05-01\nend: 2027-05-09\n---\nA dream.\n")
         commit(at(7))
         note(f"{KNOWLEDGE}/Rust/Later.md", "---\ntype: knowledge\n---\nNext week.\n")
         note(f"{PEOPLE}/Late.md", "---\ntype: entity\n---\nNext week.\n")
@@ -170,8 +176,9 @@ class TestCounting(RetroBase):
         note(f"{PEOPLE}/Bia.md", "---\ntype: entity\n---\n## Appearances\n- 2026-09-01 · [[x]] · met\n")
         note(f"{KNOWLEDGE}/Rust/Ownership.md", "---\ntype: knowledge\ncreated: 2026-10-06\n---\nOne owner.\n")
         note(f"{KNOWLEDGE}/Rust/Old.md", "---\ntype: knowledge\n---\nNo date.\n")
-        note(f"{EXPERIENCES}/Movies/Dune.md", "---\ntype: experience\ndone: true\n---\n")
-        for path, day in ((f"{KNOWLEDGE}/Rust/Old.md", at(1, month=9)), (f"{EXPERIENCES}/Movies/Dune.md", at(8))):
+        note(f"{EXPERIENCES}/Movies/Dune.md", "---\ntype: experience\ndone: true\nwhen: 2026-10-08\n---\n")
+        note(f"{EXPERIENCES}/Movies/Old favorite.md", "---\ntype: experience\ndone: true\n---\n")
+        for path, day in ((f"{KNOWLEDGE}/Rust/Old.md", at(1, month=9)), (f"{EXPERIENCES}/Movies/Old favorite.md", at(8))):
             os.utime(config.VAULT / path, (day.timestamp(), day.timestamp()))
         stats = retro.compute(MONDAY, date(2026, 10, 13))
         self.assertEqual((stats.people, stats.learned, stats.experiences), (["Ana"], ["Ownership"], [("Movies", "Dune")]))
@@ -202,8 +209,10 @@ class TestImage(RetroBase):
         self.assertEqual(image.size[0], week_image.WIDTH)
         self.assertLessEqual(image.size[1], retro.MAX_HEIGHT)
         self.assertTrue(all(week_image._has_glyph(c) for text in texts for c in text), texts)
-        for label in ("did", "lived", "people", "captured", "pattern"):
+        for label in ("did", "lived", "pattern"):
             self.assertIn(i18n.t(f"retro.{label}"), texts)
+        for label in ("people", "captured"):
+            self.assertNotIn(i18n.t(f"retro.{label}"), texts)  # alone, they say little about the week
         self.assertNotIn(i18n.t("retro.learned"), texts)  # an empty section is left out
         self.assertIn("(7h)", texts)  # a work task shows its time in parentheses
 
@@ -213,7 +222,7 @@ class TestImage(RetroBase):
         image = Image.open(io.BytesIO(retro.png(small)))
         self.assertLess(image.size[1], 800)
         self.assertEqual([t for t in texts if t in {i18n.t(f"retro.{k}") for k in ("did", "lived", "learned", "pattern")}], [])
-        self.assertIn("1", texts)  # with no task, the number of captures is the big line
+        self.assertNotIn(i18n.t("retro.captured"), texts)  # with no task there is no big line
 
     def test_a_huge_week_stays_inside_the_limits(self):
         texts = self.drawn()
@@ -227,7 +236,7 @@ class TestImage(RetroBase):
         image = Image.open(io.BytesIO(retro.png(stats)))
         self.assertLessEqual(image.size[1], retro.MAX_HEIGHT)
         self.assertLessEqual(sum(image.size), 10000)  # Telegram's limit for a photo
-        self.assertIn(i18n.t("image.more", n=34), texts)  # the lived section: 30 + 9 + journal, 6 shown
+        self.assertIn(i18n.t("image.more", n=30), texts)  # the lived section: 30 + 9 + journal, 10 shown
         self.assertTrue(any(t.endswith("…") for t in texts))
 
     def test_texts_in_the_language_of_the_user(self):
@@ -424,3 +433,33 @@ class TestOnDemand(RetroBase):
         remove(config.ENGRAMS)
         asyncio.run(bot.on_retro(update, None))
         self.assertEqual(replies[-1], ("text", i18n.t("retro.nothing")))
+
+
+class TestMigration(Base):
+    """1.3.1: the Experience template stops writing the month of today into `when`."""
+    NAMES = ("_Templates/Experience.md", "_Vocabulary.md")
+
+    def read(self, name: str) -> str:
+        return (config.SYSTEM / name).read_text(encoding="utf-8")
+
+    def test_an_old_vault_gets_the_empty_date_and_the_row_and_its_notes_stay(self):
+        vault.create(self.today)
+        fresh = {name: self.read(name) for name in self.NAMES}
+        template = config.SYSTEM / "_Templates/Experience.md"
+        template.write_bytes(fresh["_Templates/Experience.md"].replace("when:\n", "when: {{YYYY-MM}}\n").replace("\n", "\r\n").encode("utf-8"))
+        words = config.SYSTEM / "_Vocabulary.md"
+        words.write_text(fresh["_Vocabulary.md"].replace(migrations.WHEN_ROW + "\n", ""), encoding="utf-8")
+        movie = config.VAULT / EXPERIENCES / "Movies/The Others.md"
+        write(movie, "---\ntype: experience\ndone: true\nwhen: 2026-10\n---\n")
+        for _ in range(2):  # a second run changes nothing
+            migrations._to_1_3_1()
+            self.assertEqual({name: self.read(name) for name in self.NAMES}, fresh)
+        self.assertIn("\nwhen: 2026-10\n", movie.read_text(encoding="utf-8"))  # an experience note is the user's
+
+    def test_a_new_vault_needs_no_migration(self):
+        vault.create(self.today)
+        before = {name: self.read(name) for name in self.NAMES}
+        migrations._to_1_3_1()
+        self.assertEqual({name: self.read(name) for name in self.NAMES}, before)
+        self.assertIn("\nwhen:\n", before["_Templates/Experience.md"])
+        self.assertIn(migrations.WHEN_ROW, before["_Vocabulary.md"])

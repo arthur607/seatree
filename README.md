@@ -22,7 +22,7 @@ Seahorse is that kind of second brain. It is an agent that learns who you are, c
 - **It talks to you first.** It asks about your day, tells you about new releases that you would like, and reminds you of real deadlines.
 - **It remembers people.** It keeps the stories of the people in your life. It brings them back before a birthday, before you meet someone, and when someone important has been quiet for too long.
 - **It helps you start.** Tell it "I have 30 minutes". It picks one task that fits, says why, and later asks if you finished.
-- **It shows you your week.** Every Sunday, one image: what you did, lived and learned, who you met, and one pattern it noticed.
+- **It shows you your week.** Every Sunday, one image: what you did, lived and learned, and one pattern it noticed.
 - **Your notes stay yours.** They are plain Markdown in your own private Git repository.
 
 <p align="center"><img src="assets/telegram.jpg" width="380" alt="Seahorse on Telegram: the morning summary, the week, and a suggestion it found for you"></p>

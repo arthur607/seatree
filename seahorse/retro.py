@@ -97,8 +97,8 @@ class Stats:
 
     @property
     def empty(self) -> bool:
-        """No task and no capture: nothing to show."""
-        return not self.lines and not self.captures
+        """No task, nothing lived and nothing learned: nothing to show."""
+        return not (self.lines or self.experiences or self.trips or self.journal or self.learned)
 
     def top(self, count: int = 3) -> list[tuple[str, int]]:
         """The biggest tasks done, by their time. The sessions of one task on several days add up."""
@@ -319,27 +319,60 @@ def _order(experiences: list[tuple[str, str]]) -> list[tuple[str, str]]:
 
 
 def _from_git(stats: Stats, changes: dict[str, Change]) -> None:
-    """Lived: experiences and trips that are new or grew. People: new, or with new lines, the most new lines
-    first. Learned: notes new in Knowledge. A fix of a link or of a field changes lines but adds none: it does
-    not count."""
+    """People: new, or with new lines, the most new lines first. Learned: notes new in Knowledge, from what came in
+    this week. A fix of a link or of a field changes lines but adds none: it does not count. What the week lived
+    comes from the dates of the notes, not from their changes: see `_lived`."""
     people = []
     for path, change in sorted(changes.items()):
         if not _is_note(path):
             continue
-        name, counts = Path(path).stem, None
-        for folder in (EXPERIENCES, TRIPS, PEOPLE):
-            if path.startswith(folder):
-                counts = _new_in(change, folder) or change.grew > 0
-        if path.startswith(EXPERIENCES) and counts:
-            stats.experiences.append((_kind(path), name))
-        elif path.startswith(TRIPS) and counts:
-            stats.trips.append(name)
-        elif path.startswith(PEOPLE) and counts:
+        name = Path(path).stem
+        if path.startswith(PEOPLE) and (_new_in(change, PEOPLE) or change.grew > 0):
             people.append((-change.grew, name))
-        elif path.startswith(KNOWLEDGE) and _new_in(change, KNOWLEDGE):
+        elif path.startswith(KNOWLEDGE) and _new_in(change, KNOWLEDGE) and _from_this_week(config.VAULT / path, stats.monday):
             stats.learned.append(name)
-    stats.experiences = _order(stats.experiences)
+    _lived(stats)
     stats.people = [name for _, name in sorted(people)]
+
+
+def _happened(path: Path, monday: date) -> bool:
+    """An experience or a trip of the week: the day it happened is in the week. An experience gives that day in
+    `when`, a trip in `start` and `end`. A month alone is not a day, and a note with no date never counts: a
+    favorite movie seen years ago and filed this week is not something that this week lived."""
+    sunday = monday + timedelta(days=6)
+    try:
+        fm = notes.read(path)[0]
+    except (OSError, UnicodeDecodeError):
+        return False
+    start, end = _day(fm.get("start")), _day(fm.get("end"))
+    if start or end:
+        start, end = start or end, end or start
+        return start <= sunday and end >= monday
+    when = _day(fm.get("when"))
+    return bool(when) and monday <= when <= sunday
+
+
+def _day(value) -> date | None:
+    """A full date, `YYYY-MM-DD`. A month alone, such as `2026-10`, gives None."""
+    text = str(value or "").strip()
+    return _date(text) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text) else None
+
+
+def _lived(stats: Stats) -> None:
+    stats.experiences = _order([(_kind(vault.rel(p)), p.stem) for p in _notes_in(EXPERIENCES) if _happened(p, stats.monday)])
+    stats.trips = [p.stem for p in _notes_in(TRIPS) if _happened(p, stats.monday)]
+
+
+def _from_this_week(path: Path, monday: date) -> bool:
+    """A new Knowledge note counts when it came from a capture of this week, or when the user wrote it (no
+    `source`). A note that an agent split or moved from older captures does not."""
+    try:
+        sources = notes.read(path)[0].get("source")
+    except (OSError, UnicodeDecodeError):
+        return False
+    days = [_date(name[:10]) for name in re.findall(r"\[\[([^\]|]+)", str(sources or ""))]
+    days = [day for day in days if day]
+    return not days or any(monday <= day <= monday + timedelta(days=6) for day in days)
 
 
 def _date(value) -> date | None:
@@ -369,8 +402,7 @@ def _notes_in(folder: str) -> list[Path]:
 def _from_files(stats: Stats) -> None:
     """The same parts as `_from_git`, for a vault with no git history."""
     monday = stats.monday
-    stats.experiences = _order([(_kind(vault.rel(p)), p.stem) for p in _notes_in(EXPERIENCES) if _dated(p, monday)])
-    stats.trips = [p.stem for p in _notes_in(TRIPS) if _dated(p, monday)]
+    _lived(stats)
     stats.people = [p.stem for p in _notes_in(PEOPLE) if _dated(p, monday)]
     stats.learned = [p.stem for p in _notes_in(KNOWLEDGE) if _dated(p, monday)]
 
@@ -568,7 +600,7 @@ def write_review(stats: Stats) -> bool:
 WIDTH, MARGIN, LABEL = week_image.WIDTH, 64, 236  # LABEL: the column of the section labels
 STEP, GAP = 50, 34  # the height of a line of text, and the space between two sections
 MAX_HEIGHT = 3000  # far below Telegram's limit: width and height add up to 10000 at most
-SHOWN = {"did": 3, "lived": 6, "learned": 4}  # rows per section, at most; the rest is "+N more"
+SHOWN = {"did": 3, "lived": 10, "learned": 4}  # rows per section, at most; the rest is "+N more"
 
 
 class _Fonts:
@@ -604,7 +636,8 @@ def _pack(d: ImageDraw.ImageDraw, names: list[str], face, width: int, most: int)
 
 def _rows(stats: Stats) -> list[tuple[str, list[tuple[str, str]], int]]:
     """The sections that have something: their label, their rows (text, note at the right), how many rows did not
-    fit, and the short items that share lines, for the people and the captures."""
+    fit, and the short items that share lines. What the week was: done, lived and learned. The people and the
+    number of captures stay out of the image: alone, they say little about the week."""
     work = {line.name for line in stats.lines if line.work}
 
     def time_of(name: str, total: int) -> str:  # a work task shows its time in parentheses, as in the week image
@@ -620,10 +653,6 @@ def _rows(stats: Stats) -> list[tuple[str, list[tuple[str, str]], int]]:
     for key, rows in (("did", did), ("lived", lived), ("learned", learned)):
         if rows:
             found.append((key, rows[:SHOWN[key]], max(0, len(rows) - SHOWN[key]), []))
-    if stats.people:
-        found.append(("people", [], 0, stats.people))
-    if stats.captures and stats.lines:  # with no task, the number of captures is the big line
-        found.append(("captured", [], 0, [str(len(stats.captures)), *_kind_items(stats)]))
     return found
 
 
@@ -654,16 +683,11 @@ def _header(d: ImageDraw.ImageDraw, f: _Fonts, stats: Stats) -> int:
 
 
 def _numbers(d: ImageDraw.ImageDraw, f: _Fonts, stats: Stats, y: int) -> int:
-    """The big line: tasks done of the planned ones, the hours outside work, and a square for each task. With no
-    task, the number of captures."""
+    """The big line: tasks done of the planned ones, the hours outside work, and a square for each task. A week
+    with no task has no big line: the sections tell it."""
     base = y + 96
     if not stats.lines:
-        count = str(len(stats.captures))
-        d.text((MARGIN, base), count, font=f.big, fill=ACCENT, anchor="ls")
-        d.text((MARGIN + d.textlength(count, font=f.big) + 22, base), i18n.t("retro.captured"), font=f.unit,
-               fill=FAINT, anchor="ls")
-        d.text((MARGIN, base + 56), " · ".join(_kind_items(stats)), font=f.small, fill=FAINT, anchor="ls")
-        return base + 56 + GAP + 20
+        return y
     big = f"{stats.done}/{stats.total}"
     d.text((MARGIN, base), big, font=f.big, fill=ACCENT, anchor="ls")
     d.text((MARGIN + d.textlength(big, font=f.big) + 22, base), i18n.t("image.done"), font=f.unit, fill=FAINT,

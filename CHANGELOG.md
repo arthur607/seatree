@@ -2,6 +2,12 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.3.1
+
+- Your week shows only what the week lived. A movie, a book or a trip counts in a week only when it happened in that week, not when Seahorse filed it. A favorite movie from years ago no longer shows as this week.
+- Seahorse writes the day that an experience happened ("last night", "on Saturday"). When you give no date, or it happened long ago, the date stays empty. It never writes the date of today for it.
+- The image of your week is simpler: what you did, lived and learned, and the pattern of the week. "Lived" shows up to 10 items.
+
 ## 1.3.0
 
 New:
