@@ -434,7 +434,36 @@ skip = "⏭ Skip"
 stop = "✋ Stop"
 stopped = "OK, no more questions now. To answer them later, send /intro."
 done = "Done, now I know you a little 🌊 Send me anything: ideas, tasks, what you watched or read. To answer the questions again, send /intro."
-questions = ["What do you do day to day? Work, studies, projects.", "What is a normal day like for you? When do you wake up, work and sleep?", "Who are the most important people in your life now? Give their names and who they are.", "What do you want to do or achieve in the next months?", "Do you have a task or a deadline soon? Give the date, if there is one.", "What do you like to watch, read, play or listen to? Name some favorites."]
+questions = ["What do you do day to day? Work, studies, projects.", "What is a normal day like for you? When do you wake up, work and sleep?", "Who are the most important people in your life now? For example: “Ana, my sister, birthday on 13 November, I want to call her every week.”", "What do you want to do or achieve in the next months?", "Do you have a task or a deadline soon? Give the date, if there is one.", "What do you like to watch, read, play or listen to? Name some favorites."]
+
+[people]
+# Messages about the people of the user: birthdays, encounters of today and friends to call. See people.py.
+gift_button = "🎁 Put the gift in the week"
+sorted_button = "✅ Already sorted"
+sent_button = "✅ Sent"
+week_button = "📅 Put it in the week"
+later_button = "💤 Not now"
+# What a message shows under it after a tap. {day} is such as "Friday, 11/13".
+gift_planned = "🎁 {task}: in the week on {day}"
+call_planned = "📅 {task}: in the week on {day}"
+later_done = "💤 OK. I ask again in {days} days."
+sorted_done = "✅ OK, it is sorted."
+sent_done = "✅ Sent. I recorded that you talked today."
+# The tasks that the buttons make, and the first lines of their notes.
+gift_task = "Buy a gift for {name}"
+gift_body = "The birthday of {person} is on {date}."
+gift_idea = "Idea: {idea}"
+call_task = "Call {name}"
+call_body = "To keep in touch with {person}."
+# The words that make an open task about a person a gift task. Code reads the words of every language.
+gift_words = ["gift", "present"]
+# The text that code writes when the model writes none.
+birthday_soon = "🎂 The birthday of {name} is on {day}."
+birthday_gift = "Gift: {task}."
+birthday_today = "🎂 Today is the birthday of {name}."
+suggestion = "✉️ A message for {name}. Tap it to copy it:"
+reconnect = "It is {days} days since you last talked to {name}. Do you want to call on {day}?"
+reconnect_new = "You want to keep in touch with {name}. Do you want to call on {day}?"
 
 [delivery]
 # Under a delivery: where its note is saved, such as "Knowledge › Misc › Card prices".

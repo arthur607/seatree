@@ -81,4 +81,7 @@ inspires: ["[[Side Project]]"]
 | `imported_from` | notes brought from the old systems of {{user}} | where it came from |
 | `original_date` | imported notes | when {{user}} wrote it. Its facts were true then, not necessarily now |
 | `relationship` | people in Memory/People | how the person relates to {{user}}, in the words of {{user}} |
+| `birthday` | people in Memory/People | `YYYY-MM-DD`, or `--MM-DD` when the year is unknown. Code sends a message a week before and on the day |
+| `keep_in_touch` | people in Memory/People | how often {{user}} wants to talk to the person: `weekly`, `monthly`, `quarterly`, or a number of days such as `30d`. Only when {{user}} says so |
+| `last_contact` | people in Memory/People | `YYYY-MM-DD`, the last day {{user}} talked to or met the person, from what {{user}} says. Code also writes it when a call task is done |
 | `genre`, `platform`, `author`, `imdb`, `released`, `category`, `city`, `kind` | wishes, experiences, knowledge | free text about the item |

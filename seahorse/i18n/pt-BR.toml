@@ -427,7 +427,31 @@ skip = "⏭ Pular"
 stop = "✋ Parar"
 stopped = "Certo, sem mais perguntas agora. Para responder depois, mande /intro."
 done = "Pronto, já te conheço um pouco 🌊 Agora é só me mandar o que quiser: ideias, tarefas, o que você viu ou leu. Para refazer as perguntas, mande /intro."
-questions = ["O que você faz no dia a dia? Trabalho, estudo, projetos.", "Como é um dia normal seu? Que horas acorda, trabalha e dorme?", "Quem são as pessoas mais importantes para você hoje? Diga o nome e quem é cada uma.", "O que você quer fazer ou conquistar nos próximos meses?", "Tem alguma tarefa ou prazo chegando? Diga a data, se tiver.", "Do que você gosta de assistir, ler, jogar ou ouvir? Cite alguns favoritos."]
+questions = ["O que você faz no dia a dia? Trabalho, estudo, projetos.", "Como é um dia normal seu? Que horas acorda, trabalha e dorme?", "Quem são as pessoas mais importantes para você hoje? Por exemplo: “Ana, minha irmã, faz aniversário em 13 de novembro, quero ligar para ela toda semana.”", "O que você quer fazer ou conquistar nos próximos meses?", "Tem alguma tarefa ou prazo chegando? Diga a data, se tiver.", "Do que você gosta de assistir, ler, jogar ou ouvir? Cite alguns favoritos."]
+
+[people]
+gift_button = "🎁 Colocar o presente na semana"
+sorted_button = "✅ Já resolvi"
+sent_button = "✅ Enviei"
+week_button = "📅 Colocar na semana"
+later_button = "💤 Agora não"
+gift_planned = "🎁 {task}: na semana, {day}"
+call_planned = "📅 {task}: na semana, {day}"
+later_done = "💤 Certo. Pergunto de novo em {days} dias."
+sorted_done = "✅ Certo, já está resolvido."
+sent_done = "✅ Enviado. Anotei que vocês se falaram hoje."
+gift_task = "Comprar presente para {name}"
+gift_body = "O aniversário de {person} é {date}."
+gift_idea = "Ideia: {idea}"
+call_task = "Ligar para {name}"
+call_body = "Para manter contato com {person}."
+gift_words = ["presente", "lembrança"]
+birthday_soon = "🎂 O aniversário de {name} é {day}."
+birthday_gift = "Presente: {task}."
+birthday_today = "🎂 Hoje é o aniversário de {name}."
+suggestion = "✉️ Uma mensagem para {name}. Toque nela para copiar:"
+reconnect = "Faz {days} dias que você não fala com {name}. Quer ligar {day}?"
+reconnect_new = "Você quer manter contato com {name}. Quer ligar {day}?"
 
 [delivery]
 saved_in = "📁 {path}"

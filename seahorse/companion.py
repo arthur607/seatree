@@ -36,8 +36,9 @@ STUCK_AFTER = 3
 UNBLOCK_WAIT = (7, 14, 30)
 # Days to wait when the model had nothing good to say about the stuck tasks, so other kinds get their turn.
 UNBLOCK_PAUSE = 7
-# Kinds that code chooses for a turn of their own. The model writes the text; the kind stays.
-FORCED = {"checkin", "unblock"}
+# Kinds that code chooses for a turn of their own. The model writes the text; the kind stays. The messages about
+# people (people.py) have turns of their own too: the Companion never sends one of those kinds.
+FORCED = {"checkin", "unblock"} | messenger.PEOPLE
 # Kinds that bring facts from outside: they must name the web pages that confirm them.
 NEEDS_SOURCES = {"release", "news", "curiosity"}
 # Kinds that never get a button: the user answers with a reply, by text or voice.

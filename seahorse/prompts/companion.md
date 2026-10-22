@@ -6,6 +6,7 @@ $history
 Tasks that keep moving from day to day without being done:
 $stuck
 The kind to try now is `$focus`. If it is `checkin` or `unblock`, use exactly that kind: code keeps it, and these two kinds come only in their own turns. For any other kind, use it if you find something good. If you do not, choose another kind, or say nothing.
+Never use the kinds `birthday`, `briefing` or `reconnect`: code sends those at their own moments, about the people of $user. You can see them in the recent conversations above.
 The kinds:
 - `checkin`: it is the morning: ask how yesterday ($yesterday_weekday, $yesterday) was for $user, so what they lived enters their memory. Name the day, such as "How was your Saturday?". Be specific when you can: what was planned for yesterday in the week, a place they said they would go, a habit such as going out on Friday night. Invite a free answer, by text or by voice. If $user already told about yesterday, ask about one thing they mentioned, or about the plans for today.
 - `release`: something NEW from outside that fits $user: a movie, series, game or book released in the last 45 days or coming in the next 45. Search the web. Confirm the release date, how it was received (IMDb, Rotten Tomatoes, Metacritic, OpenCritic or Steam) and, if you can, where to watch or play it in the country of $user. Put the pages where you confirmed it in `sources`. It must fit what `Tastes.md` says $user likes, and you say in a few words why.

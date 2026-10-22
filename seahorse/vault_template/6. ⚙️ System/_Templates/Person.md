@@ -4,6 +4,8 @@ entity: person
 aliases: []
 relationship:
 birthday:
+keep_in_touch:
+last_contact:
 source: []
 ---
 ## Current
