@@ -515,10 +515,11 @@ def location(note: Path) -> str:
 
 
 def obsidian_link(note: Path) -> str:
-    """The web link of the "Open in Obsidian" button. The page opens obsidian://open with the same vault and file."""
+    """The web link of the "Open in Obsidian" button. The page opens obsidian://open with the same vault and file.
+    They go after "#": a browser does not send that part to the server, so the path of the note stays private."""
     name = getattr(config, "OBSIDIAN_VAULT", None) or config.VAULT.name
     file = note.relative_to(config.VAULT).with_suffix("").as_posix()
-    return f"{OPEN_PAGE}?{urlencode({'vault': name, 'file': file}, quote_via=quote)}"
+    return f"{OPEN_PAGE}#{urlencode({'vault': name, 'file': file}, quote_via=quote)}"
 
 
 def delivery_html(summary: str, note: Path | None) -> str:

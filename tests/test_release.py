@@ -204,3 +204,12 @@ class TestVaultMerge(SyncBase):
         self.assertEqual(notes.read(note)[0]["done"], "true")
         self.assertEqual(git(config.VAULT, "log", "-1", "--format=%an", "--", vault.rel(note)), "Seahorse")
         self.in_step()
+
+
+class TestOpenLink(Base):
+    def test_the_note_path_goes_after_the_hash(self):
+        from urllib.parse import parse_qs, urlparse
+        from seahorse import messenger
+        note = config.VAULT / "3. 📚 Knowledge" / "My idea.md"
+        link = urlparse(messenger.obsidian_link(note))
+        self.assertEqual((link.query, parse_qs(link.fragment)["file"]), ("", ["3. 📚 Knowledge/My idea"]))
