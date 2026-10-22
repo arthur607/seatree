@@ -1,12 +1,20 @@
 """Vault changes between versions. Each step runs once, when a vault goes past its version.
 
 A step changes only what Seahorse owns (system files, the structure, frontmatter fields), never the text of the
-user's notes. Add steps at the end, oldest first:
+user's notes. Add steps at the end, oldest first. One version can have more than one step:
 
-    def _to_1_1_0() -> None:
+    def _to_1_3_0_week() -> None:
         ...
 
-    MIGRATIONS = [("1.1.0", _to_1_1_0)]
+    MIGRATIONS = [..., ("1.3.0", _to_1_3_0_week)]
+
+How they run (updates.migrate_vault):
+- A step runs when the vault's version (6. ⚙️ System/.seahorse-version) is older than the step's version, and the
+  step's version is not newer than the code. A new vault gets the version of the code that made it, so no step
+  runs on it.
+- The steps of one version run in the order of this list. The vault's version moves on only after all of them
+  worked: a step that fails runs again at the next update, so each step must be safe to run twice.
+- The template files that are new in a version are added before the steps. A step does not need to add them.
 """
 from . import config
 
