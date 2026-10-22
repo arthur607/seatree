@@ -2,8 +2,9 @@
 
 Every Sunday, before the plan of the next week, Seahorse sends one image about the week that ends: what the user
 did, lived and learned, who came up, what they sent, one pattern it saw, and what it changes because of it.
-- Code counts everything: the task lines of the week file, the engrams received, and the notes of Memory and
-  Knowledge that git saw made or changed. Without git, the dates in the notes, or the dates of the files.
+- Code counts everything: the task lines of the week file (with git, also the ones of the plan that left the week),
+  the engrams received, and the notes of Memory and Knowledge that git saw made or changed. Without git, the dates
+  in the notes, or the dates of the files.
 - One model call writes the pattern and the change, from those numbers. It runs without the vault lock and with a
   short timeout. When it fails, the image goes without these two lines.
 - The two lines stay in a state file: `/retro` draws the image again with new numbers and no new model call.
@@ -164,22 +165,51 @@ def _week_text(monday: date, over: bool) -> str | None:
     return path.read_text(encoding="utf-8") if path.exists() else None
 
 
+def _plan_text(monday: date) -> str | None:
+    """The week file as it was before its Monday: the plan. None with no git, or when the file came later."""
+    if not _has_git():
+        return None
+    commit = _commit_before(monday)
+    return vault.text_at(commit, vault.rel(week.path_for(monday))) if commit else None
+
+
 def _task_lines(monday: date, over: bool) -> list[Planned]:
+    """The task lines of the week file, and the task lines of the plan that left the week (see `_left`)."""
     text = _week_text(monday, over)
     w = week.parse(text, week.path_for(monday), monday) if text else None
-    if not w:
-        return []
     work = tasks.work_tasks()
     by_name = {t.name: t for t in tasks.all_tasks()}
     found = []
-    for day in w.days:
+    for day in w.days if w else []:
+        for item in day.items:
+            found.append(_planned(item, day.date, by_name.get(item.name), over, work))
+    return found + _left(monday, found, over, by_name, work)
+
+
+def _planned(item: week.Item, day: date, note: tasks.Task | None, over: bool, work: set[str]) -> Planned:
+    # While the week runs, a task checked in its table counts too: `tasks.sync` checks its line soon.
+    done = item.done or (not over and bool(note and note.done))
+    return Planned(item.name, day, item.minutes, done, item.name in work,
+                   note.count("moved") if note else 0, note.count("postponed") if note else 0)
+
+
+def _left(monday: date, found: list[Planned], over: bool, by_name: dict, work: set[str]) -> list[Planned]:
+    """The task lines of the plan that are no longer in the week file: code takes out an open line when no day
+    of the week has room for it. They count as planned and not done. A task that only moved inside the week
+    is in the week file still, so it counts once. A line with no task note, or of a cancelled task, is left out.
+    Without git there is no plan to compare: nothing more."""
+    text = _plan_text(monday)
+    plan = week.parse(text, week.path_for(monday), monday) if text else None
+    still = Counter(line.name for line in found)
+    left = []
+    for day in plan.days if plan else []:
         for item in day.items:
             note = by_name.get(item.name)
-            # While the week runs, a task checked in its table counts too: `tasks.sync` checks its line soon.
-            done = item.done or (not over and bool(note and note.done))
-            found.append(Planned(item.name, day.date, item.minutes, done, item.name in work,
-                                 note.count("moved") if note else 0, note.count("postponed") if note else 0))
-    return found
+            if still[item.name]:
+                still[item.name] -= 1
+            elif note and str(note.fm.get("status", "")).strip().lower() != "cancelled":
+                left.append(_planned(item, day.date, note, over, work))
+    return left
 
 
 def _received(fm: dict, path: Path) -> datetime | None:

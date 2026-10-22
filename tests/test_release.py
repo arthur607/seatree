@@ -466,3 +466,42 @@ class TestNowDone(NowBase):
         self.assertIn("> - [x] [[Write the report]] (1h)", path.read_text(encoding="utf-8"))
         self.assertEqual(path.read_text(encoding="utf-8").count("- [ ] [[Write the report]]"), 2)
         self.assertEqual((notes.read(note)[0]["done"], self.state()["follow_ups"][fid]["status"]), ("false", "done"))
+
+
+from test_retro import RetroBase, commit  # noqa: E402
+
+
+class TestRetroPlan(RetroBase):
+    """Tasks that code took out of the week, when no day had room, still count as planned and not done."""
+
+    def plan(self) -> None:
+        for i in range(8):
+            notes.set_field(task(f"Task {i}"), "estimate", "2h")
+        cards = {"Mon": (0, 1), "Tue": (2, 3), "Wed": (4, 5), "Thu": (6, 7)}
+        path = self.week_file(**{day: "".join(f"\n> - [ ] [[Task {i}]] (2h)" for i in pair)
+                                 for day, pair in cards.items()})
+        self.git_vault()
+        commit(datetime(2026, 10, 4, 20, 0, tzinfo=TZ))  # the Planner on Sunday evening
+        text = path.read_text(encoding="utf-8")
+        write(path, text.replace("- [ ] [[Task 0]]", "- [x] [[Task 0]]").replace("- [ ] [[Task 2]]", "- [x] [[Task 2]]"))
+        for day in range(5, 12):
+            week.reschedule(date(2026, 10, day))  # the Messenger, day after day
+        self.assertLess(path.read_text(encoding="utf-8").count("[[Task "), 8)  # some tasks left the week
+
+    def test_tasks_that_left_the_week_count_as_not_done(self):
+        from seahorse import retro
+        self.plan()
+        stats = retro.compute(retro.monday_of(date(2026, 10, 5)), date(2026, 10, 11))
+        self.assertEqual((stats.done, stats.total), (2, 8))
+        self.assertEqual(sorted(line.name for line in stats.lines), [f"Task {i}" for i in range(8)])
+        commit(datetime(2026, 10, 11, 22, 0, tzinfo=TZ))
+        stats = retro.compute(date(2026, 10, 5), date(2026, 10, 12))  # the week is over: git has its last state
+        self.assertEqual((stats.done, stats.total), (2, 8))
+
+    def test_without_git_the_week_file_alone(self):
+        from seahorse import retro
+        self.plan()
+        remove(config.VAULT / ".git")
+        stats = retro.compute(date(2026, 10, 5), date(2026, 10, 11))
+        self.assertEqual(stats.done, 2)
+        self.assertLess(stats.total, 8)
