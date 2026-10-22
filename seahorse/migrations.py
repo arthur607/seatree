@@ -117,8 +117,8 @@ AGENTS_1_3_0 = {
         ("| `moved` | tasks | how many times it moved to another day because it was not done. Set by code. At three, the Companion asks what is in the way |",
          "| `moved` | tasks | how many times it moved to another day because it was not done. Set by code only. At three, the Companion asks what is in the way |", "", None),
         ("| `confirmation` | Telegram engrams | id of the confirmation message, used by the bot |",
-         "| `confirmation` | Telegram engrams | id of the confirmation message, used by the bot. A question or a capture from a computer has none |\n| `asked` | engrams | `question` when the bot answered the message as a question |\n| `attempts` | engrams | how many Integrator runs failed on it. Set by code. At three, the engram becomes `unclear` |\n| `status` | tasks | `cancelled` when {{user}} cancels the task. It also gets `done: true` and no `repeat` |",
-         "## Common fields", "| `asked` | engrams | `question` when the bot answered the message as a question |\n| `attempts` | engrams | how many Integrator runs failed on it. Set by code. At three, the engram becomes `unclear` |\n| `status` | tasks | `cancelled` when {{user}} cancels the task. It also gets `done: true` and no `repeat` |"),
+         "| `confirmation` | Telegram engrams | id of the confirmation message, used by the bot. A question or a capture from a computer has none |\n| `telegram_id`, `fix_prompt` | Telegram engrams | used by the bot. Agents ignore them and never change them |\n| `asked` | engrams | `question` when the bot answered the message as a question |\n| `attempts` | engrams | how many Integrator runs failed on it. Set by code. At three, the engram becomes `unclear` |\n| `status` | tasks | `cancelled` when {{user}} cancels the task. It also gets `done: true` and no `repeat` |",
+         "## Common fields", "| `telegram_id`, `fix_prompt` | Telegram engrams | used by the bot. Agents ignore them and never change them |\n| `asked` | engrams | `question` when the bot answered the message as a question |\n| `attempts` | engrams | how many Integrator runs failed on it. Set by code. At three, the engram becomes `unclear` |\n| `status` | tasks | `cancelled` when {{user}} cancels the task. It also gets `done: true` and no `repeat` |"),
         ("| `written_by` | notes that {{user}} wrote | `owner`. Set by the Integrator when it reads the note |",
          "| `written_by` | notes that {{user}} made | `owner`. Set by the Integrator when it reads the note. A note that an agent made never gets it, also after {{user}} edits it |", "", None),
     ],
@@ -132,7 +132,6 @@ AGENTS_1_3_0 = {
 VOCAB_1_3_0 = [
     ("channel", ["telegram-photo", "telegram-file", "telegram-video", "telegram-location", "telegram-contact"], "state"),
     ("status.task", ["cancelled"], "status.trait"),
-    ("asked", ["question"], "imported_from"),
 ]
 
 

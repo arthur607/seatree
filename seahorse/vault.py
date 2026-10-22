@@ -91,18 +91,25 @@ def publish(message: str) -> bool:
 
 
 def new_engram(text: str, channel: str, when: datetime, extra: dict | None = None) -> Path:
-    """Saves the raw capture. No lock and no git: it is only a new file, and the Integrator commits it."""
+    """Saves the raw capture. No lock and no git: it is only a new file, and the Integrator commits it.
+    The file is created only if the name is free, so two processes never write the same engram: the second one
+    takes the next number."""
     folder = config.ENGRAMS / when.strftime("%Y-%m")
     folder.mkdir(parents=True, exist_ok=True)
     base = when.strftime("%Y-%m-%d %H%M")
-    path, n = folder / f"{base}.md", 2
-    while path.exists():
-        path, n = folder / f"{base} {n}.md", n + 1
     lines = ["---", "type: engram", f"received: {when:%Y-%m-%d %H:%M}", f"channel: {channel}", "state: pending"]
     for key, value in (extra or {}).items():
         lines.append(f"{key}: {notes.quoted(value)}")
     lines += ["---", notes.without_blank_lines(text)]
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    n = 1
+    while True:
+        path = folder / (f"{base}.md" if n == 1 else f"{base} {n}.md")
+        try:
+            with open(path, "x", encoding="utf-8", newline="\n") as handle:
+                handle.write("\n".join(lines) + "\n")
+            break
+        except FileExistsError:
+            n += 1
     log.info("engram saved: %s", path.name)
     return path
 

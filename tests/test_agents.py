@@ -300,10 +300,23 @@ class TestLint(Base):
         vault.create(self.today)
         note = task("Call the old bank")
         notes.set_field(note, "status", "cancelled")
-        vault.new_engram("![[receipt.jpg]]", "telegram-photo", self.morning, {"asked": "question"})
+        vault.new_engram("![[receipt.jpg]]", "telegram-photo", self.morning,
+                         {"asked": "question", "telegram_id": "4242", "fix_prompt": "[[Other note]] what to fix"})
+        vault.new_engram("🎤 Voice note, not turned into text\n![[Voice 2026-10-05 1030.ogg]]", "telegram-voice", self.morning)
         write(config.SYSTEM / "Attachments/receipt.jpg", "jpg")
+        write(config.SYSTEM / "Attachments/Voice 2026-10-05 1030.ogg", "ogg")
         errors, _, _ = lint.check(config.VAULT)
         self.assertEqual(errors, [])
+
+
+class TestNewEngram(Base):
+    def test_a_taken_name_is_never_written_over(self):
+        first = config.ENGRAMS / "2026-10" / "2026-10-05 1030.md"
+        write(first, "written by another process")
+        path = vault.new_engram("mine", "telegram-text", self.morning)
+        self.assertEqual(path.name, "2026-10-05 1030 2.md")
+        self.assertEqual(first.read_text(encoding="utf-8"), "written by another process")
+        self.assertNotIn(b"\r", path.read_bytes())
 
 
 class TestNotesReader(AgentBase):
@@ -388,7 +401,8 @@ class TestMigration(Base):
         self.assertIn("channel: telegram-voice, telegram-text, claude, obsidian, other, fax, telegram-photo, telegram-file, "
                       "telegram-video, telegram-location, telegram-contact\n", vocabulary)
         self.assertIn("status.trait: active, superseded\nstatus.task: cancelled\n", vocabulary)
-        self.assertIn("imported_from: obsidian, notion, other\nasked: question\n```\n## Engram states\n", vocabulary)
+        self.assertIn("imported_from: obsidian, notion, other\n```\n## Engram states\n", vocabulary)
+        self.assertNotIn("asked:", vocabulary.split("```vocab")[1].split("```")[0])  # any value of a bot field is valid
         self.assertEqual(people.read_text(encoding="utf-8"), "---\ntype: entity\n---\n## Current\nWho they are to Ada.\n## Appearances\n")
         before = {n: self.read(n) for n in ("_AGENTS.md", "_Vocabulary.md", "_Templates/Person.md")}
         migrations._to_1_3_0_agents()

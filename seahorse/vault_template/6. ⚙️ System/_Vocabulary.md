@@ -19,7 +19,6 @@ status.trait: active, superseded
 status.task: cancelled
 written_by: owner
 imported_from: obsidian, notion, other
-asked: question
 ```
 ## Engram states
 - `pending`: it waits for the Integrator.
@@ -72,6 +71,7 @@ inspires: ["[[Side Project]]"]
 | `message_id` | an engram that replies to the Messenger | id of the Messenger message |
 | `via_button` | an engram created by a tap on a button | `yes`. The text of the engram is the label of the button |
 | `confirmation` | Telegram engrams | id of the confirmation message, used by the bot. A question or a capture from a computer has none |
+| `telegram_id`, `fix_prompt` | Telegram engrams | used by the bot. Agents ignore them and never change them |
 | `asked` | engrams | `question` when the bot answered the message as a question |
 | `attempts` | engrams | how many Integrator runs failed on it. Set by code. At three, the engram becomes `unclear` |
 | `status` | tasks | `cancelled` when {{user}} cancels the task. It also gets `done: true` and no `repeat` |
