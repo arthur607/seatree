@@ -471,12 +471,14 @@ def morning() -> str:
 
 
 def reviewer() -> str:
+    from . import people  # imported here: the People module uses the Messenger
     with vault.lock():
         vault.pull()
         messenger.mark_ignored()
         _, output = vault.validate()
         changed = "\n".join(f"- {c}" for c in vault.changed_since(24)) or "none"
-        answer = llm.run(request("reviewer", lint=output, changed=changed), "reviewer", write=True)
+        missing = "\n".join(f"- {p}" for p in people.missing_birthdays()) or "none"
+        answer = llm.run(request("reviewer", lint=output, changed=changed, people=missing), "reviewer", write=True)
         _after_writing()
         vault.publish(f"reviewer: {answer.text[:150]}")
     if answer.error:

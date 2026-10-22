@@ -503,3 +503,26 @@ class TestLint(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOldPages(PeopleBase):
+    def test_a_birthday_in_the_text_waits_for_the_reviewer(self):
+        folder = config.VAULT / "2. 📓 Memory" / "People"
+        write(folder / "Brandão.md", "---\ntype: entity\nentity: person\n---\n## Current\nAmigo.\n"
+                                     "## Seahorse\n- Aniversário: 13 de novembro.\n")
+        write(folder / "Ana.md", "---\ntype: entity\nentity: person\nbirthday: --03-02\n---\n## Current\nBirthday party in March.\n")
+        write(folder / "Rui.md", "---\ntype: entity\nentity: person\n---\n## Current\nA colleague.\n")
+        self.assertEqual(people.missing_birthdays(), ["2. 📓 Memory/People/Brandão.md"])
+
+
+    def test_the_reviewer_gets_the_pages_to_fill(self):
+        folder = config.VAULT / "2. 📓 Memory" / "People"
+        write(folder / "Yan.md", "---\ntype: entity\nentity: person\n---\n## Current\nAniversário dia 2 de dezembro.\n")
+        asked = []
+        old_run, old_validate = llm.run, vault.validate
+        llm.run = lambda text, *a, **k: asked.append(text) or llm.Answer("ok", None, False)
+        vault.validate = lambda: (True, "0 errors")
+        self.addCleanup(lambda: (setattr(llm, "run", old_run), setattr(vault, "validate", old_validate)))
+        from seahorse import agents
+        agents.reviewer()
+        self.assertIn("- 2. 📓 Memory/People/Yan.md", asked[0])

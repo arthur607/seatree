@@ -189,6 +189,23 @@ def everyone() -> list[Person]:
     return found
 
 
+# Words that tell a birthday in the text of a page, in the three languages.
+BIRTHDAY_WORDS = ("aniversário", "aniversario", "birthday", "cumpleaños", "nasceu", "nació", "born on")
+
+
+def missing_birthdays(limit: int = 20) -> list[str]:
+    """The People pages that tell a birthday in their text but have no readable `birthday` field. The nightly
+    Reviewer fills the field from the text, so the pages made before 1.3.0 get birthday messages too."""
+    found = []
+    for person in everyone():
+        if person.birthday or not any(word in person.body.lower() for word in BIRTHDAY_WORDS):
+            continue
+        found.append(vault.rel(person.path))
+        if len(found) == limit:
+            break
+    return found
+
+
 def find(name: str) -> Person | None:
     return next((p for p in everyone() if p.name == name), None)
 
