@@ -477,11 +477,17 @@ def _load() -> dict:
 
 
 def _save(state: dict) -> None:
-    """Writes the state, without the rounds and the answered questions older than KEEP_DAYS."""
-    limit = (messenger.now() - timedelta(days=KEEP_DAYS)).isoformat()
-    state["rounds"] = {k: r for k, r in state.get("rounds", {}).items() if r.get("at", "") >= limit}
-    state["follow_ups"] = {k: f for k, f in state.get("follow_ups", {}).items()
-                           if f.get("status") in ("waiting", "asked") or f.get("at", "") >= limit}
+    """Writes the state, without the rounds and the questions older than KEEP_DAYS. A question that waits for its
+    time stays: after a restart, `waiting` decides what to do with it."""
+    limit = messenger.now() - timedelta(days=KEEP_DAYS)
+
+    def recent(item: dict) -> bool:
+        try:
+            return datetime.fromisoformat(item.get("at", "")) >= limit
+        except (TypeError, ValueError):
+            return False
+    state["rounds"] = {k: r for k, r in state.get("rounds", {}).items() if recent(r)}
+    state["follow_ups"] = {k: f for k, f in state.get("follow_ups", {}).items() if f.get("status") == "waiting" or recent(f)}
     _path().parent.mkdir(parents=True, exist_ok=True)
     _path().write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
 

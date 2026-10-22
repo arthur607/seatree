@@ -166,8 +166,9 @@ def pick_focus(history: list[messenger.Message], luck: random.Random | None = No
 
 
 def history_text(lines: list[str]) -> str:
-    """The last conversations, with the reaction to each, so the Companion varies and learns."""
-    recent = [line for line in lines if (m := messenger.LINE.match(line)) and m[2] in messenger.CONVERSATION | {"delivery"}]
+    """The last conversations, with the reaction to each, so the Companion varies and learns. The `now` lines
+    say which tasks the user started and finished."""
+    recent = [line for line in lines if (m := messenger.LINE.match(line)) and m[2] in messenger.CONVERSATION | {"delivery", "now"}]
     return "\n".join(recent[-30:]) or "none yet"
 
 
