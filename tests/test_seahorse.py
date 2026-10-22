@@ -153,7 +153,7 @@ class TestWeek(Base):
         self.assertIn("> [!day] Tue 06/10 · 1h of 4h\n> - [x] [[Done one]] (1h)\n\n", text)
         self.assertIn("> [!day] Wed 07/10 · 30m of 4h\n> - [ ] [[Book the doctor]] (30m)\n\n", text)
         self.assertTrue(text.endswith("> [!review]- Review\n> - Planned:\n"))
-        self.assertEqual(notes.read(note)[0]["moved"], "1")
+        self.assertNotIn("moved", notes.read(note)[0])  # no day chosen and no due date: it does not count
         self.assertEqual(week.reschedule(self.WEDNESDAY), [])
 
     def test_no_room_leaves_the_week(self):
@@ -514,7 +514,7 @@ class TestImages(Base):
         task("Pay the bill", date(2026, 10, 9))
         self.week_file(Tue="\n> - [x] [[Done one]] (1h)", Wed="\n> - [ ] [[Pay the bill]] (30m)")
         png = week_image.week_png(date(2026, 10, 7))
-        self.assertEqual(Image.open(io.BytesIO(png)).size[0], 1920)
+        self.assertEqual(Image.open(io.BytesIO(png)).size[0], week_image.WIDTH)
         self.assertLess(len(png), 400_000)
         day = week_image.day_png(date(2026, 10, 7))
         self.assertEqual(Image.open(io.BytesIO(day)).size[0], 1280)

@@ -93,7 +93,7 @@ tomorrow = "amanhã"
 date_format = "%d/%m"
 
 [image]
-title = "week"
+title = "semana"
 late = "atrasada"
 due_today = "vence hoje"
 due_on = "vence {day}"
@@ -103,9 +103,21 @@ planned = "planejadas"
 today = "hoje"
 nothing = "nada planejado"
 summary = "semana"
+more = "+{n} mais"
+work = "(2h) trabalho: fora do total"
+day_month = "{day}/{month}"
+full_date = "{day}/{month}/{year}"
 
 [task]
 renewed = "feita, a de {old}; a próxima é {new}"
+
+[week]
+of = "de"
+
+[sync]
+merged = "🔀 Você e eu mudamos as mesmas notas ao mesmo tempo. Eu mantive as duas mudanças: {names}"
+copy = "🔀 Você e eu mudamos \"{name}\" ao mesmo tempo. A sua versão está na nota. A minha versão está em \"{copy}\"."
+copy_name = "cópia do conflito"
 
 [base]
 title = "Título"

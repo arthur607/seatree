@@ -301,3 +301,28 @@ def _to_1_3_0_agents() -> None:
 
 
 MIGRATIONS.append(("1.3.0", _to_1_3_0_agents))
+
+
+TASK_TEMPLATE = "_Templates/Task.md"
+
+
+def _to_1_3_0_week() -> None:
+    """Tasks have a `planned` day, the day the user chose to do it: the Task template gets the field, after
+    `due:` when the template still has it, else at the end of its frontmatter."""
+    path = config.SYSTEM / TASK_TEMPLATE
+    if not path.exists():
+        return
+    text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    if "\nplanned:" in text:
+        return
+    if "\ndue:\n" in text:
+        text = text.replace("\ndue:\n", "\ndue:\nplanned:\n", 1)
+    elif text.startswith("---\n") and text.find("\n---", 4) != -1:
+        end = text.find("\n---", 4)
+        text = text[:end] + "\nplanned:" + text[end:]
+    else:
+        return
+    path.write_bytes(text.encode("utf-8"))
+
+
+MIGRATIONS.append(("1.3.0", _to_1_3_0_week))

@@ -66,29 +66,39 @@ def save_user_edits() -> None:
 
 
 def pull() -> None:
-    """Saves the edits made on this machine, then brings in what changed on other devices. On a conflict, it gives
-    up the rebase and goes on."""
+    """Saves the edits made on this machine, then brings in what changed on other devices: a rebase, so the
+    history stays a line. When both sides changed the same lines, it never gives up: it merges, `_resolve`
+    keeps both sides of each file, and the merge is committed and pushed. The user hears about it once."""
+    _end_unfinished()
     save_user_edits()
     if not has_remote():
         return
-    result = git("pull", "--rebase", "--autostash", "-q", check=False)
-    if result.returncode != 0:
-        git("rebase", "--abort", check=False)
-        log.warning("pull failed: %s", result.stderr.strip())
+    fetched = git("fetch", "-q", check=False)
+    if fetched.returncode != 0:
+        log.warning("fetch failed: %s", fetched.stderr.strip())
+        return
+    if git("rev-parse", "-q", "--verify", "@{u}", check=False).returncode != 0:
+        return  # no upstream yet: the setup pushes the first time
+    if git(*SEAHORSE, "rebase", "-q", "@{u}", check=False).returncode == 0:
+        _tell_later()
+        return
+    git("rebase", "--abort", check=False)
+    merged = git(*SEAHORSE, "merge", "--no-edit", "-q", "@{u}", check=False)
+    if merged.returncode != 0:
+        _resolve_merge(merged)
+    _tell_later()
 
 
 def publish(message: str) -> bool:
-    """Commits everything as Seahorse and pushes. True if there was something to commit."""
+    """Commits everything as Seahorse and pushes. True if there was something to commit. It also pushes what an
+    earlier push left behind, so the server never stays ahead of the other devices."""
     git("add", "-A")
-    if git("diff", "--cached", "--quiet", check=False).returncode == 0:
-        return False
-    git("-c", "user.name=Seahorse", "-c", "user.email=seahorse@localhost", "commit", "-q", "-m", message)
-    if has_remote() and git("push", "-q", check=False).returncode != 0:
-        pull()
-        result = git("push", "-q", check=False)
-        if result.returncode != 0:
-            log.error("push failed: %s", result.stderr.strip())
-    return True
+    committed = git("diff", "--cached", "--quiet", check=False).returncode != 0
+    if committed:
+        git(*SEAHORSE, "commit", "-q", "-m", message)
+    if has_remote():
+        _push()
+    return committed
 
 
 def new_engram(text: str, channel: str, when: datetime, extra: dict | None = None) -> Path:
@@ -263,3 +273,215 @@ def text_at(commit: str, path: str) -> str | None:
     """The text of a note at one commit. None when the note did not exist then."""
     result = git("show", f"{commit}:{path}", check=False)
     return result.stdout if result.returncode == 0 else None
+
+
+# ---- sync between devices -------------------------------------------------------------------------------
+
+SEAHORSE = ("-c", "user.name=Seahorse", "-c", "user.email=seahorse@localhost")
+SYNC_STATE = "sync.json"
+
+
+def _end_unfinished() -> None:
+    """A merge or a rebase that a crash left open is undone, so the next commit does not take it."""
+    folder = config.VAULT / ".git"
+    if (folder / "MERGE_HEAD").exists():
+        git("merge", "--abort", check=False)
+    if (folder / "rebase-merge").exists() or (folder / "rebase-apply").exists():
+        git("rebase", "--abort", check=False)
+
+
+def _push() -> None:
+    """Pushes the commits the remote does not have. If another device pushed first, it pulls and tries again."""
+    if git("rev-list", "--count", "@{u}..HEAD", check=False).stdout.strip() in ("", "0"):
+        return
+    for _ in range(3):
+        result = git("push", "-q", check=False)
+        if result.returncode == 0:
+            return
+        pull()
+    log.error("push failed: %s", result.stderr.strip())
+
+
+def _resolve_merge(merged: subprocess.CompletedProcess) -> None:
+    """Resolves each file in conflict, commits the merge as Seahorse, syncs the tasks again and pushes."""
+    out = git("-c", "core.quotepath=off", "diff", "--name-only", "--diff-filter=U", "-z", check=False).stdout
+    conflicted = [p for p in out.split("\0") if p]
+    if not conflicted:
+        git("merge", "--abort", check=False)
+        log.error("pull failed: %s", (merged.stderr or merged.stdout).strip())
+        return
+    copies = {}
+    for path in conflicted:
+        try:
+            copy = _resolve(path)
+        except Exception:  # noqa: BLE001 - never leave a merge half done: keep both files as they are
+            log.exception("could not merge %s: a conflict copy keeps this machine's version", path)
+            copy = _keep_both(path)
+        if copy:
+            copies[path] = copy
+    git("add", "-A")
+    git(*SEAHORSE, "commit", "-q", "--no-edit")
+    log.warning("sync conflict resolved: %s", ", ".join(conflicted))
+    from . import tasks
+    tasks.sync()
+    git("push", "-q", check=False)
+    _tell(conflicted, copies)
+
+
+def _stage(number: int, path: str) -> bytes | None:
+    """A file as one side of a merge has it: 1 the common base, 2 this machine, 3 the other device."""
+    result = subprocess.run(["git", "-C", str(config.VAULT), "show", f":{number}:{path}"], capture_output=True)
+    return result.stdout if result.returncode == 0 else None
+
+
+def merge_text(base: str, ours: str, theirs: str, union: bool = False) -> tuple[str, int]:
+    """A three-way merge of texts with `git merge-file`. Returns the text and the number of conflicts. With
+    `union`, a conflict keeps the lines of both sides."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        files = []
+        for name, content in (("ours", ours), ("base", base), ("theirs", theirs)):
+            file = Path(folder) / name
+            file.write_bytes(content.encode("utf-8"))
+            files.append(str(file))
+        result = subprocess.run(["git", "merge-file", "-p", *(["--union"] if union else []), *files], capture_output=True)
+    return result.stdout.decode("utf-8", errors="replace"), result.returncode
+
+
+def _split_note(text: str) -> tuple[dict[str, str] | None, str]:
+    """The frontmatter as {field: its lines} and the rest of the note. None when there is no frontmatter."""
+    end = text.find("\n---", 4)
+    if not text.startswith("---\n") or end == -1:
+        return None, text
+    found: dict[str, str] = {}
+    key = ""
+    for line in text[4:end].split("\n"):
+        m = re.match(r"([^\s:#-][^:]*):", line)
+        if m:
+            key = m[1].strip()
+            found[key] = line
+        else:
+            found[key] = f"{found[key]}\n{line}" if key in found else line
+    return found, text[end + 4:]
+
+
+def _merge_body(base: str, ours: str, theirs: str) -> str | None:
+    if ours in (theirs, base):
+        return theirs
+    if theirs == base:
+        return ours
+    merged, conflicts = merge_text(base, ours, theirs)
+    if conflicts == 0:
+        return merged
+    start = base.rstrip("\n")
+    if ours.startswith(start) and theirs.startswith(start):  # both only added at the end, as in a log
+        return theirs.rstrip("\n") + "\n" + ours[len(start):].lstrip("\n")
+    return None
+
+
+def merge_note(base: str, ours: str, theirs: str) -> str | None:
+    """A note changed on both sides. The frontmatter merges field by field: a field changed on one side takes
+    that change, and a field changed on both sides takes the other device's (the user's). The rest merges when
+    the changes do not touch, or when both sides only added lines at the end. None when the changes collide."""
+    base, ours, theirs = (x.replace("\r\n", "\n") for x in (base, ours, theirs))
+    (b, b_rest), (o, o_rest), (t, t_rest) = _split_note(base), _split_note(ours), _split_note(theirs)
+    if o is None or t is None:
+        return _merge_body(base, ours, theirs)
+    rest = _merge_body(b_rest if b is not None else base, o_rest, t_rest)
+    if rest is None:
+        return None
+    b = b or {}
+    keys = list(t) + [k for k in o if k not in t]
+    front = [value for k in keys if (value := o.get(k) if t.get(k) == b.get(k) else t.get(k)) is not None]
+    return "---\n" + "\n".join(front) + "\n---" + rest
+
+
+def _copy_path(target: Path) -> Path:
+    when = datetime.now(config.TIMEZONE)
+    name = f"{target.stem} ({i18n.t('sync.copy_name')} {when:%Y-%m-%d %H%M})"
+    copy, n = target.with_name(name + target.suffix), 2
+    while copy.exists():
+        copy, n = target.with_name(f"{name} {n}{target.suffix}"), n + 1
+    return copy
+
+
+def _resolve(path: str) -> str | None:
+    """Resolves one file in conflict, without losing either side. Returns the conflict copy, if it made one.
+
+    - Changed on one side, deleted on the other: the changed file stays.
+    - A week file: the union of the lines of both sides, repaired by code (see `week.merge_conflict`).
+    - A note: merged field by field and line by line (see `merge_note`).
+    - Otherwise the other device's version (the user's edit) stays, and this machine's version (the agent's)
+      becomes a conflict copy next to it."""
+    base, ours, theirs = (_stage(n, path) for n in (1, 2, 3))
+    target = config.VAULT / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if ours is None or theirs is None:
+        target.write_bytes(ours if theirs is None else theirs)
+        return None
+    try:
+        b, o, t = ((x or b"").decode("utf-8").replace("\r\n", "\n") for x in (base, ours, theirs))
+    except UnicodeDecodeError:
+        b = o = t = None
+    if b is not None and target.parent == config.WEEKS and re.fullmatch(r"\d{4}-W\d{2}", target.stem):
+        from . import week
+        union, _ = merge_text(b, o, t, union=True)
+        target.write_bytes(week.merge_conflict(target, union, b, o, t).encode("utf-8"))
+        return None
+    if b is not None and target.suffix == ".md":
+        merged = merge_note(b, o, t)
+        if merged is not None:
+            target.write_bytes(merged.encode("utf-8"))
+            return None
+    return _keep_both(path)
+
+
+def _keep_both(path: str) -> str | None:
+    """The other device's version stays in the file, and this machine's version goes to a conflict copy."""
+    ours, theirs = _stage(2, path), _stage(3, path)
+    target = config.VAULT / path
+    target.write_bytes(theirs if theirs is not None else ours or b"")
+    if ours is None or theirs is None:
+        return None
+    copy = _copy_path(target)
+    copy.write_bytes(ours)
+    return rel(copy)
+
+
+def _sync_state() -> dict:
+    try:
+        return json.loads((config.STATE / SYNC_STATE).read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_sync_state(state: dict) -> None:
+    config.STATE.mkdir(parents=True, exist_ok=True)
+    (config.STATE / SYNC_STATE).write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def _tell(conflicted: list[str], copies: dict[str, str]) -> None:
+    """Keeps a notice for the user about a resolved conflict: always when there is a conflict copy, and at most
+    once a day when the two sides were simply kept. `_tell_later` sends it."""
+    state = _sync_state()
+    lines = [i18n.t("sync.copy", name=Path(p).stem, copy=Path(c).stem) for p, c in copies.items()]
+    kept = [Path(p).stem for p in conflicted if p not in copies]
+    today = datetime.now(config.TIMEZONE).date().isoformat()
+    if kept and state.get("told") != today:
+        lines.append(i18n.t("sync.merged", names=", ".join(kept)))
+        state["told"] = today
+    state["waiting"] = state.get("waiting", []) + lines
+    _save_sync_state(state)
+
+
+def _tell_later() -> None:
+    """Sends the conflict notices that wait, outside the quiet hours."""
+    state = _sync_state()
+    if not state.get("waiting"):
+        return
+    from . import messenger, telegram_api
+    if messenger.quiet(datetime.now(config.TIMEZONE)):
+        return
+    if telegram_api.send("\n\n".join(state["waiting"])):
+        state["waiting"] = []
+        _save_sync_state(state)
