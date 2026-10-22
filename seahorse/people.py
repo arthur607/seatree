@@ -304,6 +304,11 @@ def day_words(when: date) -> str:
     return f"{i18n.words('days_long')[when.weekday()]}, {when.strftime(i18n.t('reminder.date_format'))}"
 
 
+def day_count(count: int) -> str:
+    """A number of days in words: "1 day", "38 days"."""
+    return i18n.t("people.day") if count == 1 else i18n.t("people.days", count=count)
+
+
 def _english(when: date) -> str:
     return f"{ENGLISH_DAYS[when.weekday()]} {when.isoformat()}"
 
@@ -547,7 +552,7 @@ def reconnects(moment: datetime, people: list[Person], history: list[messenger.M
         facts = _about(person) + [f"- Keep in touch: {person.field('keep_in_touch')}, every {every} days."]
         if last:
             facts.append(f"- Last contact: {last.isoformat()}, {days} days ago.")
-            fallback = i18n.t("people.reconnect", days=days, name=person.name, day=day_words(day))
+            fallback = i18n.t("people.reconnect", days=day_count(days), name=person.name, day=day_words(day))
         else:
             facts.append(f"- Last contact: unknown. The user asked to keep in touch {days} days ago, "
                          "and told of no contact since.")

@@ -356,3 +356,39 @@ class TestBirthdayOrder(Base):
         self.assertIn(f"{folder}/Bia.md: birthday = '13/11', write YYYY-MM-DD, or --MM-DD when the year is unknown",
                       warnings)
         self.assertFalse([w for w in warnings if "Carla.md" in w and "write" in w])
+
+
+from test_people import EMPTY_PAGE, PeopleBase, person  # noqa: E402
+
+
+class TestTexts(PeopleBase):
+    def in_language(self, language: str) -> None:
+        old = config.LANGUAGE
+        config.LANGUAGE = language
+        self.addCleanup(setattr, config, "LANGUAGE", old)
+
+    def test_one_day_without_contact_is_singular(self):
+        from seahorse import people
+        person("Grandma", EMPTY_PAGE, keep_in_touch="1d", last_contact="2026-10-04")
+        starts = {"en": "You last talked to Grandma 1 day ago.", "pt-BR": "Faz 1 dia que você não fala com Grandma.",
+                  "es": "Hace 1 día que no hablas con Grandma."}
+        for language, start in starts.items():
+            self.in_language(language)
+            ask = people.prepare(self.at(2026, 10, 5, 13, 0))
+            self.assertTrue(ask.fallback.startswith(start), ask.fallback)
+        self.assertEqual(people.day_count(38), "38 días")
+
+    def test_a_planned_gift_or_call_is_a_sentence(self):
+        from seahorse import people
+        offer, today = {"task": "Ana", "day": "2026-10-09"}, date(2026, 10, 5)
+        for language, gift, call in (("en", "🎁 Ana: planned for Friday, 10/09.", "📅 Ana: planned for Friday, 10/09."),
+                                     ("pt-BR", "🎁 Ana: planejada para sexta, 09/10.", "📅 Ana: planejada para sexta, 09/10."),
+                                     ("es", "🎁 Ana: planeada para el viernes, 09/10.", "📅 Ana: planeada para el viernes, 09/10.")):
+            self.in_language(language)
+            self.assertEqual((people._label(offer, "gift", today), people._label(offer, "week", today)), (gift, call))
+
+    def test_the_why_lines_of_now(self):
+        from seahorse import i18n
+        self.assertEqual(i18n.t("now.why_overdue", "pt-BR", date="02/10"), "O prazo era dia 02/10.")
+        self.assertEqual(i18n.t("now.why_planned", "es"), "La elegiste para hoy.")
+        self.assertEqual(i18n.t("now.started", "en", minutes=15), "▶️ Go! I'll check back in 15 min.")
