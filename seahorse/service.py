@@ -7,8 +7,11 @@ Windows is supported through WSL, where it is Linux.
 """
 import os
 import platform
+import re
+import shlex
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 from . import config
@@ -46,9 +49,17 @@ WantedBy={target}
 """
 
 
+def _supported() -> bool:
+    """Linux has systemd and macOS has launchd. Windows runs Seahorse only inside WSL, where it is Linux."""
+    return platform.system() in {"Linux", "Darwin"}
+
+
 def _systemctl(*args: str) -> subprocess.CompletedProcess:
     cmd = ["systemctl"] if _is_root() else ["systemctl", "--user"]
-    return subprocess.run([*cmd, *args], capture_output=True, text=True)
+    try:
+        return subprocess.run([*cmd, *args], capture_output=True, text=True)
+    except FileNotFoundError:  # no systemd here
+        return subprocess.CompletedProcess(cmd, 1, "", "systemctl was not found")
 
 
 def install() -> str:
@@ -86,6 +97,8 @@ def install() -> str:
 
 
 def restart() -> None:
+    if not _supported():
+        return
     if platform.system() == "Darwin":
         subprocess.run(["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/com.seahorse.agent"], capture_output=True)
     else:
@@ -93,6 +106,8 @@ def restart() -> None:
 
 
 def stop() -> None:
+    if not _supported():
+        return
     if platform.system() == "Darwin":
         subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}", str(PLIST)], capture_output=True)
     else:
@@ -101,6 +116,8 @@ def stop() -> None:
 
 def uninstall() -> None:
     """Stops the service and removes it, so it does not start again after a reboot."""
+    if not _supported():
+        return
     if platform.system() == "Darwin":
         stop()
         PLIST.unlink(missing_ok=True)
@@ -111,14 +128,40 @@ def uninstall() -> None:
     _systemctl("daemon-reload")
 
 
+def _launchd() -> str:
+    return subprocess.run(["launchctl", "print", f"gui/{os.getuid()}/com.seahorse.agent"], capture_output=True, text=True).stdout
+
+
 def status() -> str:
+    if not _supported():
+        return "not installed"
     if platform.system() == "Darwin":
-        out = subprocess.run(["launchctl", "print", f"gui/{os.getuid()}/com.seahorse.agent"], capture_output=True, text=True)
-        return "running" if "state = running" in out.stdout else "not running"
+        return "running" if "state = running" in _launchd() else "not running"
     return _systemctl("is-active", NAME).stdout.strip() or "not installed"
+
+
+def restarts() -> int | None:
+    """How many times the service started again by itself (systemd), or started at all (launchd)."""
+    if not _supported():
+        return None
+    if platform.system() == "Darwin":
+        found = re.search(r"\bruns = (\d+)", _launchd())
+    else:
+        found = re.fullmatch(r"\s*(\d+)\s*", _systemctl("show", "-p", "NRestarts", "--value", NAME).stdout)
+    return int(found[1]) if found else None
+
+
+def stays_up(seconds: int) -> bool:
+    """True when the service is still running after `seconds`, and did not crash and start again in that time.
+    Call it right after a start: a version that breaks at start fails here."""
+    time.sleep(2)  # launchd starts the agent again a moment after a restart: count from then
+    before = restarts()
+    time.sleep(seconds)
+    after = restarts()
+    return status() in {"active", "running"} and (before is None or after is None or after == before)
 
 
 def logs_command() -> str:
     if platform.system() == "Darwin":
-        return f"tail -f {config.HOME / 'seahorse.log'}"
-    return "journalctl -u seahorse -f" if _is_root() else "journalctl --user -u seahorse -f"
+        return f"tail -n 50 -f {shlex.quote(str(config.HOME / 'seahorse.log'))}"
+    return "journalctl -u seahorse -f -n 50" if _is_root() else "journalctl --user -u seahorse -f -n 50"
