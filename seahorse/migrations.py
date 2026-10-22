@@ -335,19 +335,19 @@ MIGRATIONS.append(("1.3.0", _to_1_3_0_week))
 # and friends to call back at the right moment. The template files have the same changes; a test checks it.
 PERSON_TEMPLATE = "_Templates/Person.md"
 PERSON_FIELDS = ("keep_in_touch", "last_contact")  # after `birthday:`
-# Table rows: the file, the first cell of the row that they go after, and the rows.
+# Table rows: the file, the first cell of the row that they go after, the heading of their table, and the rows.
 PEOPLE_ROWS = [
-    ("_Vocabulary.md", "`relationship`", [
+    ("_Vocabulary.md", "`relationship`", "## Common fields", [
         "| `birthday` | people in Memory/People | `YYYY-MM-DD`, or `--MM-DD` when the year is unknown. Code sends a message a week before and on the day |",
         "| `keep_in_touch` | people in Memory/People | how often {{user}} wants to talk to the person: `weekly`, `monthly`, `quarterly`, or a number of days such as `30d`. Only when {{user}} says so |",
         "| `last_contact` | people in Memory/People | `YYYY-MM-DD`, the last day {{user}} talked to or met the person, from what {{user}} says. Code also writes it when a call task is done |",
     ]),
-    ("_MESSENGER.md", "delivery", [
+    ("_MESSENGER.md", "delivery", "## Message types", [
         '| birthday | code, the text by a model | a birthday is a week away, and on the day | "🎂 Brandão has a birthday on Friday. The Torterra card is still your gift idea. Put it in the week?" |',
         '| briefing | code, the text by a model | {{user}} meets or talks to a person today | "Lunch with Ana at 12:30. Last time she told you about her new job at the museum." |',
         '| reconnect | code, the text by a model | {{user}} wants to keep in touch with a person, and the last contact is older than that | "It has been 5 weeks since you talked to your grandmother. Want to call her on Sunday?" |',
     ]),
-    ("_Messenger/Calibration.md", "delivery", [
+    ("_Messenger/Calibration.md", "delivery", "## Confidence by type", [
         "| birthday | normal | no data |",
         "| briefing | normal | no data |",
         "| reconnect | normal | no data |",
@@ -387,14 +387,16 @@ def _cell(line: str) -> str | None:
     return line.split("|")[1].strip() if line.startswith("|") and line.count("|") > 2 else None
 
 
-def _table_rows(text: str, after: str, rows: list[str]) -> str:
+def _table_rows(text: str, after: str, heading: str, rows: list[str]) -> str:
     """Adds the rows that a table does not have: after the row whose first cell is `after`, each after the one
-    before it. With no such row, after the last row of the first table."""
+    before it. With no such row, after the last row of the first table under `heading`. With no such table, the
+    file stays as it is."""
     lines, cell = text.split("\n"), _cell
     at = next((i for i, line in enumerate(lines) if cell(line) == after), None)
     if at is None:
-        first = next((i for i, line in enumerate(lines) if line.startswith("|")), None)
-        if first is None:
+        start = next((i for i, line in enumerate(lines) if line.strip() == heading), None)
+        first = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("|")), None) if start is not None else None
+        if first is None or any(lines[i].startswith("#") for i in range(start + 1, first)):
             return text
         at = first
         while at + 1 < len(lines) and lines[at + 1].startswith("|"):
@@ -423,9 +425,9 @@ def people_1_3_0_text(name: str, text: str, fill=lambda s: s) -> str:
     """The changes of 1.3.0 for people, on the text of one system file."""
     if name == PERSON_TEMPLATE:
         text = _person_fields(text)
-    for file, after, rows in PEOPLE_ROWS:
+    for file, after, heading, rows in PEOPLE_ROWS:
         if file == name:
-            text = _table_rows(text, after, [fill(row) for row in rows])
+            text = _table_rows(text, after, heading, [fill(row) for row in rows])
     if name == MESSENGER_RULES:
         text = _rules_section(text, fill(PEOPLE_RULES), "## Queue")
     if name == "_Messenger/Messages.md":
@@ -443,7 +445,7 @@ def _to_1_3_0_people() -> None:
     Seahorse's own files change, never a People page."""
     from . import vault
     today = date.today()
-    names = {PERSON_TEMPLATE, MESSENGER_RULES, "_Messenger/Messages.md"} | {file for file, _, _ in PEOPLE_ROWS}
+    names = {PERSON_TEMPLATE, MESSENGER_RULES, "_Messenger/Messages.md"} | {file for file, *_ in PEOPLE_ROWS}
     for name in sorted(names):
         path = config.SYSTEM / name
         if not path.exists():

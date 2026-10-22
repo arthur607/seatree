@@ -378,7 +378,8 @@ def birthdays(today: date, people: list[Person], history: list[messenger.Message
         buttons = []
         if not planned:
             estimate = str(gift.fm.get("estimate", "")).strip() if gift else ""
-            day = best_day(today + timedelta(days=1), when - timedelta(days=1), estimate or GIFT_ESTIMATE)
+            last = when - timedelta(days=1)  # the day before the birthday; today, when it is tomorrow
+            day = best_day(min(today + timedelta(days=1), last), last, estimate or GIFT_ESTIMATE)
             name = gift.name if gift else i18n.t("people.gift_task", name=person.name)
             offer |= {"task": name, "day": day.isoformat()}
             buttons.append((i18n.t("people.gift_button"), "gift"))
