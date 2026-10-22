@@ -6,7 +6,9 @@
 
 Environment variables override the files. The tests use them.
 """
+import json
 import os
+import re
 import tomllib
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -26,7 +28,10 @@ DEFAULTS = {
     "schedule": {"morning": "08:00", "reviewer": "03:30", "weekly_day": "sun", "weekly_time": "18:00",
                  "quiet_from": "00:00", "quiet_until": "08:00"},
     "week": {"daily_capacity": "4h", "work_tag": "work"},
+    "obsidian": {"vault": ""},  # the name of the vault in Obsidian on the person's computer; empty: the folder name
+    "messenger": {"daily_messages": 5},  # the most messages Seahorse starts in one day
 }
+ERROR = ""  # when config.toml is not valid TOML: the file, the line and what is wrong
 
 
 def _load_secrets() -> None:
@@ -46,11 +51,66 @@ def _merge(base: dict, extra: dict) -> dict:
     return merged
 
 
+def read_toml_text(text: str) -> dict:
+    """The data of a TOML text, or {} when it has an error."""
+    try:
+        return tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return {}
+
+
+def read_toml(path: Path) -> tuple[dict, str]:
+    """The data of a TOML file, and "". When the file has an error: {} and the error, with the file and the line."""
+    if not path.exists():
+        return {}, ""
+    try:
+        return tomllib.loads(path.read_text(encoding="utf-8")), ""
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as error:
+        return {}, f"{path}: {error}"
+
+
 def load() -> dict:
-    """The settings: the defaults, then config.toml on top."""
+    """The settings: the defaults, then config.toml on top. A config.toml with an error gives the defaults, and
+    ERROR says what to fix: every command, `seahorse setup` too, still starts."""
+    global ERROR
     _load_secrets()
-    data = tomllib.loads(CONFIG_FILE.read_text(encoding="utf-8")) if CONFIG_FILE.exists() else {}
+    data, ERROR = read_toml(CONFIG_FILE)
     return _merge(DEFAULTS, data)
+
+
+def _toml_value(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(_toml_value(item) for item in value) + "]"
+    if isinstance(value, dict):
+        return "{" + ", ".join(f"{_toml_key(k)} = {_toml_value(v)}" for k, v in value.items()) + "}"
+    # A JSON string is a valid TOML string: quotes, backslashes and control characters are escaped.
+    return json.dumps(str(value), ensure_ascii=False).replace("\x7f", "\\u007f")
+
+
+def _toml_key(key: str) -> str:
+    return key if re.fullmatch(r"[A-Za-z0-9_-]+", key) else _toml_value(str(key))
+
+
+def dumps(data: dict) -> str:
+    """The TOML text of the settings. Each value is escaped, and nested tables such as [ai.models] stay."""
+    lines: list[str] = []
+
+    def table(path: list[str], fields: dict) -> None:
+        values = [(key, value) for key, value in fields.items() if not isinstance(value, dict)]
+        if path and (values or len(path) == 1):
+            lines.append("[" + ".".join(_toml_key(part) for part in path) + "]")
+        lines.extend(f"{_toml_key(key)} = {_toml_value(value)}" for key, value in values)
+        if values or len(path) == 1:
+            lines.append("")
+        for key, value in fields.items():
+            if isinstance(value, dict):
+                table(path + [key], value)
+    table([], data)
+    return "\n".join(lines).strip() + "\n"
 
 
 SETTINGS = load()
@@ -71,6 +131,20 @@ VAULT = Path(os.environ.get("SEAHORSE_VAULT", SETTINGS["vault"]["path"])).expand
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 USER_ID = int(os.environ.get("TELEGRAM_USER_ID", SETTINGS["telegram"]["user_id"]) or 0)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+
+# The name of the vault in Obsidian, for "Open in Obsidian" links. The setup saves the folder name chosen on the
+# computer of the person, which can differ from the folder name on the server.
+OBSIDIAN_VAULT = os.environ.get("SEAHORSE_OBSIDIAN_VAULT", SETTINGS["obsidian"]["vault"]) or VAULT.name
+
+
+def _number(value, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+DAILY_MESSAGES = _number(SETTINGS["messenger"]["daily_messages"], DEFAULTS["messenger"]["daily_messages"])
 
 SCHEDULE = SETTINGS["schedule"]
 QUIET_FROM, QUIET_UNTIL = _hhmm(SCHEDULE["quiet_from"]), _hhmm(SCHEDULE["quiet_until"])

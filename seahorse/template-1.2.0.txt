@@ -1,0 +1,73 @@
+# The files of the vault template in Seahorse 1.2.0. A vault made before 1.3.0 has no list of its own (6. ⚙️ System/.seahorse-template): an update adds only the template files that are not here, so a file that the person deleted does not come back.
+.gitattributes
+.gitignore
+.obsidian/app.json
+.obsidian/appearance.json
+.obsidian/community-plugins.json
+.obsidian/core-plugins.json
+.obsidian/plugins/obsidian-git/data.json
+.obsidian/snippets/seahorse.css
+.obsidian/types.json
+1. 🎯 Intention/Dashboard.md
+1. 🎯 Intention/Goals/.gitkeep
+1. 🎯 Intention/Projects.base
+1. 🎯 Intention/Tasks.base
+1. 🎯 Intention/Tasks/.gitkeep
+1. 🎯 Intention/Week/.gitkeep
+1. 🎯 Intention/Wishlist/Books.base
+1. 🎯 Intention/Wishlist/Books/.gitkeep
+1. 🎯 Intention/Wishlist/Games.base
+1. 🎯 Intention/Wishlist/Games/.gitkeep
+1. 🎯 Intention/Wishlist/Movies.base
+1. 🎯 Intention/Wishlist/Movies/.gitkeep
+1. 🎯 Intention/Wishlist/Places.base
+1. 🎯 Intention/Wishlist/Places/.gitkeep
+1. 🎯 Intention/Wishlist/Series.base
+1. 🎯 Intention/Wishlist/Series/.gitkeep
+1. 🎯 Intention/Wishlist/Shopping.base
+1. 🎯 Intention/Wishlist/Shopping/.gitkeep
+1. 🎯 Intention/_Intention.md
+2. 📓 Memory/Career/.gitkeep
+2. 📓 Memory/Experiences/Books/.gitkeep
+2. 📓 Memory/Experiences/Games/.gitkeep
+2. 📓 Memory/Experiences/Movies/.gitkeep
+2. 📓 Memory/Experiences/Places/.gitkeep
+2. 📓 Memory/Experiences/Series/.gitkeep
+2. 📓 Memory/Journal/.gitkeep
+2. 📓 Memory/People/_People.md
+2. 📓 Memory/Trips/.gitkeep
+2. 📓 Memory/_Memory.md
+3. 📚 Knowledge/Misc/.gitkeep
+3. 📚 Knowledge/Projects/.gitkeep
+3. 📚 Knowledge/_Knowledge.md
+4. 🪞 Identity/Capacity.md
+4. 🪞 Identity/Identity.md
+4. 🪞 Identity/Patterns.md
+4. 🪞 Identity/Profile.md
+4. 🪞 Identity/Routine.md
+4. 🪞 Identity/Tastes.md
+4. 🪞 Identity/Traits/_Traits.md
+5. 💭 Engrams/_Engrams.md
+6. ⚙️ System/Attachments/.gitkeep
+6. ⚙️ System/_AGENTS.md
+6. ⚙️ System/_Logs/.gitkeep
+6. ⚙️ System/_MESSENGER.md
+6. ⚙️ System/_Messenger/Calibration.md
+6. ⚙️ System/_Messenger/Messages.md
+6. ⚙️ System/_Messenger/Queue.md
+6. ⚙️ System/_ROUTER.md
+6. ⚙️ System/_Templates/Engram.md
+6. ⚙️ System/_Templates/Experience.md
+6. ⚙️ System/_Templates/Goal.md
+6. ⚙️ System/_Templates/Journal.md
+6. ⚙️ System/_Templates/Knowledge.md
+6. ⚙️ System/_Templates/Log.md
+6. ⚙️ System/_Templates/Person.md
+6. ⚙️ System/_Templates/Project.md
+6. ⚙️ System/_Templates/Task.md
+6. ⚙️ System/_Templates/Trait.md
+6. ⚙️ System/_Templates/Trip.md
+6. ⚙️ System/_Templates/Week.md
+6. ⚙️ System/_Templates/Wish.md
+6. ⚙️ System/_Vocabulary.md
+_Seahorse.md

@@ -37,16 +37,17 @@ Each claim in the vault points to the engram it came from. A trait in Identity s
 
 | In the terminal | What it does |
 |---|---|
-| `seahorse setup` | Sets up Seahorse, or changes a setting |
+| `seahorse setup` | Sets up Seahorse, or changes one setting |
 | `seahorse version` | The version here, on the server, and the newest release |
 | `seahorse doctor` | Checks each part and says what to fix |
 | `seahorse status` | Shows what runs |
-| `seahorse logs` | Shows what Seahorse does |
+| `seahorse logs` | Shows what Seahorse does now: the last lines, then each new line. Ctrl+C stops it |
 | `seahorse update` | Installs the newest release |
+| `seahorse migrate` | Applies the vault changes of this version. The update and the setup do this for you |
 | `seahorse agent <name>` | Runs one agent now: `integrator`, `notes`, `morning`, `reviewer`, `weekly`, `messenger` |
 | `seahorse uninstall` | Removes Seahorse. The vault stays |
 
-On the computer that set up a server, these commands run on the server.
+On the computer that set up a server, these commands run on the server. When the server cannot be reached, the command says so. Before a setup, the commands tell you to run `seahorse setup`.
 
 ## Settings
 
@@ -80,13 +81,31 @@ quiet_until = "08:00"
 [week]
 daily_capacity = "4h"
 work_tag = "work"          # tasks with this tag do not count in the daily hours
+
+[messenger]
+daily_messages = 5         # the most messages that Seahorse starts in one day
+
+[obsidian]
+vault = "Seahorse"         # the name of the vault in Obsidian on your computer, for "Open in Obsidian" links
 ```
+
+- `[obsidian] vault`: the setup writes it at step 9, with the name of the folder on your computer. Without it, Seahorse uses the name of the vault folder on the machine that runs it.
+- When you run the setup again, it keeps the settings that it does not ask about, and tables such as `[ai.models]`.
+- When `config.toml` has an error, each command shows the file, the line and the error. To write a good file again, run `seahorse setup`.
+
+To change one setting, run `seahorse setup`, and choose the step to change. The setup then starts Seahorse again with the new setting.
 
 The rules of the agents are in the vault, in `6. ⚙️ System/`, in plain language. To change what an agent does, change its rule.
 
 ## Updates
 
-When a new version is out, the bot sends its release notes once. Send `/update` or run `seahorse update`. The update installs the new code, applies the vault changes of the version, and starts Seahorse again. It never changes the text of your notes. See [CHANGELOG.md](../CHANGELOG.md).
+When a new version is out, the bot sends its release notes once. The notes are in English: in other languages, the bot sends a link to them. Send `/update` or run `seahorse update`. The update:
+
+1. Installs the new code.
+2. Applies the vault changes of the version. It adds the template files that are new in the version. A file that you deleted does not come back. It never changes the text of your notes.
+3. Starts Seahorse again, and checks for 20 seconds that Seahorse stays on.
+
+If a step fails, the update puts the previous version back, and tells you on Telegram. When you run the install command again to get a new version, the setup applies the vault changes too. See [CHANGELOG.md](../CHANGELOG.md).
 
 ## Uninstall
 
@@ -98,7 +117,8 @@ Run `seahorse uninstall` on the computer where you installed Seahorse. It stops 
 - Your AI provider (Anthropic or OpenAI) gets the notes that the agents read, under the terms of your account.
 - With a subscription, Seahorse uses the limits of your plan: a few dozen agent runs a day, and the deepest model once a week.
 - With voice notes, Groq gets your audio to make the text.
-- The setup logs in to GitHub on the server only to make the repository, then logs out. The server keeps only a deploy key for the vault. On your computer, the setup saves the GitHub login in the credential store, so Obsidian can sync.
+- The setup logs in to GitHub on the server only to make the repository, then logs out. The server keeps only a deploy key for the vault. On your computer, the setup saves the GitHub login in the safe credential store of the system (the Windows Credential Manager, or the macOS keychain), so Obsidian can sync. It never writes the login to a plain file, and it never puts the login in a command line.
+- To connect to a server, the setup uses its own key (`~/.seahorse/server_key`) and its own list of known servers (`~/.seahorse/known_hosts`). If you give it a key file, it uses the key file once and keeps no copy.
 - To suggest your time zone, the setup reads the clock of your computer. On Windows, it asks ipinfo.io once.
 
 ## Languages
