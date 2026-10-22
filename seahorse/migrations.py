@@ -329,3 +329,129 @@ def _to_1_3_0_week() -> None:
 
 
 MIGRATIONS.append(("1.3.0", _to_1_3_0_week))
+
+
+# 1.3.0, people: a People page has `keep_in_touch` and `last_contact` too, and Seahorse brings birthdays, encounters
+# and friends to call back at the right moment. The template files have the same changes; a test checks it.
+PERSON_TEMPLATE = "_Templates/Person.md"
+PERSON_FIELDS = ("keep_in_touch", "last_contact")  # after `birthday:`
+# Table rows: the file, the first cell of the row that they go after, and the rows.
+PEOPLE_ROWS = [
+    ("_Vocabulary.md", "`relationship`", [
+        "| `birthday` | people in Memory/People | `YYYY-MM-DD`, or `--MM-DD` when the year is unknown. Code sends a message a week before and on the day |",
+        "| `keep_in_touch` | people in Memory/People | how often {{user}} wants to talk to the person: `weekly`, `monthly`, `quarterly`, or a number of days such as `30d`. Only when {{user}} says so |",
+        "| `last_contact` | people in Memory/People | `YYYY-MM-DD`, the last day {{user}} talked to or met the person, from what {{user}} says. Code also writes it when a call task is done |",
+    ]),
+    ("_MESSENGER.md", "delivery", [
+        '| birthday | code, the text by a model | a birthday is a week away, and on the day | "🎂 Brandão has a birthday on Friday. The Torterra card is still your gift idea. Put it in the week?" |',
+        '| briefing | code, the text by a model | {{user}} meets or talks to a person today | "Lunch with Ana at 12:30. Last time she told you about her new job at the museum." |',
+        '| reconnect | code, the text by a model | {{user}} wants to keep in touch with a person, and the last contact is older than that | "It has been 5 weeks since you talked to your grandmother. Want to call her on Sunday?" |',
+    ]),
+    ("_Messenger/Calibration.md", "delivery", [
+        "| birthday | normal | no data |",
+        "| briefing | normal | no data |",
+        "| reconnect | normal | no data |",
+    ]),
+]
+PEOPLE_RULES = """## People
+Code reads the pages in `2. 📓 Memory/People/` and decides when. A model writes the text from the page of the person: who the person is to {{user}}, the stories and the open tasks. The fields are in [[_Vocabulary]].
+- **Birthdays**, from `birthday`. A week before: when it is, one story worth remembering, and the gift: the open gift task, or the gift ideas on the page. The buttons are `🎁 Put the gift in the week` and `✅ Already sorted`. On the day: a short message with a text that {{user}} can send to the person, and `✅ Sent`. Each one goes out once a year. The message on the day always goes out, also over the daily limit.
+- **Before an encounter.** A task of today, in the card of today or with `due` or `planned` today, links a person whose page has something worth recalling: a story, a recent appearance, an open task or a near birthday. A short `briefing` goes out about 2 hours before the time in the task, such as "17h", "17:00" or "5pm", or after the morning summary when the task has no time. One a day for each person.
+- **Keep in touch**, from `keep_in_touch` and `last_contact`. When the last contact is older than what {{user}} wants, a `reconnect` asks if {{user}} wants to call on a day with room in the week. `📅 Put it in the week` plans the task "Call <name>" on that day, and `💤 Not now` waits 14 days. At most one a day, and one a week for each person. When the call task is done, or {{user}} taps `✅ Sent` on a birthday, code writes `last_contact`.
+- The buttons act in code, at once. These messages follow the rules above: the quiet hours, the daily limit, muted and snoozed topics, and a record in Messages. They come after the morning summary and at least an hour apart, except a briefing before a time. A call offer comes from 4 hours after the morning summary."""
+PEOPLE_MESSAGES = ("The text of a birthday starts with when it goes out, which code reads: `week-before` or `today`.",
+                   "The text of a reminder starts with its kind", "Format: `")
+
+
+def _person_fields(text: str) -> str:
+    """The new fields of a People page in the frontmatter of the Person template: after `birthday:`, or at the end
+    of the frontmatter. A field that is there stays as it is."""
+    end = text.find("\n---", 4)
+    if not text.startswith("---\n") or end == -1:
+        return text
+    lines = text[4:end].split("\n")
+    keys = [line.split(":", 1)[0].strip() for line in lines]
+    at = keys.index("birthday") + 1 if "birthday" in keys else len(lines)
+    for name in PERSON_FIELDS:
+        if name in keys:
+            at = keys.index(name) + 1
+            continue
+        lines.insert(at, f"{name}:")
+        keys.insert(at, name)
+        at += 1
+    return "---\n" + "\n".join(lines) + text[end:]
+
+
+def _cell(line: str) -> str | None:
+    """The first cell of a table row."""
+    return line.split("|")[1].strip() if line.startswith("|") and line.count("|") > 2 else None
+
+
+def _table_rows(text: str, after: str, rows: list[str]) -> str:
+    """Adds the rows that a table does not have: after the row whose first cell is `after`, each after the one
+    before it. With no such row, after the last row of the first table."""
+    lines, cell = text.split("\n"), _cell
+    at = next((i for i, line in enumerate(lines) if cell(line) == after), None)
+    if at is None:
+        first = next((i for i, line in enumerate(lines) if line.startswith("|")), None)
+        if first is None:
+            return text
+        at = first
+        while at + 1 < len(lines) and lines[at + 1].startswith("|"):
+            at += 1
+    for row in rows:
+        found = next((i for i, line in enumerate(lines) if cell(line) == cell(row)), None)
+        if found is None:
+            lines.insert(at + 1, row)
+            found = at + 1
+        at = found
+    return "\n".join(lines)
+
+
+def _rules_section(text: str, section: str, before: str) -> str:
+    """A new section of rules, before the heading `before`, or at the end. A section that is there stays."""
+    heading = section.split("\n", 1)[0]
+    if re.search(rf"(?m)^{re.escape(heading)}\s*$", text):
+        return text
+    found = re.search(rf"(?m)^{re.escape(before)}\s*$", text)
+    if found:
+        return text[:found.start()] + section + "\n" + text[found.start():]
+    return text.rstrip("\n") + "\n" + section + "\n"
+
+
+def people_1_3_0_text(name: str, text: str, fill=lambda s: s) -> str:
+    """The changes of 1.3.0 for people, on the text of one system file."""
+    if name == PERSON_TEMPLATE:
+        text = _person_fields(text)
+    for file, after, rows in PEOPLE_ROWS:
+        if file == name:
+            text = _table_rows(text, after, [fill(row) for row in rows])
+    if name == MESSENGER_RULES:
+        text = _rules_section(text, fill(PEOPLE_RULES), "## Queue")
+    if name == "_Messenger/Messages.md":
+        line, *anchors = PEOPLE_MESSAGES
+        for anchor in anchors:
+            if line in text or anchor not in text:
+                continue
+            text = messenger_change(text, None, line, anchor, at_end=False)
+            break
+    return text
+
+
+def _to_1_3_0_people() -> None:
+    """The fields of a person, and the rules of the messages about people, in the system files of a vault. Only
+    Seahorse's own files change, never a People page."""
+    from . import vault
+    today = date.today()
+    names = {PERSON_TEMPLATE, MESSENGER_RULES, "_Messenger/Messages.md"} | {file for file, _, _ in PEOPLE_ROWS}
+    for name in sorted(names):
+        path = config.SYSTEM / name
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        new = people_1_3_0_text(name, text, lambda s: vault.fill(s, today))
+        if new != text:
+            path.write_bytes(new.encode("utf-8"))
+
+
+MIGRATIONS.append(("1.3.0", _to_1_3_0_people))

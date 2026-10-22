@@ -21,6 +21,9 @@ Current state of the Messenger, kept from the reactions recorded in [[Messages]]
 | connection | normal | no data |
 | proposal | normal | no data |
 | delivery | normal | no data |
+| birthday | normal | no data |
+| briefing | normal | no data |
+| reconnect | normal | no data |
 ## Snoozed
 Topics paused until a date, one per line: `- [[note]] until 2026-03-01`.
 None.

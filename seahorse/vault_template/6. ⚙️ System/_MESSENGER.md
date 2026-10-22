@@ -22,6 +22,9 @@ The Companion is the agent that does it. A day when it has nothing good to say c
 | connection | Companion, Integrator | two things in the vault link in a way that {{user}} did not see | "The same restaurant came up in both of your nights out this week." |
 | proposal | Integrator, Planner | there is room in the week and something fits | "Saturday is empty and a game from your list is on sale." |
 | delivery | Integrator | something that Seahorse promised is ready | the summary of a research, then the note itself as text, and a button to open it in Obsidian |
+| birthday | code, the text by a model | a birthday is a week away, and on the day | "🎂 Brandão has a birthday on Friday. The Torterra card is still your gift idea. Put it in the week?" |
+| briefing | code, the text by a model | {{user}} meets or talks to a person today | "Lunch with Ana at 12:30. Last time she told you about her new job at the museum." |
+| reconnect | code, the text by a model | {{user}} wants to keep in touch with a person, and the last contact is older than that | "It has been 5 weeks since you talked to your grandmother. Want to call her on Sunday?" |
 ## Rhythm
 - **Every morning, yesterday.** Once, at a random moment from 45 minutes to 2 hours after the morning summary, the Companion asks how yesterday was. This is how what {{user}} lived goes into memory without {{user}} having to remember to tell.
 - **Random, like a friend.** Each morning, code draws how many conversations the day will have, from one to four, and at what times, between 8:45am and 11:30pm, at least 100 minutes apart. No fixed hour and no fixed count.
@@ -55,6 +58,12 @@ No message repeats without a new fact.
 - Buttons are the exception. A Companion message always has `🙈 Ignore`, and almost always only that: {{user}} answers with a text or voice reply. One action button appears only when the message is an offer that one tap fully answers, such as `🎬 Add to list`. Never use buttons as the options of a question.
 - A delivery is easy to read on the phone: the summary, the note itself as text, and where the note is saved, such as `📁 Knowledge › Misc › Card prices`. Its buttons are `📖 Open in Obsidian`, `👍 Thanks` and `👎 Not useful`. There is no file to download.
 - When {{user}} replies to a message, by text or voice, its buttons disappear. This shows that the message got an answer.
+## People
+Code reads the pages in `2. 📓 Memory/People/` and decides when. A model writes the text from the page of the person: who the person is to {{user}}, the stories and the open tasks. The fields are in [[_Vocabulary]].
+- **Birthdays**, from `birthday`. A week before: when it is, one story worth remembering, and the gift: the open gift task, or the gift ideas on the page. The buttons are `🎁 Put the gift in the week` and `✅ Already sorted`. On the day: a short message with a text that {{user}} can send to the person, and `✅ Sent`. Each one goes out once a year. The message on the day always goes out, also over the daily limit.
+- **Before an encounter.** A task of today, in the card of today or with `due` or `planned` today, links a person whose page has something worth recalling: a story, a recent appearance, an open task or a near birthday. A short `briefing` goes out about 2 hours before the time in the task, such as "17h", "17:00" or "5pm", or after the morning summary when the task has no time. One a day for each person.
+- **Keep in touch**, from `keep_in_touch` and `last_contact`. When the last contact is older than what {{user}} wants, a `reconnect` asks if {{user}} wants to call on a day with room in the week. `📅 Put it in the week` plans the task "Call <name>" on that day, and `💤 Not now` waits 14 days. At most one a day, and one a week for each person. When the call task is done, or {{user}} taps `✅ Sent` on a birthday, code writes `last_contact`.
+- The buttons act in code, at once. These messages follow the rules above: the quiet hours, the daily limit, muted and snoozed topics, and a record in Messages. They come after the morning summary and at least an hour apart, except a briefing before a time. A call offer comes from 4 hours after the morning summary.
 ## Queue
 Agents that find something worth saying leave the message ready in [[Queue]]. At a drawn moment, the Companion sends what is in the queue before it writes something new. Items older than seven days expire.
 A line may have a time after the date, `2026-01-15 20:00`: the item waits for that moment. A `delivery` goes out when its moment comes, with the linked note as text to read in the chat.

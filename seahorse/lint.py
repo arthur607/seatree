@@ -129,6 +129,8 @@ def check(vault: Path) -> tuple[list[str], list[str], int]:
             bad.append(f"{path}: {kind} without done: true or false")
         if kind == "trait" and not fm.get("certainty"):
             bad.append(f"{path}: trait without certainty")
+        if path.startswith(PEOPLE + "/"):
+            _check_person(path, fm, bad, warnings)
         if kind == "engram":
             if not re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{4}( \d+)?", p.stem):
                 errors.append(f"{path}: engram name is not YYYY-MM-DD HHMM, with an optional suffix")
@@ -172,6 +174,31 @@ def check(vault: Path) -> tuple[list[str], list[str], int]:
             warnings.append(f"{rel(p)}: orphan, no note links to it")
     _check_weeks(vault, errors, warnings)
     return errors, warnings, len(notes)
+
+
+PEOPLE = "2. 📓 Memory/People"
+PERSON_FIELDS = {"birthday": "YYYY-MM-DD, or --MM-DD when the year is unknown",
+                 "keep_in_touch": "weekly, monthly, quarterly, or a number of days such as 30d",
+                 "last_contact": "YYYY-MM-DD"}
+
+
+def _check_person(path: str, fm: dict, bad: list[str], warnings: list[str]) -> None:
+    """The fields of a People page that code reads for birthdays and calls. A value that code cannot read is an
+    error. A value that code reads, in another form than the Vocabulary asks for, is a warning."""
+    try:
+        from seahorse import people  # the same reader the code uses
+    except Exception:  # noqa: BLE001 - lint still checks the rest without it
+        return
+    readers = {"birthday": people.parse_birthday, "keep_in_touch": people.parse_cadence,
+               "last_contact": people.parse_day}
+    for field, form in PERSON_FIELDS.items():
+        value = fm.get(field)
+        if not value:
+            continue
+        if isinstance(value, list) or not readers[field](value):
+            bad.append(f"{path}: {field} = '{value}' is not readable, write {form}")
+        elif not people.CANONICAL[field].fullmatch(value):
+            warnings.append(f"{path}: {field} = '{value}', write {form}")
 
 
 def _check_weeks(vault: Path, errors: list[str], warnings: list[str]) -> None:
