@@ -172,13 +172,18 @@ def folder() -> Path:
 
 
 def everyone() -> list[Person]:
-    """The People pages. The summary `_People.md`, and any page that is not a person, are left out."""
+    """The People pages. The summary `_People.md`, any page that is not a person, and a file that is not text are
+    left out."""
     base = folder()
     found = []
     for path in sorted(base.rglob("*.md")) if base.exists() else []:
         if path.name.startswith("_") or any(part.startswith(".") for part in path.relative_to(base).parts):
             continue
-        fm, body = notes.read(path)
+        try:
+            fm, body = notes.read(path)
+        except (OSError, UnicodeDecodeError):
+            log.warning("people: could not read %s", path.name)
+            continue
         if fm.get("type", "entity") == "entity" and fm.get("entity", "person") in ("person", ""):
             found.append(Person(path, fm, body))
     return found
@@ -514,7 +519,8 @@ def reconnects(moment: datetime, people: list[Person], history: list[messenger.M
             facts.append(f"- Last contact: {last.isoformat()}, {days} days ago.")
             fallback = i18n.t("people.reconnect", days=days, name=person.name, day=day_words(day))
         else:
-            facts.append(f"- Last contact: unknown. The user asked to keep in touch {days} days ago, and told of no contact since.")
+            facts.append(f"- Last contact: unknown. The user asked to keep in touch {days} days ago, "
+                         "and told of no contact since.")
             fallback = i18n.t("people.reconnect_new", name=person.name, day=day_words(day))
         facts.append(f"- Day to offer for a call: {_english(day)}.")
         buttons = [(i18n.t("people.week_button"), "week"), (i18n.t("people.later_button"), "later")]
@@ -676,7 +682,8 @@ def converse(ask: Ask) -> str | None:
         if buttons:
             state = _load()
             idea = (written or {}).get("gift", "")
-            state["offers"][ask.message_id] = dict(ask.offer, sent=moment.date().isoformat(), **({"idea": idea} if idea else {}))
+            offer = dict(ask.offer, sent=moment.date().isoformat())
+            state["offers"][ask.message_id] = offer | ({"idea": idea} if idea else {})
             _save(state)
         done = f"{ask.kind} about [[{ask.person}]]"
         vault.publish(f"messenger: {done}")
