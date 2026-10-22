@@ -438,17 +438,18 @@ class TestFailures(Base):
         self.assertFalse(answer_from({"subtype": "success", "result": "ok", "session_id": "s"}).error)
 
     def test_the_same_failure_is_told_once(self):
-        sent, old = [], (telegram_api.send, agents.FAILURES)
+        sent, old = [], (telegram_api.send, agents.FAILURES, config.QUIET_FROM, config.QUIET_UNTIL)
         telegram_api.send = lambda text, buttons=None, chat_id=None: sent.append(text) or 1
         agents.FAILURES = _FOLDER / "failures-test.json"
         agents.FAILURES.unlink(missing_ok=True)
+        config.QUIET_FROM = config.QUIET_UNTIL = 0  # alerts wait for the end of the quiet hours
         try:
             agents._report_failure("Integrator", "TypeError: A.with is not a function")
             agents._report_failure("Integrator", "TypeError: A.with is not a function")
             agents._report_failure("Integrator", "timed out after 3600s")
             self.assertEqual(len(sent), 2)
         finally:
-            telegram_api.send, agents.FAILURES = old
+            telegram_api.send, agents.FAILURES, config.QUIET_FROM, config.QUIET_UNTIL = old
 
     def test_only_old_waiting_captures_are_retried(self):
         runs, old = [], agents.integrator

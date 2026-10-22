@@ -512,7 +512,7 @@ class TestMedia(TelegramBase):
         self.assertTrue((vault.attachments() / name).exists())
         fm, body = notes.read(self.engrams()[0])
         self.assertEqual((fm["channel"], body.strip()), ("telegram-photo", f"the new office\n![[{name}]]"))
-        self.assertEqual(msg.texts(), ["✓ Saved. Integrating…"])
+        self.assertEqual(msg.texts(), [telegram_api.capture_text("telegram-photo", False, None)])
 
     async def test_a_file_too_big_is_explained(self):
         msg = FakeMessage(81, document=media(b"x", size=35 * 2 ** 20, file_name="Talk.pdf", mime_type="application/pdf"))

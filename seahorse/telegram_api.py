@@ -43,7 +43,7 @@ def capture_buttons(engram: str, channel: str, correction: bool, result: str | N
     """The buttons under a capture confirmation. Without a result the Integrator is still at work: there is
     nothing to fix yet, so only a voice note gets the button to read the transcript.
     A result that starts with "!" is a task that does not fit this week: the bot asks what to do."""
-    if result and result.startswith("!"):
+    if result and result.strip().startswith("!"):
         return [(i18n.t("button.put_in_week"), f"eng|week|{engram}"), (i18n.t("button.backlog"), f"eng|backlog|{engram}")]
     if correction:
         return []
@@ -53,16 +53,38 @@ def capture_buttons(engram: str, channel: str, correction: bool, result: str | N
     return buttons + [(i18n.t("button.fix"), f"eng|fix|{engram}")]
 
 
+# The title of a confirmation comes from the channel of the capture. Text is the default.
+CAPTURE_TITLES = {"telegram-voice": "capture.voice", "telegram-photo": "saved.photo", "telegram-file": "saved.file",
+                  "telegram-video": "saved.video", "telegram-location": "saved.location",
+                  "telegram-contact": "saved.contact"}
+MAX_PARTS = 4
+
+
+def result_lines(result: str) -> list[str]:
+    """The parts of an Integrator result, one destination each, separated by "|". At most four lines: more
+    parts join the last line, so the user sees everything that was filed."""
+    parts = [p.strip().lstrip("→").strip() for p in result.strip().split("|")]
+    parts = [p for p in parts if p]
+    if len(parts) > MAX_PARTS:
+        parts = parts[:MAX_PARTS - 1] + ["; ".join(parts[MAX_PARTS - 1:])]
+    return parts
+
+
 def capture_text(channel: str, correction: bool, result: str | None) -> str:
-    """The confirmation text. Without a result it says it is integrating. With one, it says what was done."""
-    title = i18n.t("capture.correction" if correction else "capture.voice" if channel == "telegram-voice" else "capture.saved")
+    """The confirmation text. Without a result it says it is integrating. With one, it shows the title and one
+    "→" line for each place where a part of the capture went.
+    A result that starts with "!" is a task that does not fit this week. A part that starts with "?" is a doubt."""
+    title = i18n.t("capture.correction" if correction else CAPTURE_TITLES.get(channel, "capture.saved"))
     if result is None:
         return i18n.t("capture.working", title=title)
-    if result.startswith("?"):
-        return i18n.t("capture.doubt", title=title, question=result[1:].strip())
-    if result.startswith("!"):
-        return f"{title}\n→ {result[1:].strip()}\n\n{i18n.t('capture.week_full')}"
-    return f"{title}\n→ {result}"
+    parts = result_lines(result.strip().removeprefix("!"))
+    lines = "".join(f"\n→ {p}" for p in parts if not p.startswith("?"))
+    doubts = [p[1:].strip() for p in parts if p.startswith("?")]
+    if doubts:
+        return i18n.t("capture.doubt", title=title + lines, question=" ".join(doubts))
+    if result.strip().startswith("!"):
+        return f"{title}{lines}\n\n{i18n.t('capture.week_full')}"
+    return title + lines
 
 
 def quote(text: str) -> str:

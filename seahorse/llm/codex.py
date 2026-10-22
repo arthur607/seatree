@@ -8,7 +8,9 @@ import tempfile
 from pathlib import Path
 
 from .. import config
-from . import Answer, workdir
+from . import Answer, safe_env, workdir
+
+LOGIN = {"OPENAI_API_KEY", "CODEX_API_KEY"}
 
 
 def binary() -> str:
@@ -29,8 +31,10 @@ def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: 
             cmd += ["-m", model]
         cmd.append(text)
         try:
+            # The shell of Codex gets no token of Seahorse, and a commit made in it is signed as Seahorse.
+            # The workspace-write sandbox is the strictest one that still lets it edit the vault.
             out = subprocess.run(cmd, cwd=workdir(), stdin=subprocess.DEVNULL, capture_output=True,
-                                 text=True, timeout=timeout)
+                                 text=True, timeout=timeout, env=safe_env(LOGIN))
         except subprocess.TimeoutExpired:
             return Answer(f"timed out after {timeout}s", None, True)
         except FileNotFoundError:

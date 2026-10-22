@@ -5,12 +5,30 @@ The agents ask for a role. The role gives the model tier and the reasoning effor
 into its own models and flags.
 """
 import logging
+import os
 from dataclasses import dataclass
 from string import Template
 
 from .. import config, i18n
 
 log = logging.getLogger(__name__)
+
+# Tokens that no model needs. The CLI of the provider keeps only its own login.
+OTHER_SECRETS = {"TELEGRAM_BOT_TOKEN", "GROQ_API_KEY", "GH_TOKEN", "GITHUB_TOKEN"}
+# A commit that a model makes, against the rules, is signed as Seahorse: it never passes as a note of the user.
+AGENT_GIT = {"GIT_AUTHOR_NAME": "Seahorse", "GIT_AUTHOR_EMAIL": "seahorse@localhost",
+             "GIT_COMMITTER_NAME": "Seahorse", "GIT_COMMITTER_EMAIL": "seahorse@localhost"}
+
+
+def safe_env(keep: set[str]) -> dict[str, str]:
+    """The environment of the AI's CLI: without the keys of secrets.env and the tokens of other services, except
+    the login that this provider needs (`keep`), and with git signing as Seahorse."""
+    secrets = set(OTHER_SECRETS)
+    if config.SECRETS_FILE.exists():
+        for line in config.SECRETS_FILE.read_text(encoding="utf-8").splitlines():
+            if "=" in line and not line.strip().startswith("#"):
+                secrets.add(line.split("=", 1)[0].strip())
+    return {k: v for k, v in os.environ.items() if k not in secrets - keep} | AGENT_GIT
 
 # Role → (tier, effort). "fast" is for one-line jobs, "deep" for the weekly planning and the patterns.
 ROLES = {

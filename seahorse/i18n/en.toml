@@ -59,6 +59,38 @@ update_failed = "The update failed: {detail}"
 up_to_date = "Seahorse is up to date ({version})."
 first_message = "✓ Seahorse is connected. Send me anything: a thought, a task, a movie you want to watch. Text or voice."
 
+[saved]
+# The title of a confirmation, by the kind of capture. Text and voice are in [capture].
+photo = "✓ Photo saved"
+file = "✓ File saved"
+video = "✓ Video saved"
+location = "✓ Location saved"
+contact = "✓ Contact saved"
+
+[result]
+# What a confirmation says when the Integrator gave no line for the capture.
+filed = "Filed in your notes"
+nothing = "Nothing new to file"
+unclear = "What do I do with this?"
+gave_up = "I could not file this after {tries} tries. It is saved. Reply to this message, and I try again."
+
+[agent]
+# The names of the agents in the alerts.
+integrator = "The Integrator"
+notes = "The note reader"
+morning = "The morning summary"
+reviewer = "The night review"
+planner = "The week planning"
+observer = "The Observer"
+
+[alert]
+failed = "⚠️ {agent} failed. {next}\n`seahorse doctor` checks the setup.\nDetail: {detail}"
+next_integrator = "Your captures are saved. I try again in 15 minutes."
+next_notes = "Your notes are safe. I try again in 5 minutes."
+next_other = "It runs again at its usual time."
+gave_up = "⚠️ I could not file {count} capture(s) after {tries} tries. They are saved. The morning summary asks you about them."
+notes_gave_up = "⚠️ I could not read these notes after {tries} tries: {notes}. They are safe. Edit a note again, and I read it again."
+
 [reminder]
 due = "Due {when}, {date}"
 today = "today"

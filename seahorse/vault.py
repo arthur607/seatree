@@ -92,18 +92,25 @@ def publish(message: str) -> bool:
 
 
 def new_engram(text: str, channel: str, when: datetime, extra: dict | None = None) -> Path:
-    """Saves the raw capture. No lock and no git: it is only a new file, and the Integrator commits it."""
+    """Saves the raw capture. No lock and no git: it is only a new file, and the Integrator commits it.
+    The file is created only if the name is free, so two processes never write the same engram: the second one
+    takes the next number."""
     folder = config.ENGRAMS / when.strftime("%Y-%m")
     folder.mkdir(parents=True, exist_ok=True)
     base = when.strftime("%Y-%m-%d %H%M")
-    path, n = folder / f"{base}.md", 2
-    while path.exists():
-        path, n = folder / f"{base} {n}.md", n + 1
     lines = ["---", "type: engram", f"received: {when:%Y-%m-%d %H:%M}", f"channel: {channel}", "state: pending"]
     for key, value in (extra or {}).items():
         lines.append(f"{key}: {notes.quoted(value)}")
     lines += ["---", notes.without_blank_lines(text)]
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    n = 1
+    while True:
+        path = folder / (f"{base}.md" if n == 1 else f"{base} {n}.md")
+        try:
+            with open(path, "x", encoding="utf-8", newline="\n") as handle:
+                handle.write("\n".join(lines) + "\n")
+            break
+        except FileExistsError:
+            n += 1
     log.info("engram saved: %s", path.name)
     return path
 
@@ -243,3 +250,16 @@ def save_attachment(data: bytes, name: str) -> Path:
             return path
         except FileExistsError:
             path, n = folder / f"{stem} {n}{suffix}", n + 1
+
+
+def created_by_user(path: str) -> bool:
+    """True when the user made this note: its first commit, before any rename, is not an agent's."""
+    result = git("-c", "core.quotepath=off", "log", "--follow", "--diff-filter=A", "--format=%an", "--", path, check=False)
+    authors = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return not authors or authors[-1] not in AGENT_AUTHORS
+
+
+def text_at(commit: str, path: str) -> str | None:
+    """The text of a note at one commit. None when the note did not exist then."""
+    result = git("show", f"{commit}:{path}", check=False)
+    return result.stdout if result.returncode == 0 else None

@@ -7,13 +7,47 @@ import subprocess
 from pathlib import Path
 
 from .. import config
-from . import Answer, workdir
+from . import Answer, safe_env, workdir
 
 TIERS = {"fast": "haiku", "standard": "sonnet", "deep": "opus"}
 READ = ["Read", "Glob", "Grep"]
 WEB = ["WebFetch", "WebSearch"]
 WRITE = READ + ["Write", "Edit", "Bash(git mv:*)", "Bash(mkdir:*)"] + WEB
 NEVER_WHEN_READING = ["Write", "Edit", "NotebookEdit", "Bash"]
+LOGIN = {"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"}
+# What no agent may read or change, whatever a text in the vault or on the web asks: the secrets of Seahorse and
+# of the AI, ssh keys, git and GitHub logins, the environment of the process, and the git folder of the vault.
+# "~/" is the home folder, "//" the root of the disk, and "./" the vault. Edit rules also cover Write.
+SECRETS = ["~/.seahorse/**", "~/.claude/**", "~/.claude.json", "~/.codex/**", "~/.ssh/**", "~/.config/**",
+           "~/.git-credentials", "~/.netrc", "~/.bash_history", "//proc/**", "//**/.env", "//**/*.env", "./.git/**"]
+# Obsidian runs the code of its plugins: an agent never writes there.
+NEVER_EDIT = ["./.obsidian/**"]
+
+
+def denied() -> list[str]:
+    """The deny rules of every run. Deny rules win over allow rules. A rule on a folder that holds the vault
+    would stop every agent, so it is left out."""
+    home, vault = Path.home().resolve(), config.VAULT.resolve()
+
+    def holds_vault(pattern: str) -> bool:
+        folder = pattern.removesuffix("/**")
+        path = home / folder[2:] if folder.startswith("~/") else Path(folder[1:]) if folder.startswith("//") else None
+        return path is not None and (path == vault or path in vault.parents)
+
+    paths = list(SECRETS)
+    for folder in (config.HOME, config.SECRETS_FILE.parent):
+        absolute = folder.resolve().as_posix()
+        if absolute.startswith("/") and not set(absolute) & {" ", ","}:
+            paths.append(f"/{absolute}/**")  # a Seahorse home outside ~/.seahorse
+    paths = [p for p in paths if not holds_vault(p)]
+    rules = [f"Read({p})" for p in paths] + [f"Edit({p})" for p in paths + NEVER_EDIT]
+    try:
+        hidden = any(part.startswith(".") for part in vault.relative_to(home).parts)
+    except ValueError:
+        hidden = False
+    if not hidden:  # the dotfiles of the home folder, such as .bashrc, run code at the next login
+        rules += ["Edit(~/.*)", "Edit(~/.*/**)"]
+    return rules
 
 
 def binary() -> str:
@@ -43,14 +77,14 @@ def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: 
     if tier != "fast":  # the fast model takes no effort setting
         cmd += ["--effort", effort]
     if write:
-        cmd += ["--permission-mode", "acceptEdits", "--allowedTools", *WRITE]
+        cmd += ["--permission-mode", "acceptEdits", "--allowedTools", *WRITE, "--disallowedTools", *denied()]
     else:
-        cmd += ["--allowedTools", *READ, *(WEB if web else []), "--disallowedTools", *NEVER_WHEN_READING]
+        cmd += ["--allowedTools", *READ, *(WEB if web else []), "--disallowedTools", *NEVER_WHEN_READING, *denied()]
     if session:
         cmd += ["--resume", session]
     try:
         out = subprocess.run(cmd, cwd=workdir(), stdin=subprocess.DEVNULL, capture_output=True,
-                             text=True, timeout=timeout)
+                             text=True, timeout=timeout, env=safe_env(LOGIN))
     except subprocess.TimeoutExpired:
         return Answer(f"timed out after {timeout}s", None, True)
     except FileNotFoundError:

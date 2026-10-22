@@ -15,6 +15,9 @@ ENGRAMS = "5. 💭 Engrams"
 AREAS_WITH_TYPE = ["1. 🎯 Intention", "2. 📓 Memory", "3. 📚 Knowledge", "4. 🪞 Identity", ENGRAMS]
 RELATIONS = {"part_of", "causes", "inspires", "contradicts", "supersedes", "related"}
 MAX_LINES = 200
+# Characters that break a file name on some systems, or a wikilink in Obsidian.
+BAD_CHARACTERS = '\\ / : * ? " < > | # ^ [ ]'
+BAD_NAME = re.compile(r'[\\/:*?"<>|#^\[\]]')
 
 
 def parse_frontmatter(text: str) -> tuple[dict, str]:
@@ -75,42 +78,57 @@ def check(vault: Path) -> tuple[list[str], list[str], int]:
 
     notes = [p for p in vault.rglob("*.md")
              if ".obsidian" not in p.parts and ".trash" not in p.parts and ".git" not in p.parts and "_Templates" not in p.parts]
+    texts = {p: p.read_text(encoding="utf-8").replace("\r\n", "\n") for p in notes}
+    # Notes the user is still writing: they count as link targets, but they are not checked.
+    skip = {line.strip() for line in os.environ.get("SEAHORSE_SKIP", "").splitlines() if line.strip()}
+
+    def owned(p: Path) -> bool:
+        """The user's own notes, imported ones included, and the notes the user is still writing. Their text and
+        their name belong to the user: what lint finds in them is a warning, so no fix run tries to change them."""
+        fm = parse_frontmatter(texts[p])[0]
+        return fm.get("written_by") == "owner" or bool(fm.get("imported_from")) or rel(p) in skip
+
     names: dict[str, Path] = {}
     for p in notes:
         if p.stem in names:
-            errors.append(f"{rel(p)}: same name as {rel(names[p.stem])}, links are ambiguous")
+            (warnings if owned(p) or owned(names[p.stem]) else errors).append(
+                f"{rel(p)}: same name as {rel(names[p.stem])}, links are ambiguous")
         names[p.stem] = p
+        if BAD_NAME.search(p.stem):
+            (warnings if owned(p) else errors).append(
+                f"{rel(p)}: the file name has a character that breaks a link or a file name, one of {BAD_CHARACTERS}")
     incoming = {p.stem: 0 for p in notes}
     # Images and other files are valid link targets too, such as ![[portrait.webp]].
     attachments = {p.name for p in vault.rglob("*") if p.is_file() and p.suffix and p.suffix != ".md"
                    and ".git" not in p.parts and ".obsidian" not in p.parts}
     aliases: dict[str, str] = {}
-    # Notes the user is still writing: they count as link targets, but they are not checked.
-    skip = {line.strip() for line in os.environ.get("SEAHORSE_SKIP", "").splitlines() if line.strip()}
 
     for p in notes:
         path = rel(p)
         if path in skip:
             continue
-        text = p.read_text(encoding="utf-8").replace("\r\n", "\n")
+        text = texts[p]
         fm, body = parse_frontmatter(text)
         area = p.relative_to(vault).parts[0] if len(p.relative_to(vault).parts) > 1 else ""
         kind = fm.get("type")
+        owner = owned(p)
+        # In a note of the user an error is a warning: no fix run may change their text.
+        bad = warnings if owner else errors
         if (area in AREAS_WITH_TYPE or p.parent == vault) and not kind:
-            errors.append(f"{path}: missing type field")
+            bad.append(f"{path}: missing type field")
         for field, value in fm.items():
             key = f"status.{kind}" if field == "status" else field
             if key in vocab and value and not isinstance(value, list) and value not in vocab[key]:
-                errors.append(f"{path}: {field} = '{value}' is not in the Vocabulary")
+                bad.append(f"{path}: {field} = '{value}' is not in the Vocabulary")
             if field == "status" and key not in vocab and value:
-                errors.append(f"{path}: type '{kind}' takes no status")
+                bad.append(f"{path}: type '{kind}' takes no status")
         for field in RELATIONS & fm.keys():
             if not isinstance(fm[field], list):
-                errors.append(f"{path}: relation {field} must be a list of links")
+                bad.append(f"{path}: relation {field} must be a list of links")
         if kind in {"wish", "experience", "task"} and fm.get("done") not in {"true", "false"}:
-            errors.append(f"{path}: {kind} without done: true or false")
+            bad.append(f"{path}: {kind} without done: true or false")
         if kind == "trait" and not fm.get("certainty"):
-            errors.append(f"{path}: trait without certainty")
+            bad.append(f"{path}: trait without certainty")
         if kind == "engram":
             if not re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{4}( \d+)?", p.stem):
                 errors.append(f"{path}: engram name is not YYYY-MM-DD HHMM, with an optional suffix")
@@ -126,9 +144,8 @@ def check(vault: Path) -> tuple[list[str], list[str], int]:
         if kind == "entity":
             for name in [p.stem, *fm.get("aliases", [])]:
                 if name.lower() in aliases and aliases[name.lower()] != path:
-                    errors.append(f"{path}: name or alias '{name}' duplicates {aliases[name.lower()]}")
+                    bad.append(f"{path}: name or alias '{name}' duplicates {aliases[name.lower()]}")
                 aliases[name.lower()] = path
-        owner = fm.get("written_by") == "owner"
         # The user's own notes are never split or reformatted: the text is theirs.
         if not owner and len(text.splitlines()) > MAX_LINES:
             warnings.append(f"{path}: {len(text.splitlines())} lines, split it")
@@ -145,10 +162,10 @@ def check(vault: Path) -> tuple[list[str], list[str], int]:
                     incoming[target] += 1
             else:
                 # In the user's notes, a link to a page that does not exist yet is a choice, not a defect.
-                (warnings if owner else errors).append(f"{path}: broken link [[{target}]]")
+                bad.append(f"{path}: broken link [[{target}]]")
 
     for p in notes:
-        fm, _ = parse_frontmatter(p.read_text(encoding="utf-8"))
+        fm, _ = parse_frontmatter(texts[p])
         if fm.get("type") == "engram" and fm.get("state") == "integrated" and incoming[p.stem] == 0:
             warnings.append(f"{rel(p)}: marked integrated, but no note cites this engram")
         if fm.get("type") in {"entity", "knowledge"} and incoming[p.stem] == 0:
