@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
@@ -204,3 +205,41 @@ def create(today: date) -> list[str]:
     if not (config.VAULT / ".git").exists():
         git("init", "-q", "-b", "main")
     return created
+
+
+_saving = threading.Lock()
+
+
+def save_engram(text: str, channel: str, when: datetime, extra: dict | None = None) -> Path:
+    """new_engram for callers that run at the same time, such as the bot's handlers. One at a time, so two messages
+    of the same minute never get the same file name."""
+    with _saving:
+        return new_engram(text, channel, when, extra)
+
+
+def engrams_with(key: str, value: str, newest: int = 300) -> list[Path]:
+    """The engrams whose frontmatter field `key` is `value`, the newest first. Only the newest ones are read."""
+    if not config.ENGRAMS.exists():
+        return []
+    recent = sorted(config.ENGRAMS.rglob("*.md"), key=lambda p: p.stem, reverse=True)[:newest]
+    return [path for path in recent if notes.read(path)[0].get(key) == value]
+
+
+def attachments() -> Path:
+    """The folder of the images and other files. Obsidian puts its new attachments there too."""
+    return config.SYSTEM / "Attachments"
+
+
+def save_attachment(data: bytes, name: str) -> Path:
+    """Writes a file to the attachments folder. A name that is taken gets a number, such as "Photo 2.webp"."""
+    folder = attachments()
+    folder.mkdir(parents=True, exist_ok=True)
+    stem, suffix = Path(name).stem, Path(name).suffix
+    path, n = folder / name, 2
+    while True:
+        try:
+            with open(path, "xb") as handle:  # "x": never over a file that another thread just wrote
+                handle.write(data)
+            return path
+        except FileExistsError:
+            path, n = folder / f"{stem} {n}{suffix}", n + 1

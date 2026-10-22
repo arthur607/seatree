@@ -1,6 +1,7 @@
 """Send and edit Telegram messages over the HTTP API. The agents and the timers use it, outside the bot."""
 import html
 import logging
+import threading
 from pathlib import Path
 
 import requests
@@ -9,6 +10,10 @@ from . import config, i18n
 
 log = logging.getLogger(__name__)
 LIMIT = 4000
+# The last texts sent, by message id, so the bot knows what a later message of the user answers.
+_sent: dict[int, str] = {}
+_sent_lock = threading.Lock()
+SENT_KEPT = 50
 
 
 def _url(method: str) -> str:
@@ -65,10 +70,41 @@ def quote(text: str) -> str:
     return f"<i>“{html.escape(text)}”</i>"
 
 
+def split(text: str, limit: int = LIMIT) -> list[str]:
+    """Cuts a long text into pieces that fit in one Telegram message. A cut falls between paragraphs, else between
+    lines, else between words, and only in the middle of a word when a word is longer than a whole message."""
+    pieces, rest = [], text.strip()
+    while len(rest) > limit:
+        for separator in ("\n\n", "\n", " "):
+            cut = rest.rfind(separator, limit // 2, limit + len(separator))
+            if cut != -1:
+                pieces.append(rest[:cut].rstrip())
+                rest = rest[cut + len(separator):].lstrip()
+                break
+        else:
+            pieces.append(rest[:limit])
+            rest = rest[limit:]
+    return pieces + [rest] if rest else pieces
+
+
+def remember(message_id: int, text: str) -> None:
+    """Keeps the text of a message Seahorse sent, for a while."""
+    with _sent_lock:
+        _sent[message_id] = text
+        while len(_sent) > SENT_KEPT:
+            _sent.pop(next(iter(_sent)))
+
+
+def sent_text(message_id: int) -> str | None:
+    """The full text of a message Seahorse sent lately, or None when it is not known (such as after a restart)."""
+    with _sent_lock:
+        return _sent.get(message_id)
+
+
 def send(text: str, buttons: list[tuple[str, str]] | None = None, chat_id: int | None = None) -> int | None:
     """Sends plain text. Buttons are (label, callback_data) pairs. Returns the message id."""
     last = None
-    pieces = [text[i:i + LIMIT] for i in range(0, len(text), LIMIT)] or [""]
+    pieces = split(text) or [""]
     for i, piece in enumerate(pieces):
         body = {"chat_id": chat_id or config.USER_ID, "text": piece, "disable_web_page_preview": True}
         if buttons and i == len(pieces) - 1:
@@ -77,6 +113,8 @@ def send(text: str, buttons: list[tuple[str, str]] | None = None, chat_id: int |
         if result is None:
             return None
         last = result["message_id"]
+    if last is not None:
+        remember(last, text)
     return last
 
 
@@ -101,7 +139,8 @@ def send_document(path: Path, caption: str = "") -> int | None:
 
 
 def edit(message_id: int, text: str, buttons: list[tuple[str, str]] | None = None) -> bool:
-    body = {"chat_id": config.USER_ID, "message_id": message_id, "text": text[:LIMIT], "disable_web_page_preview": True}
+    body = {"chat_id": config.USER_ID, "message_id": message_id, "text": (split(text) or [""])[0],
+            "disable_web_page_preview": True}
     if buttons:
         body["reply_markup"] = keyboard(buttons)
     return _call("editMessageText", body) is not None
