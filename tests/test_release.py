@@ -226,3 +226,75 @@ class TestDayTitles(Base):
         self.assertIn("> [!day] Tue 06/10 · 0h of 4h dentist day, bring the x-rays\n", text)
         self.assertIn("> [!day] Wed 07/10 · 0h of 4h\n", text)
         self.assertFalse(week.refresh(self.today))  # the next refresh changes nothing
+
+
+class TestIntegratorRuns(Base):
+    """The Integrator never runs twice at once, and captures.json never loses a line."""
+
+    def test_a_waiting_integrator_never_comes_earlier(self):
+        from seahorse import bot
+        from test_telegram import context
+        ctx = context()
+        delay = config.INTEGRATOR_DELAY_SECONDS
+        bot._schedule_integrator(ctx, bot.CLASSIFY_SECONDS)  # a message that may be a question
+        bot._schedule_integrator(ctx)  # the next message comes before the check ends
+        self.assertEqual([j.when for j in ctx.job_queue.get_jobs_by_name("integrator")], [delay + bot.CLASSIFY_SECONDS])
+        bot._schedule_integrator(ctx, bot.CLASSIFY_SECONDS + 30)  # later is still possible
+        self.assertEqual([j.when for j in ctx.job_queue.get_jobs_by_name("integrator")],
+                         [delay + bot.CLASSIFY_SECONDS + 30])
+
+    def test_a_second_call_returns_at_once_and_the_first_run_goes_again(self):
+        import threading
+        started, release, runs = threading.Event(), threading.Event(), []
+
+        def batch():
+            runs.append("batch")
+            if len(runs) == 1:
+                started.set()
+                release.wait(5)
+                return "first", False
+            return None, False
+        old = agents._integrate_batch, agents.send_held_alerts, agents._update_confirmations
+        agents._integrate_batch, agents.send_held_alerts = batch, lambda: None
+        agents._update_confirmations = lambda *a: None
+        self.addCleanup(lambda: setattr(agents, "_integrate_batch", old[0]) or setattr(agents, "send_held_alerts", old[1])
+                        or setattr(agents, "_update_confirmations", old[2]))
+        results = []
+        first = threading.Thread(target=lambda: results.append(agents.integrator()))
+        first.start()
+        self.assertTrue(started.wait(5))
+        self.assertTrue(agents.integrating())
+        self.assertIsNone(agents.integrator())  # the morning summary, while the bot's run goes
+        release.set()
+        first.join(5)
+        self.assertEqual((results, runs), (["first"], ["batch", "batch"]))
+        self.assertFalse(agents.integrating())
+
+    def test_captures_json_loses_nothing_with_two_threads(self):
+        import threading
+        import time
+        from pathlib import Path
+        old = agents._load
+
+        def slow(path):
+            data = old(path)
+            time.sleep(0.02)  # a wide gap between the read and the write
+            return data
+        agents._load = slow
+        self.addCleanup(setattr, agents, "_load", old)
+        threads = [threading.Thread(target=agents._remember, args=([Path(f"2026-10-05 10{i:02d}.md")],))
+                   for i in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(5)
+        self.assertEqual(len(agents._captures()["waiting"]), 8)
+
+    def test_integrate_while_the_morning_run_goes_says_so(self):
+        import asyncio
+        from seahorse import bot, i18n
+        from test_telegram import FakeMessage, Patch, context, update
+        msg = FakeMessage(text="/integrate")
+        with Patch(agents, integrator=lambda: None, integrating=lambda: True):
+            asyncio.run(bot.on_integrate(update(msg), context()))
+        self.assertEqual(msg.texts(), [i18n.t("bot.integrating"), i18n.t("chat.integrate_busy")])

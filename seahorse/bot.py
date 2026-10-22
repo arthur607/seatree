@@ -324,12 +324,26 @@ def _job(name: str, function, again: bool = False):
     return callback
 
 
+def _next_run(job) -> datetime | None:
+    """When a job of the queue runs. None when the queue does not know (it has not started yet)."""
+    try:
+        return job.next_t
+    except AttributeError:
+        return None
+
+
 def _schedule_integrator(context: ContextTypes.DEFAULT_TYPE, extra_seconds: int = 0) -> None:
-    """Waits some seconds for more messages, so one Integrator run handles all of them."""
-    for job in context.job_queue.get_jobs_by_name("integrator"):
+    """Waits some seconds for more messages, so one Integrator run handles all of them. A run that waits already
+    only moves later, never earlier: a message that may be a question keeps the Integrator away until the check
+    says what it is."""
+    seconds = config.INTEGRATOR_DELAY_SECONDS + extra_seconds
+    at = datetime.now().astimezone() + timedelta(seconds=seconds)
+    waiting = context.job_queue.get_jobs_by_name("integrator")
+    if any((when := _next_run(job)) and when >= at for job in waiting):
+        return
+    for job in waiting:
         job.schedule_removal()
-    context.job_queue.run_once(_job("integrator", agents.integrator, again=True),
-                               config.INTEGRATOR_DELAY_SECONDS + extra_seconds, name="integrator")
+    context.job_queue.run_once(_job("integrator", agents.integrator, again=True), seconds, name="integrator")
 
 
 async def _retry(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -976,8 +990,8 @@ async def on_integrate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     result = await _in_thread("integrator", agents.integrator, again=True)
     if result is FAILED:
         await message.reply_text(i18n.t("chat.integrate_failed"))
-    elif not result:
-        await message.reply_text(i18n.t("bot.nothing_pending"))
+    elif not result:  # nothing waited, or the run of the morning summary or of Sunday has the captures
+        await message.reply_text(i18n.t("chat.integrate_busy" if agents.integrating() else "bot.nothing_pending"))
 
 
 async def on_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -86,7 +86,8 @@ class FakeJobs:
         self.jobs = []
 
     def run_once(self, callback, when, data=None, name=None):
-        job = SimpleNamespace(callback=callback, when=when, data=data, name=name, removed=False)
+        job = SimpleNamespace(callback=callback, when=when, data=data, name=name, removed=False,
+                              next_t=datetime.now(timezone.utc) + timedelta(seconds=when))
         job.schedule_removal = lambda: setattr(job, "removed", True)
         self.jobs.append(job)
         return job
