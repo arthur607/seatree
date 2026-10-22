@@ -81,11 +81,20 @@ def _take(text: str, phrases: list[str]) -> tuple[str, bool]:
     return text, found
 
 
-# "30 min", "1h", "1h30", "1 h 30 m", "1.5h", "2 horas", "1 hora e 30 min", "20 minutes".
+# What may come after hours: "and a half", "e meia", "y media"; or "and 30", "e 30 min".
+AFTER_HOURS = (rf"\s*(?:(?P<half>(?:e|and|y)\s+(?:a\s+)?(?:meia|half|media))(?![a-z\d])"
+               rf"|(?:e|and|y)\s+(?P<more>\d{{1,2}})(?:\s*(?:{week.MINUTES}))?(?![a-z\d]))")
+# "30 min", "1h", "1h30", "1 h 30 m", "1.5h", "2 horas", "1 hora e 30 min", "1h e 30", "2 horas e meia", "20 minutes".
 NUMBER = re.compile(
-    rf"(?<![\w.,])(\d+(?:[.,]\d+)?)\s*(?:{week.HOURS})(?![a-z])"
-    rf"(?:\s*(?:e|and|y)\s+(\d{{1,2}})\s*(?:{week.MINUTES})(?![a-z])|\s*(\d{{1,2}})\s*(?:{week.MINUTES})?(?![a-z\d]))?"
-    rf"|(?<![\w.,])(\d+)\s*(?:{week.MINUTES})(?![a-z])")
+    rf"(?<![\w.,])(?P<hours>\d+(?:[.,]\d+)?)\s*(?:{week.HOURS})(?![a-z])"
+    rf"(?:{AFTER_HOURS}|\s*(?P<rest>\d{{1,2}})\s*(?:{week.MINUTES})?(?![a-z\d]))?"
+    rf"|(?<![\w.,])(?P<minutes>\d+)\s*(?:{week.MINUTES})(?![a-z])")
+TAIL = re.compile(AFTER_HOURS)
+
+
+def _after_hours(m: re.Match) -> int:
+    """The minutes that "and a half" or "and 30" add to the hours."""
+    return 30 if m["half"] else int(m["more"] or 0)
 
 
 def _amounts(language: str | None) -> list[tuple[str, int]]:
@@ -99,15 +108,23 @@ def _amounts(language: str | None) -> list[tuple[str, int]]:
 
 
 def _duration(text: str, language: str | None = None) -> tuple[str, int]:
-    """The first duration in a plain text, in minutes, and the text without it. Zero when there is none."""
+    """The first duration in a plain text, in minutes, and the text without it. Zero when there is none. Whole
+    hours in words can take "and a half" or "and 30" after them: "duas horas e meia" is 150."""
     for phrase, value in _amounts(language):
-        pattern = rf"(?<!\w){re.escape(phrase)}(?!\w)"
-        if re.search(pattern, text):
-            return re.sub(pattern, " ", text, count=1), value
+        m = re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", text)
+        if not m:
+            continue
+        end = m.end()
+        if value % 60 == 0 and (tail := TAIL.match(text, end)):
+            value, end = value + _after_hours(tail), tail.end()
+        return f"{text[:m.start()]} {text[end:]}", value
     m = NUMBER.search(text)
     if not m:
         return text, 0
-    total = round(float(m[1].replace(",", ".")) * 60) + int(m[2] or m[3] or 0) if m[1] else int(m[4])
+    if m["hours"]:
+        total = round(float(m["hours"].replace(",", ".")) * 60) + (_after_hours(m) or int(m["rest"] or 0))
+    else:
+        total = int(m["minutes"])
     return f"{text[:m.start()]} {text[m.end():]}", total
 
 

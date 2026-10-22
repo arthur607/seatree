@@ -298,3 +298,24 @@ class TestIntegratorRuns(Base):
         with Patch(agents, integrator=lambda: None, integrating=lambda: True):
             asyncio.run(bot.on_integrate(update(msg), context()))
         self.assertEqual(msg.texts(), [i18n.t("bot.integrating"), i18n.t("chat.integrate_busy")])
+
+
+class TestNowDurations(unittest.TestCase):
+    """"And a half" and "and 30" after hours, in numbers or in words, in the three languages."""
+    CASES = {"pt-BR": {"tenho 1h e 30": 90, "tenho 2 horas e meia": 150, "tenho duas horas e meia": 150,
+                       "tenho 1 hora e 30 min": 90, "tenho 1h e meia livre": 90},
+             "es": {"tengo 1h y media": 90, "tengo dos horas y media": 150, "tengo 1h y 15": 75},
+             "en": {"I have 1h and 30": 90, "I have 1h and a half": 90, "I have two hours and a half": 150,
+                    "I have an hour and 15": 75}}
+
+    def test_and_a_half_and_minutes_after_hours(self):
+        from seahorse import now
+        for language, texts in self.CASES.items():
+            for text, minutes in texts.items():
+                self.assertEqual(now.trigger(text, language), minutes, f"{language}: {text}")
+                self.assertEqual(now.parse_minutes(text, language), minutes, f"{language}: {text}")
+
+    def test_the_trigger_stays_strict(self):
+        from seahorse import now
+        self.assertIsNone(now.trigger("tenho 4h e meia", "pt-BR"))  # more than MOST_MINUTES
+        self.assertIsNone(now.trigger("tenho 1h e 30 de reunião", "pt-BR"))  # "I have" takes no other word
