@@ -472,7 +472,7 @@ places = "place"
 
 [retro.channel]
 text = "text"
-voice = "voice"
+voice = "voice note"
 photo = "photo"
 file = "file"
 video = "video"
@@ -481,3 +481,17 @@ contact = "contact"
 claude = "claude"
 obsidian = "obsidian"
 other = "other"
+
+[retro.channels]
+# The same words for a count of two or more.
+text = "texts"
+voice = "voice notes"
+photo = "photos"
+file = "files"
+video = "videos"
+place = "places"
+contact = "contacts"
+claude = "claude"
+obsidian = "obsidian"
+other = "other"
+

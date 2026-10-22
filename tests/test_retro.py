@@ -94,7 +94,7 @@ class TestCounting(RetroBase):
         self.assertIn("Tasks: 4 of 5 done. Outside work: 3h30 done of 4h30 planned.", facts)
         self.assertIn("- Fix the bike · Monday · 1h · not done · postponed 2 times", facts)
         self.assertIn("- Write the report · Tuesday · 3h · done · work", facts)
-        self.assertIn("Captures: 2 (1 text, 1 voice).", facts)
+        self.assertIn("Captures: 2 (1 text, 1 voice note).", facts)
         self.assertIn("evening 1", facts)
 
     def test_captures_by_kind_only_in_the_week(self):
@@ -253,7 +253,7 @@ class TestReview(RetroBase):
         self.assertEqual(text.count("> - Retro:"), 1)
         self.assertIn("> [!review]- Review\n> - Planned:\n> - Retro: 4/5 · 3h30/4h30\n"
                       ">   - Did: Write the report (3h), Study (2h), Gym (1h)\n", text)
-        self.assertIn(">   - Captured: 2 (1 text, 1 voice)\n>   - Pattern: Another line.\n"
+        self.assertIn(">   - Captured: 2 (1 text, 1 voice note)\n>   - Pattern: Another line.\n"
                       ">   - Adjustment: Next week I keep Monday light.\n", text)
         self.assertEqual(week.problems(week.path_for(MONDAY)), [])
         self.assertEqual(len(week.read(MONDAY).days[0].items), 2)

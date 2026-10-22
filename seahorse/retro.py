@@ -475,7 +475,7 @@ def _days(count: int) -> str:
 
 
 def _kinds_text(stats: Stats) -> str:
-    return ", ".join(f"{n} {i18n.t(f'retro.channel.{kind}')}" for kind, n in stats.kinds())
+    return ", ".join(counted(kind, n) for kind, n in stats.kinds())
 
 
 def review_lines(stats: Stats) -> list[str]:
@@ -598,7 +598,7 @@ def _rows(stats: Stats) -> list[tuple[str, list[tuple[str, str]], int]]:
 
 
 def _kind_items(stats: Stats) -> list[str]:
-    return [f"{n} {i18n.t(f'retro.channel.{kind}')}" for kind, n in stats.kinds()]
+    return [counted(kind, n) for kind, n in stats.kinds()]
 
 
 def _cut(d: ImageDraw.ImageDraw, text: str, face, width: int, most: int) -> list[str]:
@@ -834,3 +834,8 @@ def on_demand(today: date | None = None) -> tuple[bytes, str] | None:
     kept = remembered(stats.name)
     stats.pattern, stats.adjustment = kept.get("pattern", ""), kept.get("adjustment", "")
     return png(stats), caption(stats)
+
+
+def counted(kind: str, n: int) -> str:
+    """A count of captures of one kind, with the word in the right number, such as "1 photo" or "3 photos"."""
+    return f"{n} {i18n.t(f'retro.channel.{kind}' if n == 1 else f'retro.channels.{kind}')}"

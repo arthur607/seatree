@@ -472,3 +472,17 @@ contact = "contacto"
 claude = "claude"
 obsidian = "obsidian"
 other = "otro"
+
+[retro.channels]
+# The same words for a count of two or more.
+text = "textos"
+voice = "audios"
+photo = "fotos"
+file = "archivos"
+video = "videos"
+place = "lugares"
+contact = "contactos"
+claude = "claude"
+obsidian = "obsidian"
+other = "otros"
+
