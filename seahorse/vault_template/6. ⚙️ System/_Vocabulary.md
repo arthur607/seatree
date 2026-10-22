@@ -53,10 +53,11 @@ inspires: ["[[Side Project]]"]
 | `done` | wishes, experiences and tasks | `true` when {{user}} watched, read, played, visited or bought it. The checkbox in the tables |
 | `estimate` | tasks | time it takes, such as `30m` or `2h`. A `?` at the end means the agent guessed |
 | `due` | tasks with a fixed date | `2026-01-15` |
+| `planned` | tasks | the day {{user}} chose to do it, such as `2026-01-15`. It is not a deadline. Code puts the task on that day |
 | `repeat` | tasks that repeat | a value from the block above |
 | `last_done` | tasks that repeat | when the last occurrence was done. Set by code |
-| `postponed` | tasks | how many times it left the week because the week had no room. Set by code only |
-| `moved` | tasks | how many times it moved to another day because it was not done. Set by code only. At three, the Companion asks what is in the way |
+| `postponed` | tasks | how many times a task with no due date left a week unfinished. Set by code only. At three, the Planner asks about it |
+| `moved` | tasks | how many times a task that {{user}} committed to, with a `planned` day or a due date this week, moved to another day because it was not done. Set by code only. At three, the Companion asks what is in the way |
 | `subject` | tasks | link to the subject note, such as `"[[Health]]"` |
 | `tags` | tasks | one or two tags, such as `[{{work_tag}}]`. Use a tag again before you create a new one: `{{work_tag}}` for work, and the tags already in use |
 | `trigger` | wishes | short text, for example "sale below 30" |
@@ -74,6 +75,7 @@ inspires: ["[[Side Project]]"]
 | `telegram_id`, `fix_prompt` | Telegram engrams | used by the bot. Agents ignore them and never change them |
 | `asked` | engrams | `question` when the bot answered the message as a question |
 | `attempts` | engrams | how many Integrator runs failed on it. Set by code. At three, the engram becomes `unclear` |
+| `asked_in_summary` | engrams | how many morning summaries asked about this unclear engram. Set by code. After two, it becomes `discarded` and its text stays |
 | `status` | tasks | `cancelled` when {{user}} cancels the task. It also gets `done: true` and no `repeat` |
 | `written_by` | notes that {{user}} made | `owner`. Set by the Integrator when it reads the note. A note that an agent made never gets it, also after {{user}} edits it |
 | `imported_from` | notes brought from the old systems of {{user}} | where it came from |

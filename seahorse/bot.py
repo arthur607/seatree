@@ -48,7 +48,7 @@ CLASSIFY_SECONDS = 90  # the longest wait for the fast model to say if a message
 ALBUM_SECONDS = 2  # the photos of an album arrive one by one, this close together
 STATUS_SHOWN = 10
 KEPT = 500  # how many message ids the bot keeps in memory for the checks below
-COMMANDS = ("help", "status", "integrate", "intro", "update")
+COMMANDS = ("help", "status", "integrate", "plan", "intro", "update")
 LABELS = {"photo": "Photo", "file": "File", "voice": "Voice"}
 BUSY, FAILED = object(), object()  # what _in_thread returns when the job did not run, or failed
 
@@ -462,7 +462,11 @@ async def _capture(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str
 
 async def _send_week(update: Update, only_today: bool = False) -> None:
     await update.effective_chat.send_action(ChatAction.UPLOAD_PHOTO)
-    image = await asyncio.to_thread(week_image.day_png if only_today else week_image.week_png)
+    try:
+        image = await asyncio.to_thread(week_image.day_png if only_today else week_image.week_png)
+    except Exception:  # noqa: BLE001 - a broken week file must not leave the user with no answer
+        log.exception("the week image failed")
+        image = None
     if image:
         await update.effective_message.reply_photo(photo=image)
     else:
@@ -868,6 +872,17 @@ async def on_integrate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await message.reply_text(i18n.t("bot.nothing_pending"))
 
 
+async def on_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Plans this week again, from today on. The Planner sends the plan itself when it is ready."""
+    message = update.effective_message
+    if "weekly" in _running:
+        await message.reply_text(i18n.t("chat.plan_busy"))
+        return
+    await message.reply_text(i18n.t("chat.plan_start"))
+    if await _in_thread("weekly", agents.plan_again) is FAILED:
+        await message.reply_text(i18n.t("chat.plan_failed"))
+
+
 async def on_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """What waits, and the captures Seahorse was not sure about, by their first words."""
     pending, unclear = await asyncio.to_thread(lambda: (vault.engrams("pending"), vault.engrams("unclear")))
@@ -976,7 +991,7 @@ def run() -> None:
     new = only_owner & filters.UpdateType.MESSAGE
     app = Application.builder().token(config.TELEGRAM_TOKEN).concurrent_updates(True).post_init(_post_init).build()
     for name, callback in (("start", on_start), ("help", on_help), ("integrate", on_integrate),
-                           ("status", on_status), ("update", on_update), ("intro", on_intro)):
+                           ("status", on_status), ("plan", on_plan), ("update", on_update), ("intro", on_intro)):
         app.add_handler(CommandHandler(name, callback, filters=new))
     app.add_handler(MessageHandler(new & filters.COMMAND, on_unknown))
     app.add_handler(MessageHandler(only_owner & filters.UpdateType.EDITED_MESSAGE, on_edit))

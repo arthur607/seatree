@@ -145,6 +145,7 @@ def _after_writing() -> None:
         log.info("lint: the same %s error(s) that a fix run could not fix, no new fix run", len(errors))
     _save(LINT_STATE, {"errors": _digest(errors)})
     tasks.sync()
+    week.refresh()  # the totals in the day-card titles come from code, never from the model
 
 
 CAPTURES = config.STATE / "captures.json"

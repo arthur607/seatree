@@ -170,7 +170,26 @@ def check(vault: Path) -> tuple[list[str], list[str], int]:
             warnings.append(f"{rel(p)}: marked integrated, but no note cites this engram")
         if fm.get("type") in {"entity", "knowledge"} and incoming[p.stem] == 0:
             warnings.append(f"{rel(p)}: orphan, no note links to it")
+    _check_weeks(vault, errors, warnings)
     return errors, warnings, len(notes)
+
+
+def _check_weeks(vault: Path, errors: list[str], warnings: list[str]) -> None:
+    """Each week file has seven day cards that the code can read. A problem in the current or a coming week is
+    an error, because code plans with it; in a past week it is a warning."""
+    folder = vault / "1. 🎯 Intention" / "Week"
+    if not folder.is_dir():
+        return
+    try:
+        from seahorse import week  # the same reader the code uses
+    except Exception:  # noqa: BLE001 - lint still checks the rest without it
+        return
+    year, number, _ = datetime.now().date().isocalendar()
+    current = f"{year}-W{number:02d}"
+    for path in sorted(folder.glob("*.md")):
+        for problem in week.problems(path):
+            line = f"{path.relative_to(vault).as_posix()}: {problem}"
+            (errors if path.stem >= current else warnings).append(line)
 
 
 def main() -> int:
