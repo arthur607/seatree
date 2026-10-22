@@ -150,6 +150,14 @@ class TestSetupHelpers(unittest.TestCase):
         if sys.platform != "win32":  # a folder dragged into the Terminal of macOS
             self.assertEqual(setup.clean_path("/Users/a/My\\ Notes"), "/Users/a/My Notes")
 
+    def test_a_morning_summary_in_the_quiet_hours(self):
+        self.assertTrue(setup.in_quiet("07:30", "23:00", "08:00"))  # across midnight
+        self.assertFalse(setup.in_quiet("08:00", "23:00", "08:00"))  # the quiet hours end at 08:00
+        self.assertTrue(setup.in_quiet("23:00", "23:00", "08:00"))
+        self.assertTrue(setup.in_quiet("09:00", "08:00", "10:00"))
+        self.assertFalse(setup.in_quiet("07:00", "08:00", "10:00"))
+        self.assertFalse(setup.in_quiet("08:00", "00:00", "00:00"))  # no quiet hours
+
     def test_folders_that_macos_protects(self):
         home = Path("/Users/a")
         for folder in ("Documents", "Documents/vault", "Desktop/x", "Downloads",

@@ -308,6 +308,7 @@ changed_ok = "✓ Done. Seahorse uses the new setting now."
 changed_failed = "The setting is saved, but Seahorse did not start. To see why, run `seahorse logs`."
 connected_new = "✓ Seahorse is connected. I am your second brain: I keep what you tell me, and I put it in order in your notes. First, some questions to know you."
 connected_again = "✓ Seahorse is connected again. Send me text or voice, as always."
+morning_in_quiet = "The morning summary at {morning} is in your quiet hours ({start} to {end}), so it waits until {end}. Move the morning summary to {end}?"
 
 [uninstall]
 what = "This removes Seahorse from this machine:\n  • the background service\n  • the settings, keys and tokens in {home}\n  • the program\nYour vault ({vault}) stays, unless you ask to delete it next."

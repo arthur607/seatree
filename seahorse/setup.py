@@ -209,6 +209,16 @@ def linux_name(name: str) -> str:
     return plain if re.fullmatch(r"[a-z][a-z0-9]{0,19}", plain) else ""
 
 
+def in_quiet(moment: str, start: str, end: str) -> bool:
+    """True when a time ("HH:MM") is in the quiet hours from `start` to `end`. They can pass midnight; the same
+    time twice means no quiet hours."""
+    minutes = [int(text.split(":")[0]) * 60 + int(text.split(":")[1]) for text in (moment, start, end)]
+    now, first, last = minutes
+    if first == last:
+        return False
+    return first <= now < last if first < last else (now >= first or now < last)
+
+
 def mac_blocked(folder: Path, home: Path | None = None) -> bool:
     """True when the folder is in a part of the home folder that macOS protects from background programs."""
     home = home or Path.home()
@@ -750,6 +760,11 @@ def _routine(settings: dict) -> None:
         schedule["quiet_until"] = _ask("quiet_until_ask", schedule["quiet_until"] if had_quiet else "08:00", validate=a_time)
     else:
         schedule["quiet_from"] = schedule["quiet_until"] = "00:00"  # the same time: no quiet hours
+    # Seahorse holds a morning summary that falls in the quiet hours until they end: say so now, not later.
+    start, end = schedule["quiet_from"], schedule["quiet_until"]
+    if in_quiet(schedule["morning"], start, end) and _confirm("morning_in_quiet", morning=schedule["morning"],
+                                                              start=start, end=end):
+        schedule["morning"] = end
     _save(settings)
 
 

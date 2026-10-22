@@ -306,6 +306,7 @@ changed_ok = "✓ Pronto. O Seahorse já usa a nova configuração."
 changed_failed = "A configuração está salva, mas o Seahorse não ligou. Para ver o motivo, rode `seahorse logs`."
 connected_new = "✓ O Seahorse está conectado. Sou seu segundo cérebro: guardo o que você me conta e organizo nas suas notas. Primeiro, faço algumas perguntas para te conhecer."
 connected_again = "✓ O Seahorse está conectado de novo. Mande texto ou áudio, como sempre."
+morning_in_quiet = "O resumo da manhã às {morning} cai no seu horário de silêncio ({start} até {end}). Por isso, ele espera até {end}. Mudar o resumo para {end}?"
 
 [uninstall]
 what = "Isto remove o Seahorse desta máquina:\n  • o serviço em segundo plano\n  • as configurações, chaves e tokens em {home}\n  • o programa\nSeu vault ({vault}) fica, a não ser que você peça para apagar a seguir."
