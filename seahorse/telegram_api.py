@@ -271,6 +271,7 @@ def send_html(text: str, buttons: list[tuple[str, str]] | None = None, links: li
         if result is None:
             return None
         last = result["message_id"]
+        remember(last, plain(piece))
     return last
 
 

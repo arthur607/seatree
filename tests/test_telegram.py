@@ -517,7 +517,7 @@ class TestMedia(TelegramBase):
     async def test_a_file_too_big_is_explained(self):
         msg = FakeMessage(81, document=media(b"x", size=35 * 2 ** 20, file_name="Talk.pdf", mime_type="application/pdf"))
         await bot.on_file(update(msg), context())
-        self.assertEqual(msg.texts(), [i18n.t("chat.file_too_big", size=35)])
+        self.assertEqual(msg.texts(), [i18n.t("chat.file_too_big", size=35, limit=10)])
         self.assertEqual(self.engrams(), [])
 
     async def test_an_album_is_one_capture(self):

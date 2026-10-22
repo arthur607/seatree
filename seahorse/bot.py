@@ -38,6 +38,7 @@ WEEKDAYS = {"sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6
 # Web addresses: a "?" inside them, such as youtube.com/watch?v=…, does not make a question.
 URL = re.compile(r"(?:https?://|www\.)\S+|\b[\w-]+(?:\.[\w-]+)+/\S*", re.IGNORECASE)
 FILE_LIMIT = 20 * 1024 * 1024  # the Bot API gives bots files of up to 20 MB
+KEEP_LIMIT = 10 * 1024 * 1024  # photos and files kept in the notes stay small: the phone syncs the whole folder
 REPLY_ROOM = 3000  # characters of a Seahorse message kept as the context of an answer
 EDIT_HOURS = 48  # an edit of an older message does not change what was saved
 LINK_HOURS = 2  # a message without Reply may answer what Seahorse asked in the last two hours
@@ -509,8 +510,9 @@ async def _download(item) -> bytes | None:
         return None
 
 
-async def _too_big(message, size: int | None) -> None:
-    await message.reply_text(i18n.t("chat.file_too_big", size=max(21, round((size or 0) / 2 ** 20))))
+async def _too_big(message, size: int | None, limit: int = FILE_LIMIT) -> None:
+    most = limit // 2 ** 20
+    await message.reply_text(i18n.t("chat.file_too_big", size=max(most + 1, round((size or 0) / 2 ** 20)), limit=most))
 
 
 def _hear(data: bytes, name: str) -> str | None:
@@ -571,7 +573,7 @@ def _store(data: bytes, kind: str, when: datetime, original: str | None, mime: s
 
 async def _save_media(item, kind: str, when: datetime) -> str | None:
     """Downloads a photo or a file into the notes. None when it is too big for Telegram to give it."""
-    if (item.file_size or 0) > FILE_LIMIT:
+    if (item.file_size or 0) > KEEP_LIMIT:
         return None
     data = await _download(item)
     if data is None:
@@ -591,7 +593,7 @@ async def _media(update: Update, context: ContextTypes.DEFAULT_TYPE, kind: str) 
     try:
         name = await _save_media(item, kind, message.date.astimezone(config.TIMEZONE))
         if name is None:
-            await _too_big(message, item.file_size)
+            await _too_big(message, item.file_size, KEEP_LIMIT)
     finally:
         if part is not None:
             part["line"], part["done"] = name and f"![[{name}]]", True
