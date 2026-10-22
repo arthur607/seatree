@@ -369,7 +369,7 @@ def git(folder, *args: str) -> str:
     return (result.stdout + result.stderr).strip()
 
 
-class TestSyncConflicts(WeekBase):
+class SyncBase(WeekBase):
     """The server (the vault) and the phone (another clone) change the same files at the same time."""
 
     def setUp(self):
@@ -409,6 +409,8 @@ class TestSyncConflicts(WeekBase):
         self.assertEqual(git(config.VAULT, "status", "--porcelain"), "")
         self.assertIn("Fast-forward", git(self.phone, "pull", "--no-rebase"))
 
+
+class TestSyncConflicts(SyncBase):
     def test_the_integrator_and_a_check_on_the_phone(self):
         task("Book the doctor")
         task("Buy bread")

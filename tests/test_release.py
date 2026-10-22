@@ -158,3 +158,49 @@ class TestNowInAConversation(Base):
         chatting = context()
         chatting.bot_data["session_at"] = datetime.now() - timedelta(minutes=5)
         self.assertFalse(self.ask(FakeMessage(7, "tenho 30 min"), chatting))
+
+
+# ---- second review of 1.3.0 ---------------------------------------------------------------------------------
+
+from test_week import SyncBase, git  # noqa: E402
+
+
+class TestVaultMerge(SyncBase):
+    """Sync between the server and the phone: two renames, an edit of the last line, the tasks after a merge."""
+
+    def test_a_note_renamed_on_both_sides_leaves_no_empty_file(self):
+        folder = config.VAULT / "3. 📚 Knowledge"
+        write(folder / "Old name.md", "---\ntype: knowledge\n---\nbody\n")
+        self.start()
+        vault.pull()
+        git(self.phone, "mv", "3. 📚 Knowledge/Old name.md", "3. 📚 Knowledge/Phone name.md")
+        git(self.phone, "-c", "user.name=Ada", "-c", "user.email=ada@x", "commit", "-q", "-m", "vault backup")
+        self.assertEqual(git(self.phone, "push", "-q"), "")
+        git(config.VAULT, "mv", "3. 📚 Knowledge/Old name.md", "3. 📚 Knowledge/Agent name.md")
+        vault.publish("reviewer: a better name")
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ["Agent name.md", "Phone name.md"])
+        self.assertNotIn("Old name", git(config.VAULT, "-c", "core.quotepath=off", "ls-files"))
+        self.in_step()
+
+    def test_an_edit_of_the_last_line_is_not_an_addition(self):
+        base = "---\ntype: knowledge\n---\nI like pizza\n"
+        merged = vault.merge_note(base, base.replace("pizza", "pizza and pasta"), base + "And sushi.\n")
+        self.assertNotIn("\n and pasta", merged or "")
+        self.assertEqual(vault.merge_note(base, base + "- agent line\n", base + "- phone line\n"),
+                         base + "- phone line\n- agent line\n")
+
+    def test_the_tasks_synced_after_a_merge_are_committed_as_seahorse(self):
+        note = task("Book the doctor")
+        path = self.week_file(Mon="\n> - [ ] [[Book the doctor]] (15m)")
+        idea = config.VAULT / "3. 📚 Knowledge" / "Idea.md"
+        write(idea, "---\ntype: knowledge\n---\nline 1\nline 2\nline 3\n")
+        tasks.sync(self.today)
+        self.start()
+        vault.pull()
+        self.on_phone(vault.rel(path), lambda t: t.replace("- [ ] [[Book the doctor]]", "- [x] [[Book the doctor]]"))
+        self.on_phone(vault.rel(idea), lambda t: t.replace("line 2", "line 2 phone"))
+        write(idea, idea.read_text(encoding="utf-8").replace("line 2", "line 2 agent"))
+        vault.publish("reviewer: idea")
+        self.assertEqual(notes.read(note)[0]["done"], "true")
+        self.assertEqual(git(config.VAULT, "log", "-1", "--format=%an", "--", vault.rel(note)), "Seahorse")
+        self.in_step()
