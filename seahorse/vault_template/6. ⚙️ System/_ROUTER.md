@@ -26,7 +26,8 @@ The signals below are in English. Match their equivalents in {{language}}.
 | A request to Seahorse | "look up", "find out", "research", "compare", a question to Seahorse | done in the same run: a note in the subject in `3. 📚 Knowledge/`, and a `delivery` in the Messenger queue | Knowledge |
 | A photo, a file, a location or a contact | the channels `telegram-photo`, `telegram-file`, `telegram-video`, `telegram-location` and `telegram-contact` | what it shows goes where its content points, and the file is embedded in that note | — |
 | A task that {{user}} cancels | "cancel", "I will not do it" | the task note gets `status: cancelled` and `done: true`, and leaves the week | — |
-| No clear signal | none of the above | the engram gets `state: unclear` and the question goes to the morning summary | — |
+| A change to a setting of Seahorse | the quiet hours, the time of the morning summary, the day of the weekly plan, how many messages a day, the time zone | no note: the Integrator proposes the change in its answer, and {{user}} confirms it with a button | — |
+| No clear signal | none of the above | the engram gets `state: unclear`, and the question goes to {{user}} at once, in the answer to the message. With no answer, the morning summary asks it again | — |
 ## Tie-breaks
 Two signals: the most specific wins the main destination, and the rest is still filed. "Study pointers by Friday, 2h" is a task on Friday in the Week, and the subject note in Knowledge links to it.
 A person is rarely the only destination. Facts about the person and stories with the person go to the page of that person, and the rest of the content goes where it points.

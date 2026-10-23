@@ -14,7 +14,7 @@ flowchart LR
 
 | Agent | When | What it does |
 |---|---|---|
-| **Integrator** | Seconds after each message | Files each part of the capture in the right notes, makes tasks, and tells you where each part went |
+| **Integrator** | Seconds after each message | Files each part of the capture in the right notes, makes tasks, and tells you where each part went. When one missing detail matters, it asks one short question in the same answer |
 | **Notes reader** | Every 5 minutes | Reads the notes you write in Obsidian after 15 quiet minutes, and links them. It never changes your text |
 | **Morning summary** | Each morning | Today's tasks, moved tasks, next deadlines, and the week as an image |
 | **Companion** | 1 to 4 times a day, and each morning about yesterday | Asks about your day, tells you about releases and news you would like, asks about quiet projects and stuck tasks |
@@ -34,6 +34,7 @@ Each claim in the vault points to the engram it came from. A trait in Identity s
 | `/now`, "I have 30 min" | One task for the time you have. Later, it asks if you finished |
 | `/retro`, `retro` | This week in one image. `/retro last week` shows the week before |
 | `/plan` | Plans this week again, from today on |
+| `/settings` | Your settings. To change one, tell Seahorse in your words |
 | `/status` | Pending captures and the version |
 | `/integrate` | Integrates the pending captures now |
 | `/update` | Installs the newest version |
@@ -100,7 +101,9 @@ vault = "Seahorse"         # the name of the vault in Obsidian on your computer,
 - When you run the setup again, it keeps the settings that it does not ask about, and tables such as `[ai.models]`.
 - When `config.toml` has an error, each command shows the file, the line and the error. To write a good file again, run `seahorse setup`.
 
-To change one setting, run `seahorse setup`, and choose the step to change. The setup then starts Seahorse again with the new setting.
+To change one setting, tell Seahorse on Telegram, such as "no messages before 9" or "plan my week on Saturday". It shows the change, and makes it when you tap the button. This works for the quiet hours, the time of the morning summary, the day and time of the weekly plan, the messages a day and the time zone. `/settings` shows them. Your free time a day changes when you tell Seahorse, such as "I have 3 hours a day now".
+
+The other settings, such as the language, the AI, the tokens and the vault, change only with `seahorse setup`: choose the step to change. The setup then starts Seahorse again with the new setting.
 
 The rules of the agents are in the vault, in `6. ⚙️ System/`, in plain language. To change what an agent does, change its rule.
 

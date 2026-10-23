@@ -11,7 +11,9 @@ saved = "✓ Capturado"
 voice = "✓ Áudio capturado"
 correction = "✓ Correção capturada"
 working = "{title}. Integrando…"
-doubt = "{title}\n\nFiquei em dúvida: {question}\nResponda a esta mensagem."
+doubt = "{title}\n\nFiquei em dúvida: {question}\nÉ só me responder. Mais tarde, responda a esta mensagem."
+# A question after what was filed: one detail that makes the notes better.
+followup = "{title}\n\n❓ {question}"
 week_full = "Não cabe na semana. Coloco mesmo assim ou deixo no backlog?"
 putting_in_week = "colocando na semana…"
 kept_in_backlog = "fica no backlog"
@@ -27,6 +29,8 @@ done = "✅ Feito"
 later = "⏰ Adiar"
 ignore = "🙈 Ignorar"
 open_obsidian = "📖 Abrir no Obsidian"
+change_setting = "✅ Mudar"
+keep_setting = "❌ Deixar como está"
 useful = "👍 Valeu"
 not_useful = "👎 Não ajudou"
 
@@ -166,7 +170,7 @@ active = "Ativos"
 
 [chat]
 # The bot in a conversation: help, commands, photos and files, voice notes, edits and errors.
-help = "Eu sou o Seahorse, seu segundo cérebro 🌊\n• Me mande qualquer coisa: uma ideia, uma tarefa, um filme para ver, uma foto, um arquivo, um lugar ou um áudio. Eu coloco no lugar certo das suas notas.\n• Faça uma pergunta. Eu respondo com as suas notas ou com a internet.\n• Mande \"semana\" ou \"hoje\" para ver o seu plano.\n• Para mudar algo que você mandou, edite a mensagem. Ou toque em ✏️ Corrigir na minha resposta.\n• Eu também escrevo primeiro: um resumo toda manhã, um lembrete antes de um prazo e, às vezes, uma pergunta ou uma ideia.\n\nComandos:\n/now – uma tarefa para o tempo que você tem\n/status – o que espera e o que me deixou em dúvida\n/integrate – coloca agora nas notas o que espera\n/plan – planeja de novo esta semana\n/retro – esta semana em uma imagem. /retro semana passada – a semana anterior\n/intro – responde de novo às primeiras perguntas\n/update – instala a nova versão do Seahorse\n/help – esta mensagem"
+help = "Eu sou o Seahorse, seu segundo cérebro 🌊\n• Me mande qualquer coisa: uma ideia, uma tarefa, um filme para ver, uma foto, um arquivo, um lugar ou um áudio. Eu coloco no lugar certo das suas notas.\n• Faça uma pergunta. Eu respondo com as suas notas ou com a internet.\n• Mande \"semana\" ou \"hoje\" para ver o seu plano.\n• Para mudar algo que você mandou, edite a mensagem. Ou toque em ✏️ Corrigir na minha resposta.\n• Eu também escrevo primeiro: um resumo toda manhã, um lembrete antes de um prazo e, às vezes, uma pergunta ou uma ideia.\n\nComandos:\n/now – uma tarefa para o tempo que você tem\n/status – o que espera e o que me deixou em dúvida\n/integrate – coloca agora nas notas o que espera\n/plan – planeja de novo esta semana\n/retro – esta semana em uma imagem. /retro semana passada – a semana anterior\n/settings – suas configurações, e como mudar\n/intro – responde de novo às primeiras perguntas\n/update – instala a nova versão do Seahorse\n/help – esta mensagem"
 unknown_command = "Não conheço esse comando. Mande /help para ver os comandos."
 menu_help = "O que o Seahorse faz e os comandos"
 menu_now = "Uma tarefa para o tempo que você tem"
@@ -174,6 +178,7 @@ menu_status = "O que espera e o que me deixou em dúvida"
 menu_integrate = "Coloca agora nas notas o que espera"
 menu_plan = "Planeja de novo esta semana"
 menu_retro = "Esta semana em uma imagem"
+menu_settings = "Suas configurações, e como mudar"
 menu_intro = "Responde de novo às primeiras perguntas"
 menu_update = "Instala a nova versão"
 status_unclear = "Fiquei em dúvida sobre estas. Responda à minha pergunta embaixo de cada uma. Ou mande o detalhe que falta:"
@@ -515,6 +520,25 @@ contact = "contatos"
 claude = "claude"
 obsidian = "obsidian"
 other = "outros"
+
+[settings]
+# Settings that the user changes in the chat, such as "no messages before 9". Seahorse shows the change first, and
+# saves it only after the user taps the button.
+title = "⚙️ Suas configurações"
+quiet = "Silêncio"
+morning = "Resumo da manhã"
+weekly = "Plano da semana"
+daily_messages = "Mensagens por dia que você não pediu"
+timezone = "Fuso horário"
+no_quiet = "nenhum"
+how = "Para mudar, é só me dizer, como \"não me manda nada antes das 9h\" ou \"planeja minha semana no sábado\"."
+confirm = "Quer que eu mude?"
+changed = "✓ Mudei."
+kept = "Certo, não mudei nada."
+failed = "Não consegui mudar: {reason}"
+gone = "esse pedido é antigo. Me diga de novo o que mudar."
+same = "Isso já está assim, não muda nada"
+cannot = "Isso eu não consigo mudar pelo chat. Rode `seahorse setup` no seu computador"
 
 [now]
 # "What do I do now?": one task for the free time of the user. The lists find the short messages about free time.

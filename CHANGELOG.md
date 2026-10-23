@@ -2,6 +2,15 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.4.0
+
+New:
+- **A question in the moment.** When one missing detail would make your notes much better, such as the day you watched a movie or who a new person is, Seahorse asks it in its answer to your message, while you are still there. Just answer: your next message completes the same notes. It asks at most one thing, only when it matters, and less when you do not answer.
+- **Change settings in the chat.** Tell Seahorse "no messages before 9" or "plan my week on Saturday". It shows the change, and makes it when you tap the button. This works for the quiet hours, the morning summary, the weekly plan, the messages a day and the time zone. `/settings` shows them all.
+
+Better:
+- When Seahorse is not sure about a message, you can just answer. You do not need to reply to its message.
+
 ## 1.3.4
 
 - Every message writes dates in the order of your language: 10/24 in English, 24/10 in Portuguese and Spanish. Before, the reply to a capture and the answer to a question could write 24/10 in English.

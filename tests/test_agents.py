@@ -11,7 +11,7 @@ import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
-from seahorse import agents, config, i18n, lint, llm, migrations, notes, telegram_api, vault, week_image
+from seahorse import agents, config, i18n, lint, llm, migrations, notes, settings, telegram_api, vault, week_image
 
 TZ = config.TIMEZONE
 LISTED = re.compile(r"^- (5\. .+\.md)$", re.M)
@@ -91,8 +91,23 @@ class TestResultLines(unittest.TestCase):
         full = telegram_api.capture_text("telegram-text", False, "! Task: review the budget (2h) · Friday is full | Ana: the dinner")
         self.assertEqual(full, "✓ Saved\n→ Task: review the budget (2h) · Friday is full\n→ Ana: the dinner\n\n" + i18n.t("capture.week_full"))
         self.assertEqual([d for _, d in telegram_api.capture_buttons("x", "telegram-text", False, " ! a | b")], ["eng|week|x", "eng|backlog|x"])
-        doubt = telegram_api.capture_text("telegram-text", False, "Ana: the dinner | ? Is the trip in May or June?")
-        self.assertEqual(doubt, i18n.t("capture.doubt", title="✓ Saved\n→ Ana: the dinner", question="Is the trip in May or June?"))
+        followup = telegram_api.capture_text("telegram-text", False, "Ana: the dinner | ? Is the trip in May or June?")
+        self.assertEqual(followup, "✓ Saved\n→ Ana: the dinner\n\n❓ Is the trip in May or June?")
+        doubt = telegram_api.capture_text("telegram-text", False, "? Is this a task or an idea?")
+        self.assertEqual(doubt, i18n.t("capture.doubt", title="✓ Saved", question="Is this a task or an idea?"))
+
+    def test_a_question_and_a_change_keep_their_own_lines(self):
+        many = "Task: a | Ana: b | Journal: c | Place: d | List: e | ? When was it?"
+        self.assertEqual(telegram_api.result_lines(many), ["Task: a", "Ana: b", "Journal: c; Place: d; List: e", "? When was it?"])
+        self.assertTrue(telegram_api.capture_text("telegram-text", False, many).endswith("\n\n❓ When was it?"))
+        lines = telegram_api.result_lines("a | b | c | d | ⚙ Morning summary: 08:00 → 07:00")
+        self.assertEqual(lines[-1], "⚙ Morning summary: 08:00 → 07:00")
+
+    def test_a_change_of_a_setting_asks_first(self):
+        text = telegram_api.capture_text("telegram-text", False, "⚙ Quiet hours: 00:00–08:00 → 22:00–08:00")
+        self.assertEqual(text, "✓ Saved\n→ ⚙ Quiet hours: 00:00–08:00 → 22:00–08:00\n\n" + i18n.t("settings.confirm"))
+        buttons = telegram_api.capture_buttons("x", "telegram-voice", False, "⚙ Quiet hours: 00:00–08:00 → 22:00–08:00")
+        self.assertEqual([d for _, d in buttons], ["eng|set|x", "eng|keep|x"])
 
 
 class TestIntegrator(AgentBase):
@@ -221,6 +236,73 @@ class TestIntegrator(AgentBase):
         self.integrate_all({})
         agents.integrator()
         self.assertEqual([m for m, _, _ in self.edits], [310, 311])
+
+    def test_a_question_in_the_moment_keeps_what_was_filed(self):
+        first = self.capture("watched Arrival", 10, confirmation="320")
+        self.integrate_all({first: "Movie you watched: Arrival | ? When did you watch it?"})
+        agents.integrator()
+        self.assertEqual(self.edits[-1][1], "✓ Saved\n→ Movie you watched: Arrival\n\n❓ When did you watch it?")
+        self.assertEqual(agents.open_question(datetime.now(TZ))[0], first)  # the next message may answer it
+        self.assertEqual(agents.followups_line(), "0 of the last 1")
+        reply = self.capture("on Tuesday", 5, answers_engram=f"[[{first}]]", confirmation="321")
+        self.integrate_all({reply: "Arrival: watched on Tuesday"})
+        agents.integrator()
+        edits = {m: text for m, text, _ in self.edits}
+        self.assertEqual(edits[320], "✓ Saved\n→ Movie you watched: Arrival")  # the question goes, the filing stays
+        self.assertEqual(edits[321], "✓ Saved\n→ Arrival: watched on Tuesday")
+        self.assertEqual(agents.followups_line(), "1 of the last 1")  # counted after the run that integrated it
+        self.assertIsNone(agents.open_question(datetime.now(TZ)))
+        self.assertIn("answered 0 of the last 1", self.prompts[-1][1])  # the Integrator sees how its questions go
+
+    def test_a_next_message_that_does_not_answer_leaves_the_question(self):
+        first = self.capture("watched Arrival", 10, confirmation="340")
+        self.integrate_all({first: "Movie you watched: Arrival | ? When did you watch it?"})
+        agents.integrator()
+        other = self.capture("buy milk", 5, answers_engram=f"[[{first}]]", confirmation="341")
+
+        def act(paths):  # the Integrator sees it is a new subject, and takes the link away
+            notes.set_field(paths[0], "state", "integrated")
+            notes.set_field(paths[0], "answers_engram", "")
+            return answer(f"{other} => Task: buy milk")
+        self.ai(act)
+        agents.integrator()
+        edits = {m: text for m, text, _ in self.edits}
+        self.assertEqual(edits[340], "✓ Saved\n→ Movie you watched: Arrival\n\n❓ When did you watch it?")  # still asked
+        self.assertEqual(agents.followups_line(), "0 of the last 1")
+
+    def test_only_the_next_message_and_only_for_a_while(self):
+        now = datetime.now(TZ)
+        agents._record_question("2026-10-05 0814")
+        self.assertEqual(agents.open_question(now + timedelta(minutes=29))[0], "2026-10-05 0814")
+        self.assertIsNone(agents.open_question(now + timedelta(minutes=31)))  # later, only a Reply links it
+        agents.link_question("2026-10-05 0814")
+        self.assertIsNone(agents.open_question(now))  # one message took it: the next is a new subject
+
+    def test_a_change_of_a_setting_waits_for_the_button(self):
+        first = self.capture("no messages after 10 pm", 5, confirmation="330")
+        second = self.capture("quiet until 8", 4, confirmation="331")
+        third = self.capture("use codex now", 3, confirmation="332")
+        self.integrate_all({first: "⚙ quiet_from=22:00; quiet_until=08:00; password=1", second: "⚙ quiet_until=08:00",
+                            third: "⚙ provider=codex"})
+        agents.integrator()
+        edits = {m: (text, buttons) for m, text, buttons in self.edits}
+        text, buttons = edits[330]
+        self.assertEqual(text, "✓ Saved\n→ ⚙ Quiet hours: 00:00–08:00 → 22:00–08:00\n\n" + i18n.t("settings.confirm"))
+        self.assertEqual([d for _, d in buttons], [f"eng|set|{first}", f"eng|keep|{first}"])
+        self.assertEqual(settings.pending(first), {"quiet_from": "22:00"})  # only known keys with new values
+        text, buttons = edits[331]
+        self.assertEqual(text, "✓ Saved\n→ " + i18n.t("settings.same"))  # what is set already: nothing to ask
+        self.assertEqual([d for _, d in buttons], [f"eng|fix|{second}"])
+        self.assertEqual(edits[332][0], "✓ Saved\n→ " + i18n.t("settings.cannot"))  # the AI changes only in the setup
+        self.assertIsNone(settings.pending(third))
+        self.assertIn("quiet_from=00:00, quiet_until=08:00", self.prompts[0][1])  # the Integrator sees the values now
+
+    def test_a_change_asked_from_the_computer_is_asked_on_telegram(self):
+        first = self.capture("summary at 7, please", 5, channel="claude")  # no confirmation to edit
+        self.integrate_all({first: "⚙ morning=07:00"})
+        agents.integrator()
+        self.assertEqual(self.sent, ["✓ Saved\n→ ⚙ Morning summary: 08:00 → 07:00\n\n" + i18n.t("settings.confirm")])
+        self.assertEqual(settings.pending(first), {"morning": "07:00"})
 
     def test_the_prompt_says_when_a_delivery_arrives(self):
         self.capture("look up Torterra card bundles", 5)

@@ -9,7 +9,7 @@ import uuid
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import config, i18n, llm, messenger, notes, retro, tasks, telegram_api, vault, week, week_image
+from . import config, i18n, llm, messenger, notes, retro, settings, tasks, telegram_api, vault, week, week_image
 
 log = logging.getLogger(__name__)
 ENGRAM = r"\d{4}-\d{2}-\d{2} \d{4}(?: \d+)?"
@@ -156,6 +156,10 @@ MAX_BATCHES = 10
 MAX_ATTEMPTS = 3
 KEEP_RESULTS = 300
 WAIT_DAYS = 2
+# A confirmation that asks something: the next message without Reply in this time is its answer.
+FOLLOWUPS = config.STATE / "followups.json"
+FOLLOW_MINUTES = 30
+FOLLOW_KEEP = 20  # the questions that the Integrator remembers, to see how many got an answer
 _integrating = threading.Lock()  # one Integrator run at a time: the bot, the morning summary and the weekly run call it
 _called_again = threading.Event()  # a call came while a run was going: that run goes once more, for what came in
 _captures_lock = threading.Lock()  # each read and write of captures.json, one thread at a time
@@ -217,9 +221,11 @@ def _integrate_batch() -> tuple[str | None, bool]:
         messenger.record_reactions(batch)
         vault.publish(f"capture: {len(pending)} engram(s)")
         listing = "\n".join(f"- {vault.rel(p)}" for p in batch)
-        answer = llm.run(request("integrator", engrams=listing, delivery_time=_delivery_time()), "integrator",
+        answer = llm.run(request("integrator", engrams=listing, delivery_time=_delivery_time(),
+                                 settings=settings.for_prompt(), followups=followups_line()), "integrator",
                          write=True, max_turns=120)
         _after_writing()
+        _questions_answered(batch)  # after the run: a message that did not answer lost its link in it
         results = parse_results(answer.text)
         left = _still_pending(batch) if outage(answer) else _count_attempts(batch)
         vault.publish(f"integrator: {len(batch)} engram(s)\n\n{answer.text[:2000]}")
@@ -227,6 +233,66 @@ def _integrate_batch() -> tuple[str | None, bool]:
         _report_failure("integrator", answer.text)
     _update_confirmations(batch, results)
     return answer.text, not answer.error and not left
+
+
+# --- Questions in the moment: a confirmation may end with one question, and the next message answers it ---
+
+_followups_lock = threading.Lock()  # the Integrator and the bot both write followups.json
+
+
+def _record_question(name: str) -> None:
+    """The confirmation of this capture now asks something."""
+    with _followups_lock:
+        asked = [a for a in _load(FOLLOWUPS).get("asked", []) if a.get("engram") != name]
+        asked.append({"engram": name, "at": datetime.now(config.TIMEZONE).isoformat(timespec="seconds"), "answered": False})
+        _save(FOLLOWUPS, {"asked": asked[-FOLLOW_KEEP:]})
+
+
+def open_question(moment: datetime) -> tuple[str, datetime] | None:
+    """The capture whose confirmation asked something in the last FOLLOW_MINUTES, with no answer yet, and when it
+    asked. Only the newest question counts: an older one is not answered by surprise."""
+    with _followups_lock:
+        asked = _load(FOLLOWUPS).get("asked", [])
+    if not asked or asked[-1].get("answered") or asked[-1].get("linked"):
+        return None
+    try:
+        at = datetime.fromisoformat(asked[-1]["at"])
+    except (KeyError, ValueError):
+        return None
+    return (asked[-1]["engram"], at) if moment - at < timedelta(minutes=FOLLOW_MINUTES) else None
+
+
+def link_question(name: str, taken: bool = True) -> None:
+    """A message took this question, by Reply or right after it: the next message is a new subject. With `taken`
+    False the question is open again, as when that message turned out to be a question to Seahorse."""
+    with _followups_lock:
+        data = _load(FOLLOWUPS)
+        for item in data.get("asked", []):
+            if item.get("engram") == name:
+                item["linked"] = taken
+        _save(FOLLOWUPS, data)
+
+
+def _questions_answered(batch: list[Path]) -> None:
+    """After a run: the captures of the batch that still answer a question. The Integrator takes the link away from
+    a message that did not answer, so that one does not count."""
+    names = {link for p in batch if p.exists() for link in notes.links(str(notes.read(p)[0].get("answers_engram", "")))}
+    with _followups_lock:
+        data = _load(FOLLOWUPS)
+        found = [item for item in data.get("asked", []) if item.get("engram") in names and not item.get("answered")]
+        for item in found:
+            item["answered"] = True
+        if found:
+            _save(FOLLOWUPS, data)
+
+
+def followups_line() -> str:
+    """How many of its last questions the user answered, for the Integrator, which asks less when few are."""
+    with _followups_lock:
+        asked = _load(FOLLOWUPS).get("asked", [])[-10:]
+    if not asked:
+        return "none, as there were no questions yet"
+    return f"{sum(1 for a in asked if a.get('answered'))} of the last {len(asked)}"
 
 
 def _delivery_time() -> str:
@@ -346,9 +412,11 @@ def _update_confirmations_now(batch: list[Path], results: dict[str, str]) -> Non
         if fm.get("state") == "pending":
             waiting.append(name)
             continue
+        result = _settings_result(name, results.get(name))  # once: what is kept and shown again is the plain lines
         if not fm.get("confirmation"):
+            if result and any(p.startswith(telegram_api.SETTING) for p in telegram_api.result_lines(result)):
+                _offer_setting(name, result)  # a capture from another channel: the change is asked on Telegram
             continue
-        result = results.get(name)
         if not _confirm(path, fm, result, data["results"]):
             waiting.append(name)  # Telegram did not take the edit: the next run tries again
         data["results"][name] = result or _fallback(fm)
@@ -387,9 +455,46 @@ def _confirm(path: Path, fm: dict, result: str | None, results: dict[str, str]) 
             return _edit_week_decision(original, first, result or _fallback(fm), results)
         resolved = first.get("state") not in ("pending", "unclear")
         if first.get("confirmation") and resolved and _was_doubt(first, results.get(original.stem, "")):
-            results[original.stem] = (result or i18n.t("result.filed")).strip().removeprefix("!").strip()
+            # The question goes away. What was filed before it stays; a doubt with nothing filed shows the answer.
+            shown = results.get(original.stem, "").strip().removeprefix("!").strip()
+            kept = [p for p in telegram_api.result_lines(shown) if not p.startswith("?")]
+            answer = (result or i18n.t("result.filed")).strip().removeprefix("!").strip()
+            results[original.stem] = " | ".join(kept) if kept else answer
             _edit(original, first, results[original.stem])
     return _edit(path, fm, result)
+
+
+def _settings_result(name: str, result: str | None) -> str | None:
+    """A part `⚙ key=value` of a result is a change of a setting. It waits for the user's button, and shows as one
+    line for each setting that changes. A value that is set already says that nothing changes, and a setting that
+    the chat cannot change says where to change it."""
+    if not result or not any(settings.is_change(p) for p in result.split("|")):
+        return result
+    parts, changes, valid = [], {}, {}
+    for part in result.split("|"):
+        if settings.is_change(part):
+            changes |= settings.parse(part)
+            valid |= settings.parse(part, new_only=False)
+        elif part.strip():
+            parts.append(part.strip())
+    if changes:
+        settings.propose(name, changes)
+        # The buttons are the answer: a question of the Integrator would ask a second thing.
+        parts = [p for p in parts if not p.lstrip("→ ").startswith("?")]
+        parts += [f"{settings.MARK} {line}" for line in settings.describe(changes)]
+    else:
+        parts.append(i18n.t("settings.same" if valid else "settings.cannot"))
+    return " | ".join(parts)
+
+
+def _offer_setting(name: str, result: str) -> None:
+    """A change of a setting asked from a capture with no confirmation, such as one from the computer: it is
+    asked in a new Telegram message, with the same buttons."""
+    text = telegram_api.capture_text("telegram-text", False, result)
+    try:
+        telegram_api.send(text, telegram_api.capture_buttons(name, "telegram-text", False, result))
+    except Exception:  # noqa: BLE001 - the other confirmations still go
+        log.exception("could not ask about the change of a setting")
 
 
 def _send_edit(fm: dict, text: str, buttons: list) -> bool:
@@ -410,8 +515,22 @@ def _edit(path: Path, fm: dict, result: str | None) -> bool:
         text = telegram_api.capture_text(channel, correction, "") + "\n\n" + i18n.t("result.gave_up", tries=MAX_ATTEMPTS)
         return _send_edit(fm, text, telegram_api.capture_buttons(path.stem, channel, correction))
     result = result or _fallback(fm)
-    return _send_edit(fm, telegram_api.capture_text(channel, correction, result),
+    sent = _send_edit(fm, telegram_api.capture_text(channel, correction, result),
                       telegram_api.capture_buttons(path.stem, channel, correction, result))
+    asks = any(p.startswith("?") for p in telegram_api.result_lines(result.strip().removeprefix("!")))
+    if sent and asks and _recent(fm):
+        _record_question(path.stem)
+    return sent
+
+
+def _recent(fm: dict) -> bool:
+    """A capture sent in the last FOLLOW_MINUTES. Its question may take the next message; an older capture's
+    question is far up in the chat, and only a Reply answers it."""
+    try:
+        received = datetime.strptime(str(fm.get("received", "")), "%Y-%m-%d %H:%M").replace(tzinfo=config.TIMEZONE)
+    except ValueError:
+        return False
+    return datetime.now(config.TIMEZONE) - received < timedelta(minutes=FOLLOW_MINUTES)
 
 
 def _edit_week_decision(original: Path, fm: dict, decision: str, results: dict[str, str]) -> bool:

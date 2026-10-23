@@ -30,7 +30,7 @@ from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest, Conflict, NetworkError, RetryAfter, TelegramError
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
-from . import __version__, agents, config, i18n, intro, llm, messenger, notes, now, retro, telegram_api, transcribe, updates, vault, week_image
+from . import __version__, agents, config, i18n, intro, llm, messenger, notes, now, retro, settings, telegram_api, transcribe, updates, vault, week_image
 
 log = logging.getLogger(__name__)
 CORRECTION = re.compile(r"(\d{4}-\d{2}-\d{2} \d{4}(?: \d+)?)")
@@ -48,7 +48,7 @@ CLASSIFY_SECONDS = 90  # the longest wait for the fast model to say if a message
 ALBUM_SECONDS = 2  # the photos of an album arrive one by one, this close together
 STATUS_SHOWN = 10
 KEPT = 500  # how many message ids the bot keeps in memory for the checks below
-COMMANDS = ("help", "now", "status", "integrate", "plan", "retro", "intro", "update")
+COMMANDS = ("help", "now", "status", "integrate", "plan", "retro", "settings", "intro", "update")
 LABELS = {"photo": "Photo", "file": "File", "voice": "Voice"}
 BUSY, FAILED = object(), object()  # what _in_thread returns when the job did not run, or failed
 
@@ -267,12 +267,19 @@ async def _reply_link(update: Update) -> Link:
     return Link({"in_reply_to": text[:REPLY_ROOM]} if text else {}, step=step)
 
 
-async def _soft_link(context: ContextTypes.DEFAULT_TYPE) -> Link:
-    """A message without Reply: the intro question that waits, or what Seahorse asked last (see last_asking).
-    When both exist, the newer one wins."""
+async def _soft_link(context: ContextTypes.DEFAULT_TYPE, take: bool = True) -> Link:
+    """A message without Reply: the intro question that waits, the question that the confirmation of a capture
+    asked in the last minutes, or what Seahorse asked last (see last_asking). The newest one wins. `take` marks the
+    question of a capture as taken, so only one message answers it."""
     now = datetime.now(config.TIMEZONE)
-    state, history = await asyncio.to_thread(lambda: (intro.current(), messenger.messages()))
+    state, history, followup = await asyncio.to_thread(lambda: (intro.current(), messenger.messages(),
+                                                                agents.open_question(now)))
     asked = last_asking(history, now, context.bot_data.get("thread"))
+    newest = max([state.get("asked_at", 0) if state else 0, asked.when.timestamp() if asked else 0])
+    if followup and followup[1].timestamp() >= newest:
+        if take:
+            await asyncio.to_thread(agents.link_question, followup[0])
+        return Link({"answers_engram": f"[[{followup[0]}]]"})
     if state and (not asked or state.get("asked_at", 0) >= asked.when.timestamp()):
         return Link({"in_reply_to": state["question"]}, step=state["step"])
     if not asked:
@@ -281,6 +288,14 @@ async def _soft_link(context: ContextTypes.DEFAULT_TYPE) -> Link:
     text = telegram_api.sent_text(tg)
     fields = {"in_reply_to": text[:REPLY_ROOM]} if text else {}
     return Link(fields | {"message_id": asked.id}, sent=asked.id, tg=tg)
+
+
+async def _take_question(link: Link, taken: bool = True) -> None:
+    """A message answers the question of a capture's confirmation: the next message is a new subject. With `taken`
+    False, the question is open again."""
+    names = notes.links(str(link.fields.get("answers_engram", "")))
+    if names:
+        await asyncio.to_thread(agents.link_question, names[0], taken)
 
 
 async def _drop_buttons(bot, message_id: int | None) -> None:
@@ -459,10 +474,13 @@ async def _capture(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str
     when = (message.edit_date or message.date).astimezone(config.TIMEZONE)
     link = Link(dict(extra)) if extra else await _reply_link(update)
     correction = "corrects" in link.fields
-    soft = Link({}) if link.fields else await _soft_link(context)
+    soft = Link({}) if link.fields else await _soft_link(context, take=False)
     forwarded = getattr(message, "forward_origin", None) is not None
     maybe = (ask or not correction) and not forwarded and looks_like_question(text)
     fields = link.fields | ({} if maybe else soft.fields) | {"telegram_id": str(message.message_id)}
+    # The question of a capture is taken at once, by a Reply or by this message, so the messages that come
+    # during the check below do not answer it too. A question to Seahorse gives it back.
+    await _take_question(link if link.fields else soft)
     engram = await asyncio.to_thread(vault.save_engram, text, channel, when, fields)
     _keep(_saved, message.message_id, engram.stem)
     # The Integrator waits for the rest of a burst and, for a possible question, for the check below.
@@ -470,6 +488,7 @@ async def _capture(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str
     about = link.fields.get("in_reply_to", "")
     if maybe and await _classify(update, text, about):
         await asyncio.to_thread(notes.set_field, engram, "asked", "question")
+        await _take_question(soft, taken=False)
         if channel == "telegram-voice":
             await _show_heard(message, text)
         await _answer(update, context, text, about)
@@ -546,8 +565,8 @@ async def _asks_for_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> b
         return False
     if datetime.now() - context.bot_data.get("session_at", datetime.min) < timedelta(minutes=config.CHAT_WINDOW_MINUTES):
         return False
-    link = await _soft_link(context)
-    return link.step is None and link.sent is None
+    link = await _soft_link(context, take=False)
+    return link.step is None and link.sent is None and "answers_engram" not in link.fields
 
 
 async def on_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -861,6 +880,26 @@ async def _decide_week(query, context: ContextTypes.DEFAULT_TYPE, name: str, put
                     _keyboard(telegram_api.capture_buttons(name, channel, False, text)))
 
 
+async def _setting_button(query, context: ContextTypes.DEFAULT_TYPE, name: str, change: bool) -> None:
+    """The answer to a change of a setting that the user asked for in the chat. "Change it" writes config.toml and
+    moves the timetable at once; the bot does not start again."""
+    text = (query.message.text or "").split(f"\n\n{i18n.t('settings.confirm')}")[0]
+    if not change:
+        await asyncio.to_thread(settings.drop, name)
+        await _edit(query, f"{text}\n\n{i18n.t('settings.kept')}")
+        return
+    _, error = await asyncio.to_thread(settings.apply, name)
+    if error:
+        await _edit(query, f"{text}\n\n{i18n.t('settings.failed', reason=error)}")
+        return
+    reschedule(context.application)
+    await _edit(query, f"{text}\n\n{i18n.t('settings.changed')}")
+
+
+async def on_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.effective_message.reply_text(settings.show())
+
+
 async def _update_now(query, key: str) -> None:
     """The button under the news of a new version. It checks first: the button may be old."""
     text = query.message.text or ""
@@ -922,6 +961,8 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _ask_fix(query, action)
     elif kind == "eng" and target in ("week", "backlog"):
         await _decide_week(query, context, action, target == "week")
+    elif kind == "eng" and target in ("set", "keep"):
+        await _setting_button(query, context, action, target == "set")
     elif kind == "upd":
         await _update_now(query, key)
     elif kind == "intro" and target in ("skip", "stop"):
@@ -1125,13 +1166,20 @@ def _at(hhmm: str) -> time:
     return time(hours, minutes, tzinfo=config.TIMEZONE)
 
 
+DAILY_JOBS = ("morning", "reviewer", "weekly", "update check", "retro")  # the jobs at a time of day
+
+
 def schedule(app: Application) -> None:
     """The agents' timetable. Times are in the user's time zone."""
     jobs = app.job_queue
-    s = config.SCHEDULE
     for name, interval, first in (("messenger", 600, 90), ("notes", 300, 45)):
         jobs.run_repeating(_job(name, agents.AGENTS[name]), interval, first=first, name=name)
     jobs.run_repeating(_retry, 900, first=120, name="retry")
+    _schedule_daily(jobs)
+
+
+def _schedule_daily(jobs) -> None:
+    s = config.SCHEDULE
     jobs.run_daily(_job("morning", agents.morning), _at(s["morning"]), name="morning")
     jobs.run_daily(_job("reviewer", agents.reviewer), _at(s["reviewer"]), name="reviewer")
     jobs.run_daily(_job("weekly", agents.weekly), _at(s["weekly_time"]), days=(WEEKDAYS[s["weekly_day"]],), name="weekly")
@@ -1140,14 +1188,56 @@ def schedule(app: Application) -> None:
     jobs.run_daily(_job("retro", retro.send_held), _at(retro.after_quiet()), name="retro")
 
 
+def reschedule(app: Application) -> None:
+    """The jobs at a time of day again, after a setting changed their time or the time zone. A job that ran today
+    already, such as the morning summary at 8 moved to 9 at 8:20, does not run a second time today."""
+    now = datetime.now(config.TIMEZONE)
+    ran = set()
+    for name in DAILY_JOBS:
+        for job in app.job_queue.get_jobs_by_name(name):
+            if _ran_today(job, now):
+                ran.add(name)
+            job.schedule_removal()
+    _schedule_daily(app.job_queue)
+    for name in ran:
+        for job in app.job_queue.get_jobs_by_name(name):
+            _not_today(job, now)
+
+
+def _today_start(now: datetime) -> datetime:
+    return now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def _ran_today(job, now: datetime) -> bool:
+    """The job had a time today, and that time has passed."""
+    trigger = getattr(getattr(job, "job", None), "trigger", None)
+    if trigger is None:
+        return False
+    fire = trigger.get_next_fire_time(None, _today_start(now))
+    return fire is not None and fire.date() == now.date() and fire <= now
+
+
+def _not_today(job, now: datetime) -> None:
+    """The job's next run moves past today."""
+    scheduled = getattr(job, "job", None)
+    if scheduled is None or not getattr(job, "next_t", None) or job.next_t.date() != now.date():
+        return
+    scheduled.modify(next_run_time=scheduled.trigger.get_next_fire_time(None, _today_start(now) + timedelta(days=1)))
+
+
+async def _set_commands(bot) -> None:
+    """The menu of commands that Telegram shows after "/", in the language of the user."""
+    try:
+        await bot.set_my_commands([BotCommand(name, i18n.t(f"chat.menu_{name}")) for name in COMMANDS])
+    except TelegramError as error:
+        log.warning("could not set the command menu: %s", error)
+
+
 async def _post_init(app: Application) -> None:
     """Room for slow work in threads, and the menu of commands that Telegram shows after "/"."""
     # The agents, the answers and the voice notes wait in threads for minutes: the default pool is too small.
     asyncio.get_running_loop().set_default_executor(ThreadPoolExecutor(max_workers=32, thread_name_prefix="seahorse"))
-    try:
-        await app.bot.set_my_commands([BotCommand(name, i18n.t(f"chat.menu_{name}")) for name in COMMANDS])
-    except TelegramError as error:
-        log.warning("could not set the command menu: %s", error)
+    await _set_commands(app.bot)
     await _now_restore(app.job_queue)
 
 
@@ -1162,7 +1252,7 @@ def run() -> None:
     app = Application.builder().token(config.TELEGRAM_TOKEN).concurrent_updates(True).post_init(_post_init).build()
     for name, callback in (("start", on_start), ("help", on_help), ("integrate", on_integrate),
                            ("status", on_status), ("plan", on_plan), ("update", on_update), ("intro", on_intro),
-                           ("retro", on_retro), ("now", on_now)):
+                           ("retro", on_retro), ("now", on_now), ("settings", on_settings)):
         app.add_handler(CommandHandler(name, callback, filters=new))
     app.add_handler(MessageHandler(new & filters.COMMAND, on_unknown))
     app.add_handler(MessageHandler(only_owner & filters.UpdateType.EDITED_MESSAGE, on_edit))

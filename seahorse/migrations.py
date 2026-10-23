@@ -500,3 +500,45 @@ def _to_1_3_1() -> None:
 
 
 MIGRATIONS.append(("1.3.1", _to_1_3_1))
+
+# 1.4.0: the Integrator asks one short question in the moment, and settings change in the chat. The rules of the vault
+# say so: a gap that matters is asked at once, a doubt goes to the user at once, and a change of a setting is a row
+# of the router.
+GAP_1_4_0 = ("A gap becomes `[TODO: question]`. Never fill it with something plausible.",
+             "A gap becomes `[TODO: question]`. Never fill it with something plausible. When the gap matters and "
+             "{{user}} can answer it in a few words, the Integrator asks it once, in its answer to the message.")
+UNCLEAR_1_4_0 = ("| No clear signal | none of the above | the engram gets `state: unclear` and the question goes to the "
+                 "morning summary | — |",
+                 "| No clear signal | none of the above | the engram gets `state: unclear`, and the question goes to "
+                 "{{user}} at once, in the answer to the message. With no answer, the morning summary asks it again | — |")
+SETTING_ROW = ("| A change to a setting of Seahorse | the quiet hours, the time of the morning summary, the day of the weekly "
+               "plan, how many messages a day, the time zone | no note: the Integrator proposes the change in its "
+               "answer, and {{user}} confirms it with a button | — |")
+CANCEL_CELL = "A task that {{user}} cancels"  # the new row comes after this one
+
+
+def rules_1_4_0_text(name: str, text: str, fill=lambda s: s) -> str:
+    """The changes of 1.4.0 in the text of one rules file. A change that is there already does nothing."""
+    if name == "_AGENTS.md":
+        return agents_1_3_0_text(text, [(*GAP_1_4_0, "", None)], fill)
+    if name == "_ROUTER.md":
+        text = agents_1_3_0_text(text, [(*UNCLEAR_1_4_0, "", None)], fill)
+        return _table_rows(text, fill(CANCEL_CELL), "## Signals and destinations", [fill(SETTING_ROW)])
+    return text
+
+
+def _to_1_4_0() -> None:
+    """The rules about questions in the moment and about settings, in _AGENTS.md and _ROUTER.md."""
+    from . import vault
+    today = date.today()
+    for name in ("_AGENTS.md", "_ROUTER.md"):
+        path = config.SYSTEM / name
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        new = rules_1_4_0_text(name, text, lambda s: vault.fill(s, today))
+        if new != text:
+            path.write_bytes(new.encode("utf-8"))
+
+
+MIGRATIONS.append(("1.4.0", _to_1_4_0))

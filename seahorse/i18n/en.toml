@@ -12,7 +12,9 @@ saved = "✓ Saved"
 voice = "✓ Voice note saved"
 correction = "✓ Correction saved"
 working = "{title}. Integrating…"
-doubt = "{title}\n\nI was not sure: {question}\nReply to this message."
+doubt = "{title}\n\nI was not sure: {question}\nJust answer here. Later, reply to this message."
+# A question after what was filed: one detail that makes the notes better.
+followup = "{title}\n\n❓ {question}"
 week_full = "It does not fit this week. Put it in anyway or keep it in the backlog?"
 putting_in_week = "putting it in the week…"
 kept_in_backlog = "stays in the backlog"
@@ -28,6 +30,8 @@ done = "✅ Done"
 later = "⏰ Later"
 ignore = "🙈 Ignore"
 open_obsidian = "📖 Open in Obsidian"
+change_setting = "✅ Change it"
+keep_setting = "❌ Keep it"
 useful = "👍 Thanks"
 not_useful = "👎 Not useful"
 
@@ -173,7 +177,7 @@ active = "Active"
 
 [chat]
 # The bot in a conversation: help, commands, photos and files, voice notes, edits and errors.
-help = "I am Seahorse, your second brain 🌊\n• Send me anything: a thought, a task, a movie to watch, a photo, a file, a place or a voice note. I put it in the right place in your notes.\n• Ask me a question. I answer from your notes, or from the web.\n• Send \"week\" or \"today\" to see your plan.\n• To change something you sent, edit your message, or tap ✏️ Fix under my reply.\n• I also write first: a summary each morning, a reminder before a deadline, and sometimes a question or an idea.\n\nCommands:\n/now – one task for the time you have\n/status – what waits, and what I was not sure about\n/integrate – put what waits into your notes now\n/plan – plan this week again\n/retro – this week in one image. /retro last week – the week before\n/intro – answer the first questions again\n/update – install the new version of Seahorse\n/help – this message"
+help = "I am Seahorse, your second brain 🌊\n• Send me anything: a thought, a task, a movie to watch, a photo, a file, a place or a voice note. I put it in the right place in your notes.\n• Ask me a question. I answer from your notes, or from the web.\n• Send \"week\" or \"today\" to see your plan.\n• To change something you sent, edit your message, or tap ✏️ Fix under my reply.\n• I also write first: a summary each morning, a reminder before a deadline, and sometimes a question or an idea.\n\nCommands:\n/now – one task for the time you have\n/status – what waits, and what I was not sure about\n/integrate – put what waits into your notes now\n/plan – plan this week again\n/retro – this week in one image. /retro last week – the week before\n/settings – your settings, and how to change them\n/intro – answer the first questions again\n/update – install the new version of Seahorse\n/help – this message"
 unknown_command = "I do not know this command. Send /help to see the commands."
 menu_help = "What Seahorse does, and the commands"
 menu_now = "One task for the time you have"
@@ -181,6 +185,7 @@ menu_status = "What waits, and what I was not sure about"
 menu_integrate = "Put what waits into your notes now"
 menu_plan = "Plan this week again"
 menu_retro = "This week in one image"
+menu_settings = "Your settings, and how to change them"
 menu_intro = "Answer the first questions again"
 menu_update = "Install the new version"
 status_unclear = "I was not sure about these. Reply to my question under each one, or send the missing detail:"
@@ -529,6 +534,25 @@ contact = "contacts"
 claude = "claude"
 obsidian = "obsidian"
 other = "other"
+
+[settings]
+# Settings that the user changes in the chat, such as "no messages before 9". Seahorse shows the change first, and
+# saves it only after the user taps the button.
+title = "⚙️ Your settings"
+quiet = "Quiet hours"
+morning = "Morning summary"
+weekly = "Weekly plan"
+daily_messages = "Messages a day that you did not ask for"
+timezone = "Time zone"
+no_quiet = "none"
+how = "To change one, just tell me, such as \"no messages before 9\" or \"plan my week on Saturday\"."
+confirm = "Change it?"
+changed = "✓ Changed."
+kept = "OK, nothing changed."
+failed = "I could not change it: {reason}"
+gone = "this change is old. Tell me again what to change."
+same = "That is your setting already, nothing changes"
+cannot = "I cannot change that in the chat. Run `seahorse setup` on your computer"
 
 [now]
 # "What do I do now?": one task for the free time of the user. The lists find the short messages about free time.

@@ -54,9 +54,12 @@ def keyboard(buttons: list[tuple[str, str]] | None) -> dict | None:
 def capture_buttons(engram: str, channel: str, correction: bool, result: str | None = None) -> list[tuple[str, str]]:
     """The buttons under a capture confirmation. Without a result the Integrator is still at work: there is
     nothing to fix yet, so only a voice note gets the button to read the transcript.
-    A result that starts with "!" is a task that does not fit this week: the bot asks what to do."""
+    A result that starts with "!" is a task that does not fit this week: the bot asks what to do.
+    A result with a change of a setting asks whether to change it."""
     if result and result.strip().startswith("!"):
         return [(i18n.t("button.put_in_week"), f"eng|week|{engram}"), (i18n.t("button.backlog"), f"eng|backlog|{engram}")]
+    if result and any(p.startswith(SETTING) for p in result_lines(result)):
+        return [(i18n.t("button.change_setting"), f"eng|set|{engram}"), (i18n.t("button.keep_setting"), f"eng|keep|{engram}")]
     if correction:
         return []
     buttons = [(i18n.t("button.read"), f"eng|read|{engram}")] if channel == "telegram-voice" else []
@@ -70,16 +73,21 @@ CAPTURE_TITLES = {"telegram-voice": "capture.voice", "telegram-photo": "saved.ph
                   "telegram-video": "saved.video", "telegram-location": "saved.location",
                   "telegram-contact": "saved.contact"}
 MAX_PARTS = 4
+SETTING = "⚙"  # a result part that starts with it is a change of a setting, waiting for the user (see settings.py)
 
 
 def result_lines(result: str) -> list[str]:
-    """The parts of an Integrator result, one destination each, separated by "|". At most four lines: more
-    parts join the last line, so the user sees everything that was filed."""
+    """The parts of an Integrator result, one destination each, separated by "|". At most four lines of what was
+    filed: more parts join the last line, so the user sees everything. A question and a change of a setting keep
+    lines of their own, at the end: they must stay visible, and code reads them."""
     parts = [p.strip().lstrip("→").strip() for p in result.strip().split("|")]
     parts = [p for p in parts if p]
-    if len(parts) > MAX_PARTS:
-        parts = parts[:MAX_PARTS - 1] + ["; ".join(parts[MAX_PARTS - 1:])]
-    return parts
+    special = [p for p in parts if p.startswith(("?", SETTING))]
+    filed = [p for p in parts if not p.startswith(("?", SETTING))]
+    room = max(1, MAX_PARTS - len(special))
+    if len(filed) > room:
+        filed = filed[:room - 1] + ["; ".join(filed[room - 1:])]
+    return filed + special
 
 
 def capture_text(channel: str, correction: bool, result: str | None) -> str:
@@ -92,10 +100,12 @@ def capture_text(channel: str, correction: bool, result: str | None) -> str:
     parts = result_lines(result.strip().removeprefix("!"))
     lines = "".join(f"\n→ {p}" for p in parts if not p.startswith("?"))
     doubts = [p[1:].strip() for p in parts if p.startswith("?")]
-    if doubts:
-        return i18n.t("capture.doubt", title=title + lines, question=" ".join(doubts))
+    if doubts:  # after what was filed it is one more detail; alone it is a doubt about the whole capture
+        return i18n.t("capture.followup" if lines else "capture.doubt", title=title + lines, question=" ".join(doubts))
     if result.strip().startswith("!"):
         return f"{title}{lines}\n\n{i18n.t('capture.week_full')}"
+    if any(p.startswith(SETTING) for p in parts):
+        return f"{title}{lines}\n\n{i18n.t('settings.confirm')}"
     return title + lines
 
 
