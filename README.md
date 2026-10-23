@@ -4,7 +4,7 @@
 
 <p align="center"><b>Seahorse learns who you are.</b><br>Tell it about your day. It keeps a living map of your mind: what you will do, what happened, what you know, and who you are. And it comes back to you, like a friend who remembers.</p>
 
-https://github.com/user-attachments/assets/75493de2-c7e5-4c2d-a048-6ee58c98bcbf
+https://github.com/user-attachments/assets/8606ebf0-6cb5-44c3-b604-2c0b25fadab6
 
 ## A second brain that is a brain
 
