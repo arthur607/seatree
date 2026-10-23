@@ -2,6 +2,10 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.4.1
+
+- After an update, the message on Telegram links to the notes of the new version on GitHub. It starts with the update after this one: the version that updates sends the message.
+
 ## 1.4.0
 
 New:

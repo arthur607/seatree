@@ -49,11 +49,16 @@ def latest() -> dict | None:
         return None
 
 
+def release_url(version: str) -> str:
+    """The page of a release on GitHub, with its notes."""
+    return f"https://github.com/{REPO}/releases/tag/v{version}"
+
+
 def release_notes(version: str, notes: str, language: str | None = None) -> str:
     """The notes of a release, for the update message. They are in English: other languages get a link."""
     if (language or config.LANGUAGE) == "en":
         return "\n".join(notes.strip().splitlines()[:12])
-    return i18n.t("updates.notes_link", language, url=f"https://github.com/{REPO}/releases/tag/v{version}")
+    return i18n.t("updates.notes_link", language, url=release_url(version))
 
 
 def notify_if_new() -> str:
@@ -231,7 +236,9 @@ def update(assume_yes: bool = False) -> tuple[bool, str]:
     service.restart()
     if was_running and not service.stays_up(HEALTH_SECONDS):
         return _give_up(version, i18n.t("updates.not_started"), restart=True)
-    telegram_api.send(i18n.t("updates.done", version=version))
+    # The link is a text of its own: the code that sends this is the old version, and an old version must still
+    # find every placeholder of `updates.done` in the new texts.
+    telegram_api.send(i18n.t("updates.done", version=version) + "\n" + i18n.t("updates.whats_new", url=release_url(version)))
     return True, f"Updated to {version}."
 
 

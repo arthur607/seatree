@@ -456,7 +456,8 @@ class TestUpdate(Base):
         text, installed, sent, _ = self._update()
         self.assertEqual(text, "Updated to 9.9.9.")
         self.assertEqual(installed, ["9.9.9"])
-        self.assertEqual(sent, i18n.t("updates.done", version="9.9.9"))
+        self.assertEqual(sent, i18n.t("updates.done", version="9.9.9") + "\nWhat is new: "
+                               "https://github.com/lorenzoa7/seahorse/releases/tag/v9.9.9")
 
     def test_a_version_that_does_not_stay_up_is_put_back(self):
         text, installed, sent, restart = self._update(stays_up=False)

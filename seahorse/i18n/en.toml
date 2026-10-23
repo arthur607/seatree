@@ -431,6 +431,7 @@ failed_back = "The update to version {version} did not work, so Seahorse stays a
 failed = "The update to version {version} did not work: {detail}\nOn your computer, run `seahorse doctor`, then `seahorse update`."
 not_started = "the new version stopped right after it started"
 notes_link = "What is new (in English): {url}"
+whats_new = "What is new: {url}"
 
 [intro]
 hello = "To start, I want to know you a little: {total} quick questions. Answer by text or voice, as it comes."
