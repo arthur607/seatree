@@ -25,7 +25,7 @@ Seahorse is that kind of second brain. It is an agent that learns who you are, c
 - **It shows you your week.** Every Sunday, one image: what you did, lived and learned, and one pattern it noticed.
 - **Your notes stay yours.** They are plain Markdown in your own private Git repository.
 
-<p align="center"><img src="assets/telegram.jpg" width="380" alt="Seahorse on Telegram: the morning summary, the week, and a suggestion it found for you"></p>
+<p align="center"><img src="assets/telegram.jpg" height="640" alt="Seahorse on Telegram: the morning summary, the week, a question about yesterday, and a new release that it found for you">&nbsp;&nbsp;<img src="assets/retro.png" height="640" alt="Your week in one image: what you did, lived and learned, and the pattern of the week"></p>
 
 ## The four areas
 
