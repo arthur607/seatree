@@ -220,7 +220,7 @@ def _integrate_batch() -> tuple[str | None, bool]:
         _remember(batch)
         messenger.record_reactions(batch)
         vault.publish(f"capture: {len(pending)} engram(s)")
-        listing = "\n".join(f"- {vault.rel(p)}" for p in batch)
+        listing = "\n".join(f"- {vault.rel(p)}{_listing_note(p)}" for p in batch)
         answer = llm.run(request("integrator", engrams=listing, delivery_time=_delivery_time(),
                                  settings=settings.for_prompt(), followups=followups_line()), "integrator",
                          write=True, max_turns=120)
@@ -295,6 +295,16 @@ def followups_line() -> str:
     return f"{sum(1 for a in asked if a.get('answered'))} of the last {len(asked)}"
 
 
+ANSWERED_NOTE = (" · a question that the bot already answered: file any fact in it, then set its `state`: `integrated`"
+                 " if you filed something, `discarded` if not")
+
+
+def _listing_note(path: Path) -> str:
+    """What the Integrator must know about an engram before it reads it. A question that the bot answered has
+    nothing to file most of the time, and a model may then leave it as it is: it must still get a state."""
+    return ANSWERED_NOTE if notes.read(path)[0].get("asked") == "question" else ""
+
+
 def _delivery_time() -> str:
     """When a delivery queued now reaches the user: the Messenger sends it in minutes, or after the quiet hours."""
     if messenger.quiet(datetime.now(config.TIMEZONE)):
@@ -333,6 +343,11 @@ def _count_attempts(batch: list[Path]) -> list[Path]:
         notes.set_field(path, "attempts", str(attempts))
         if attempts < MAX_ATTEMPTS:
             left.append(path)
+            continue
+        if fm.get("asked") == "question":
+            # The bot answered it already, and its text stays in the engram: no alert, and no morning question.
+            notes.set_field(path, "state", "discarded")
+            log.info("a question that the Integrator left as it was is set aside: %s", path.stem)
             continue
         notes.set_field(path, "state", "unclear")
         given_up.append(path)

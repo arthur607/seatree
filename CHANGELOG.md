@@ -2,6 +2,10 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.4.2
+
+- A question that you ask Seahorse no longer ends in "I could not file 1 capture(s) after 3 tries". Seahorse answers your question at once; then, with some AI models such as Codex, the question stayed waiting to be filed, and after three tries came that alert. Now the Integrator is told that the question was answered, and a question that stays waiting is set aside quietly. Its text stays in your notes.
+
 ## 1.4.1
 
 - After an update, the message on Telegram links to the notes of the new version on GitHub. It starts with the update after this one: the version that updates sends the message.

@@ -195,6 +195,16 @@ class TestIntegrator(AgentBase):
         log = (config.LOGS / f"Log {datetime.now(TZ):%Y-%m-%d}.md").read_text(encoding="utf-8")
         self.assertIn(f"[[{with_message}]], [[{without}]]", log)
         self.assertNotIn("\n\n", log)
+
+    def test_a_question_that_the_model_leaves_is_set_aside_quietly(self):
+        asked = self.capture("what do I have tomorrow?", 30, asked="question")
+        self.ai(lambda paths: answer("\n".join(f"{p.stem} => nothing to file" for p in paths)))  # no state change
+        for _ in range(3):
+            agents.integrator()
+        fm = notes.read(vault.engram(asked))[0]
+        self.assertEqual((fm["state"], fm["attempts"]), ("discarded", "3"))
+        self.assertEqual(self.sent, [])  # the bot answered it already: no alert, and no morning question
+        self.assertIn(f"{asked}.md{agents.ANSWERED_NOTE}", self.prompts[0][1])  # the model is told what to do
         self.ai(lambda paths: self.fail("no run after three failures"))
         self.assertIsNone(agents.retry_pending())
 
