@@ -2,6 +2,10 @@
 
 Each version is also a GitHub release. The bot sends these notes when a new version is out.
 
+## 1.3.4
+
+- Every message writes dates in the order of your language: 10/24 in English, 24/10 in Portuguese and Spanish. Before, the reply to a capture and the answer to a question could write 24/10 in English.
+
 ## 1.3.3
 
 - In the image of your week, each task, experience and note is an item of its own: a blue square starts it, and a thin line separates it from the next. A long name that needs two lines stays inside its item.

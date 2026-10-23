@@ -23,13 +23,14 @@ def moment() -> dict:
     yesterday = now - timedelta(days=1)
     return {"today": f"{now:%Y-%m-%d}", "weekday": DAYS[now.weekday()], "time": f"{now:%H:%M}",
             "timezone": str(config.TIMEZONE), "yesterday": f"{yesterday:%Y-%m-%d}",
-            "yesterday_weekday": DAYS[yesterday.weekday()]}
+            "yesterday_weekday": DAYS[yesterday.weekday()],
+            "date_example": week_image.day_month(now.date())}  # today, in the day and month order of the language
 
 
 def request(name: str, **values) -> str:
-    """The common block of rules, then the task of one agent."""
+    """The common block of rules, then the task of one agent. A value given here wins over the one of now."""
     now = moment()
-    return llm.prompt("common", **now) + "\n\n" + llm.prompt(name, **now, **values)
+    return llm.prompt("common", **now) + "\n\n" + llm.prompt(name, **(now | values))
 
 
 def _load(path: Path) -> dict:

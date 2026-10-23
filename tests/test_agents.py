@@ -11,7 +11,7 @@ import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
-from seahorse import agents, config, i18n, lint, llm, migrations, notes, telegram_api, vault
+from seahorse import agents, config, i18n, lint, llm, migrations, notes, telegram_api, vault, week_image
 
 TZ = config.TIMEZONE
 LISTED = re.compile(r"^- (5\. .+\.md)$", re.M)
@@ -228,6 +228,19 @@ class TestIntegrator(AgentBase):
         agents.integrator()
         self.assertIn("in a few minutes", self.prompts[0][1])
         self.assertEqual(re.findall(r"\$[a-z_]+", self.prompts[0][1]), [])  # every placeholder is filled
+
+    def test_every_agent_writes_dates_in_the_order_of_the_language(self):
+        today = datetime.now(config.TIMEZONE).date()
+        for language, shown in (("en", f"{today:%m/%d}"), ("pt-BR", f"{today:%d/%m}")):
+            config.LANGUAGE = language
+            text = agents.request("integrator", engrams="x", delivery_time="20:00")
+            self.assertIn(f"as today is written: {shown}.", text)
+            self.assertIn(f"as today is written: {shown}.", llm.prompt("question", text="x", context="", **agents.moment()))
+        config.LANGUAGE = "en"
+        monday = today - timedelta(days=today.weekday())
+        planner = agents.request("planner", current_week="a", next_week="b", week_start="c",
+                                 date_example=week_image.day_month(monday))
+        self.assertIn(week_image.day_month(monday), planner)  # a value of the agent wins over the one of now
 
 
 class TestAlerts(AgentBase):
