@@ -1005,8 +1005,6 @@ def _copy_here(remote: str) -> Path | None:
         return None
     if not (obsidian.keep_login(folder, login, token) if token else obsidian.safe_store(folder)):
         _say(_t("obsidian_no_store", url=GUIDE))
-    with _working("obsidian_plugin"):
-        obsidian.add_plugin(folder)
     return folder
 
 
@@ -1034,6 +1032,8 @@ def _obsidian(settings: dict, remote: str | None) -> Path | None:
     while obsidian.running():
         _say(_t("obsidian_close"))
         _wait()
+    with _working("obsidian_plugin"):
+        obsidian.add_plugin(folder)  # each device has its own copy of the plugin: its files are gitignored
     obsidian.register(folder)
     obsidian.open_vault(folder)
     print(_t("obsidian_ok", path=folder))
