@@ -28,6 +28,8 @@ The AI behind the agents. Each provider is an agentic CLI that can read and edit
 - [`claude.available`](./claude.py): ready only when the `claude` binary exists and `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is in the environment. It does not read `secrets.env` itself.
 - [`codex.run`](./codex.py): each run starts a new session. `tier`, `session`, and `max_turns` are accepted and unused. The prompt is argv. Sandbox is `workspace-write` when `write` is true, otherwise `read-only`. `approval_policy` is `never`. This file does not apply Claude's deny list.
 - [`codex.available`](./codex.py): not installed when `which` fails. Otherwise login is `codex login status`. API key env vars are not checked here.
+- [`opencode.run`](./opencode.py): the prompt is argv, not stdin. The agent is written to `config.HOME/opencode-xdg/config` on every run; that folder, not the vault, holds `agents/seahorse.md`. `XDG_CONFIG_HOME` and `XDG_DATA_HOME` both point inside `config.HOME/opencode-xdg`, so the stored login of the desktop user cannot answer for `XAI_API_KEY`. [`events_from`](./opencode.py) reads only `text` and `error` events from `--format json`.
+- [`opencode.available`](./opencode.py): ready only when the `opencode` binary exists and `XAI_API_KEY` is in the environment.
 - [`NEVER_EDIT`](./claude.py): `./.obsidian/**` is always an edit disallow.
 
 ## Side Effects

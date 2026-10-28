@@ -3,6 +3,10 @@
 `opencode run --help` on this machine takes the prompt as an argument. There is no stdin flag. On a shared
 server, `ps` can show that argument. The Debian user that runs Seahorse is the fence for that. Do not copy
 Codex's missing deny list: this file writes an agent whose last rules deny paths outside the vault.
+
+The run gets its own config and data folders. The data folder is the one that matters: OpenCode keeps the
+logins of the desktop user in `~/.local/share/opencode`, and with that folder in reach it answers with the
+stored login and never looks at `XAI_API_KEY`.
 """
 import json
 import os
@@ -26,9 +30,18 @@ def binary() -> str:
     return os.environ.get("OPENCODE_BIN") or shutil.which("opencode") or "opencode"
 
 
-def config_home() -> Path:
-    """OpenCode config for this process only. Not the interactive config in ~/.config/opencode, and not the vault."""
+def home() -> Path:
+    """State of this backend only. Not the interactive ~/.config/opencode, not its database, and not the vault."""
     return config.HOME / "opencode-xdg"
+
+
+def config_home() -> Path:
+    return home() / "config"
+
+
+def data_home() -> Path:
+    """Its own auth store. Without this, OpenCode reads the login of the desktop user and ignores XAI_API_KEY."""
+    return home() / "data"
 
 
 def _agent(write: bool, web: bool, steps: int) -> str:
@@ -134,6 +147,7 @@ def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: 
     cmd.append(text)
     env = safe_env(LOGIN)
     env["XDG_CONFIG_HOME"] = str(config_home())
+    env["XDG_DATA_HOME"] = str(data_home())  # the login of the desktop user must not answer for this key
     try:
         out = subprocess.run(cmd, cwd=workdir(), stdin=subprocess.DEVNULL, capture_output=True, text=True,
                              encoding="utf-8", errors="replace", timeout=timeout, env=env)
