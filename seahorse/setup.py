@@ -31,9 +31,9 @@ from . import __version__, config, i18n
 from .machine import Local, Server, asked_user, launch, ssh_detail, ssh_problem, wsl
 
 STEPS = 9
-INSTALL_SCRIPT = "https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.sh"
-GUIDE = "https://github.com/lorenzoa7/seahorse/blob/main/docs/phone.md"
-SERVER_GUIDE = "https://github.com/lorenzoa7/seahorse/blob/main/docs/server.md"
+INSTALL_SCRIPT = "https://raw.githubusercontent.com/arthur607/seatree/main/install.sh"
+GUIDE = "https://github.com/arthur607/seatree/blob/main/docs/phone.md"
+SERVER_GUIDE = "https://github.com/arthur607/seatree/blob/main/docs/server.md"
 TOKEN_PAGE = "https://github.com/settings/personal-access-tokens/new"
 TELEGRAM_WAIT = 600  # seconds to wait for the first message, after the nudge
 # `gh auth token` needs gh 2.17 and `gh auth logout --user` needs 2.40. The gh of Ubuntu 22.04 is 2.4.
@@ -625,6 +625,8 @@ def _ai(settings: dict) -> None:
     with _working("checking"):
         if current == "claude":
             logged_in = bool(SECRETS.get("CLAUDE_CODE_OAUTH_TOKEN") or SECRETS.get("ANTHROPIC_API_KEY"))
+        elif current == "opencode":
+            logged_in = bool(SECRETS.get("XAI_API_KEY")) and M.which("opencode")
         else:
             logged_in = M.sh("test -f ~/.codex/auth.json").returncode == 0 and M.which("codex")
     if logged_in and current == "claude":
@@ -639,10 +641,22 @@ def _ai(settings: dict) -> None:
 
 
 def _ai_login(settings: dict) -> None:
-    which = _choose("ai_ask", {"claude": "Claude", "codex": "ChatGPT (Codex)"}, settings["ai"]["provider"])
+    which = _choose("ai_ask", {"claude": "Claude", "codex": "ChatGPT (Codex)", "opencode": "xAI (OpenCode)"},
+                    settings["ai"]["provider"] if settings["ai"]["provider"] in {"claude", "codex", "opencode"} else "opencode")
+    secrets = {}
+    if which == "opencode":
+        if not M.which("opencode"):
+            _say(_t("opencode_missing"))
+            sys.exit(1)
+        _say(_t("opencode_key"))
+        _open("https://console.x.ai")
+        secrets["XAI_API_KEY"] = _secret("paste_key")
+        provider = "opencode"
+        settings["ai"]["provider"] = provider
+        _save(settings, secrets)
+        return
     how = _choose("ai_how", {"sub": _t("ai_subscription"), "api": _t("ai_api_key")}, "sub")
     choice = f"{which}-{how}"
-    secrets = {}
     guide = "_browser" if BROWSER else "_server"
     if choice.startswith("claude"):
         _claude()

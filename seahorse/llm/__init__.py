@@ -76,6 +76,11 @@ def _backend():
     if config.PROVIDER == "codex":
         from . import codex
         return codex
+    if config.PROVIDER == "opencode":
+        from . import opencode
+        return opencode
+    if config.PROVIDER != "claude":
+        raise ValueError(f"unknown AI provider {config.PROVIDER!r}: use claude, codex, or opencode")
     from . import claude
     return claude
 
@@ -97,4 +102,7 @@ def run(text: str, role: str, write: bool = False, session: str | None = None,
 
 def available() -> tuple[bool, str]:
     """Is the provider installed and logged in? Used by `seahorse doctor` and the setup."""
-    return _backend().available()
+    try:
+        return _backend().available()
+    except ValueError as error:
+        return False, str(error)

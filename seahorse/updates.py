@@ -17,7 +17,7 @@ import requests
 from . import __version__, config, i18n, service, telegram_api, vault
 
 log = logging.getLogger(__name__)
-REPO = "lorenzoa7/seahorse"
+REPO = "arthur607/seatree"
 VAULT_VERSION = "6. ⚙️ System/.seahorse-version"
 # The template files that the vault already got. An update adds only the template files that are new since then,
 # so a file that the person deleted does not come back.

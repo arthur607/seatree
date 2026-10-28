@@ -316,7 +316,9 @@ def _delivery_time() -> str:
 # counted as an attempt, so an outage never turns the captures that wait into unclear ones.
 OUTAGE = re.compile(r"usage limit|session limit|rate.?limit|limit (?:reached|exceeded)|quota|credit balance|overloaded"
                     r"|\b(?:401|403|429|5\d\d)\b|authenticat|unauthori[sz]ed|not logged in|log ?in |api key|"
-                    r"network|connection|could not resolve|econn|etimedout|eai_again|not installed", re.IGNORECASE)
+                    r"network|connection|could not resolve|econn|etimedout|eai_again|not installed|"
+                    r"model unavailable|no model configured|no XAI_API_KEY|opencode command is not installed",
+                    re.IGNORECASE)
 
 
 def outage(answer) -> bool:

@@ -457,7 +457,7 @@ class TestUpdate(Base):
         self.assertEqual(text, "Updated to 9.9.9.")
         self.assertEqual(installed, ["9.9.9"])
         self.assertEqual(sent, i18n.t("updates.done", version="9.9.9") + "\nWhat is new: "
-                               "https://github.com/lorenzoa7/seahorse/releases/tag/v9.9.9")
+                               "https://github.com/arthur607/seatree/releases/tag/v9.9.9")
 
     def test_a_version_that_does_not_stay_up_is_put_back(self):
         text, installed, sent, restart = self._update(stays_up=False)
@@ -480,7 +480,7 @@ class TestUpdate(Base):
         self.assertNotIn("- a", notes)
 
     def test_the_release_is_a_zip_so_no_git_is_needed(self):
-        self.assertEqual(updates.source("1.3.0"), "https://github.com/lorenzoa7/seahorse/archive/refs/tags/v1.3.0.zip")
+        self.assertEqual(updates.source("1.3.0"), "https://github.com/arthur607/seatree/archive/refs/tags/v1.3.0.zip")
 
 
 class TestServiceAndFiles(Folder):

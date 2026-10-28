@@ -1,11 +1,11 @@
 # Seahorse installer for Windows. Usage, in PowerShell:
-#   irm https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/arthur607/seatree/main/install.ps1 | iex
 # It installs uv (the Python tool manager) and Seahorse, then starts the setup. On Windows, Seahorse sets up a
 # server: the setup runs here, and Seahorse runs on the server.
 # All of it runs in a script block: its settings stay inside, and an error stops it without closing the window.
 & {
     $ErrorActionPreference = "Stop"
-    $repo = "lorenzoa7/seahorse"
+    $repo = "arthur607/seatree"
     $bin = Join-Path $env:USERPROFILE ".local\bin"
 
     if (-not (Get-Command uv -ErrorAction SilentlyContinue) -and -not (Test-Path (Join-Path $bin "uv.exe"))) {

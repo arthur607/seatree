@@ -14,6 +14,8 @@ A real brain does more. It keeps memories, connects them, and brings them back w
 
 Seahorse is that kind of second brain. It is an agent that learns who you are, connects what you tell it, plans your week, reminds you of what matters, and talks to you first.
 
+This fork is [arthur607/seatree](https://github.com/arthur607/seatree). Setup can choose xAI, which runs OpenCode with an API key (`provider = "opencode"`). A SuperGrok subscription does not pay those calls. `seahorse update` installs this fork, not the upstream repository. Until this repository has a GitHub release, install from a local checkout with `SEAHORSE_SOURCE_DIR`.
+
 ## What it does
 
 - **You talk to it.** Send a text or a voice note on Telegram, or write a note in Obsidian.
@@ -79,13 +81,13 @@ Run the install on your own computer, also when Seahorse will run on a server. T
 Windows (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/arthur607/seatree/main/install.ps1 | iex
 ```
 
 macOS and Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/arthur607/seatree/main/install.sh | bash
 ```
 
 <p align="center"><img src="assets/setup.png" width="720" alt="The setup asks one thing at a time"></p>

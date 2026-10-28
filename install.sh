@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Seahorse installer for macOS and Linux. Usage:
-#   curl -fsSL https://raw.githubusercontent.com/lorenzoa7/seahorse/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/arthur607/seatree/main/install.sh | bash
 # It installs uv (the Python tool manager) and Seahorse, then starts the setup. Seahorse comes from the zip of its
 # release, so the install needs no git.
 # The setup uses SEAHORSE_NO_SETUP=1 and SEAHORSE_VERSION=vX.Y.Z when it installs Seahorse on a server.
 set -euo pipefail
 
-REPO="lorenzoa7/seahorse"
+REPO="arthur607/seatree"
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
 
