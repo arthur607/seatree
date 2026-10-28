@@ -631,7 +631,8 @@ def _ai(settings: dict) -> None:
             logged_in = M.sh("test -f ~/.codex/auth.json").returncode == 0 and M.which("codex")
     if logged_in and current == "claude":
         _claude()  # a token that came from another machine needs Claude Code here too
-    if not (logged_in and _confirm("keep_ai", provider=current.capitalize())):
+    if not (logged_in and _confirm("keep_ai", provider={"claude": "Claude", "codex": "Codex",
+                                                        "opencode": "xAI (OpenCode)"}.get(current, current.capitalize()))):
         _ai_login(settings)
     while not _test_ai():
         if not _confirm("ai_retry"):
