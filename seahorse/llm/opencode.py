@@ -146,10 +146,12 @@ def run(text: str, tier: str, effort: str, model: str | None, write: bool, web: 
         cmd += ["--session", session]
     cmd.append(text)
     env = safe_env(LOGIN)
+    folder = str(workdir())
+    env["PWD"] = folder  # OpenCode resolves the project from PWD, not from the process cwd
     env["XDG_CONFIG_HOME"] = str(config_home())
     env["XDG_DATA_HOME"] = str(data_home())  # the login of the desktop user must not answer for this key
     try:
-        out = subprocess.run(cmd, cwd=workdir(), stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        out = subprocess.run(cmd, cwd=folder, stdin=subprocess.DEVNULL, capture_output=True, text=True,
                              encoding="utf-8", errors="replace", timeout=timeout, env=env)
     except subprocess.TimeoutExpired:
         return Answer(f"timed out after {timeout}s", None, True)

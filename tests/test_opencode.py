@@ -41,6 +41,8 @@ class TestRun(unittest.TestCase):
         env = run.call_args.kwargs["env"]
         self.assertEqual(env["XDG_DATA_HOME"], str(opencode.data_home()))
         self.assertTrue(opencode.data_home().is_relative_to(opencode.home()))
+        self.assertEqual(run.call_args.kwargs["cwd"], "/tmp")
+        self.assertEqual(env["PWD"], "/tmp")  # OpenCode takes the project from PWD, not from the process cwd
 
 
 if __name__ == "__main__":
